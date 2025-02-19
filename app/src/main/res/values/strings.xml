@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">EcoTrack</string>
+    <string name="title_activity_login">LoginActivity</string>
+    <string name="title_activity_register">RegisterActivity</string>
+    <string name="hint_email">Enter Email</string>
+    <string name="hint_password">Enter Password</string>
+    <string name="btn_login">Login</string>
+    <string name="btn_register">Register</string>
+    <string name="welcome_back">Welcome Back</string>
+</resources>
