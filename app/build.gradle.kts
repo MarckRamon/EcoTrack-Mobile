@@ -60,5 +60,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
     implementation(libs.material)
+    implementation(libs.circleimageview)
+    implementation("androidx.cardview:cardview:1.0.0")
 }

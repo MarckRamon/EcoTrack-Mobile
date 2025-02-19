@@ -19,6 +19,7 @@ class LoginActivity : AppCompatActivity() {
         val password = findViewById<EditText>(R.id.et_password)
         val btnLogin = findViewById<Button>(R.id.btn_login)
         val btnRegister = findViewById<Button>(R.id.btn_register)
+        val btnTest = findViewById<Button>(R.id.btn_test)
 
         btnLogin.setOnClickListener {
             if (email.text.toString().isNotEmpty() && password.text.toString().isNotEmpty()) {
@@ -33,6 +34,10 @@ class LoginActivity : AppCompatActivity() {
 
         btnRegister.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
+        }
+
+        btnTest.setOnClickListener {
+            startActivity(Intent(this, HomeActivity::class.java))
         }
     }
 }
