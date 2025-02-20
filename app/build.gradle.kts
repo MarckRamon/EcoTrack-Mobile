@@ -2,11 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
     namespace = "com.example.ecotrack"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.ecotrack"
@@ -37,6 +38,15 @@ android {
     buildFeatures {
         compose = true
     }
+
+    sourceSets {
+        getByName("main") {
+            assets.srcDirs(
+                "src/main/assets",
+                file("../firebase-admin")
+            )
+        }
+    }
 }
 
 dependencies {
@@ -53,6 +63,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -64,4 +76,18 @@ dependencies {
     implementation(libs.material)
     implementation(libs.circleimageview)
     implementation("androidx.cardview:cardview:1.0.0")
+
+    implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+
+    configurations.all {
+        resolutionStrategy {
+            force("com.google.firebase:protolite-well-known-types:18.0.0")
+            exclude(group = "com.google.api.grpc", module = "proto-google-common-protos")
+        }
+    }
+
+    implementation("at.favre.lib:bcrypt:0.10.2")
 }

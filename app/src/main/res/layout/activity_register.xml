@@ -30,34 +30,79 @@
                 android:textAppearance="?attr/textAppearanceHeadline5" />
 
             <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginTop="16dp"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusTopStart="12dp"
-                app:startIconDrawable="@drawable/ic_person">
+                app:startIconDrawable="@drawable/ic_person"
+                app:startIconTint="@color/purple_500">
 
                 <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_full_name"
+                    android:id="@+id/et_username"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:autofillHints="name"
-                    android:hint="@string/hint_full_name"
-                    android:inputType="textPersonName" />
-
+                    android:hint="Username"
+                    android:inputType="text"
+                    android:padding="16dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginTop="16dp"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusTopStart="12dp"
-                app:startIconDrawable="@drawable/ic_email">
+                app:startIconDrawable="@drawable/ic_person"
+                app:startIconTint="@color/purple_500">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_first_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="First Name"
+                    android:inputType="textPersonName"
+                    android:padding="16dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:boxCornerRadiusBottomEnd="12dp"
+                app:boxCornerRadiusBottomStart="12dp"
+                app:boxCornerRadiusTopEnd="12dp"
+                app:boxCornerRadiusTopStart="12dp"
+                app:startIconDrawable="@drawable/ic_person"
+                app:startIconTint="@color/purple_500">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_last_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Last Name"
+                    android:inputType="textPersonName"
+                    android:padding="16dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:boxCornerRadiusBottomEnd="12dp"
+                app:boxCornerRadiusBottomStart="12dp"
+                app:boxCornerRadiusTopEnd="12dp"
+                app:boxCornerRadiusTopStart="12dp"
+                app:startIconDrawable="@drawable/ic_email"
+                app:startIconTint="@color/purple_500">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_email"
@@ -65,20 +110,24 @@
                     android:layout_height="wrap_content"
                     android:autofillHints="emailAddress"
                     android:hint="@string/hint_email"
-                    android:inputType="textEmailAddress" />
-
+                    android:inputType="textEmailAddress"
+                    android:padding="16dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="24dp"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusTopStart="12dp"
                 app:endIconMode="password_toggle"
-                app:startIconDrawable="@drawable/ic_lock">
+                app:endIconTint="@color/purple_500"
+                app:startIconDrawable="@drawable/ic_lock"
+                app:startIconTint="@color/purple_500">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_password"
@@ -86,20 +135,24 @@
                     android:layout_height="wrap_content"
                     android:autofillHints="password"
                     android:hint="@string/hint_password"
-                    android:inputType="textPassword" />
-
+                    android:inputType="textPassword"
+                    android:padding="16dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:layout_marginBottom="24dp"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusTopStart="12dp"
                 app:endIconMode="password_toggle"
-                app:startIconDrawable="@drawable/ic_lock">
+                app:endIconTint="@color/purple_500"
+                app:startIconDrawable="@drawable/ic_lock"
+                app:startIconTint="@color/purple_500">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_confirm_password"
@@ -107,8 +160,8 @@
                     android:layout_height="wrap_content"
                     android:autofillHints="password"
                     android:hint="@string/hint_confirm_password"
-                    android:inputType="textPassword" />
-
+                    android:inputType="textPassword"
+                    android:padding="16dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.button.MaterialButton
@@ -117,6 +170,7 @@
                 android:layout_height="56dp"
                 android:layout_marginBottom="12dp"
                 android:text="@string/btn_register"
+                android:textAllCaps="false"
                 app:cornerRadius="12dp" />
 
             <com.google.android.material.button.MaterialButton
@@ -125,8 +179,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:text="@string/already_have_account"
+                android:textAllCaps="false"
                 android:textColor="?attr/colorPrimary"
-                app:cornerRadius="12dp" />
+                app:cornerRadius="12dp"
+                app:strokeColor="@color/purple_500" />
 
         </LinearLayout>
 
