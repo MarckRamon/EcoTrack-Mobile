@@ -7,8 +7,6 @@
     android:background="@color/white"
     android:padding="24dp">
 
-    <!-- App Logo -->
-
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_login"
         android:layout_width="match_parent"
@@ -24,84 +22,70 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="377dp"
+            android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="32dp">
 
+            <!-- Toggle Switch -->
+            <include
+                android:id="@+id/loginToggle"
+                layout="@layout/switch_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- App Logo -->
             <ImageView
                 android:id="@+id/iv_logo"
-                android:layout_width="299dp"
+                android:layout_width="match_parent"
                 android:layout_height="90dp"
-                android:layout_marginBottom="4dp"
+                android:layout_marginBottom="24dp"
                 android:contentDescription="@string/app_logo"
                 android:src="@drawable/ic_app_logo" />
 
+            <!-- Email Input -->
             <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:boxCornerRadiusBottomEnd="16dp"
-                app:boxCornerRadiusBottomStart="16dp"
-                app:boxCornerRadiusTopEnd="16dp"
-                app:boxCornerRadiusTopStart="16dp"
-                app:boxStrokeColor="@color/input_stroke_color"
-                app:boxStrokeWidth="2dp"
+                style="@style/LoginTextInputLayout"
+                app:boxStrokeColor="@color/green"
                 app:startIconDrawable="@drawable/ic_email"
-                app:startIconTint="@color/icon_color">
+                app:startIconTint="@color/green">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_email"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:autofillHints="emailAddress"
                     android:hint="@string/hint_email"
                     android:inputType="textEmailAddress"
-                    android:textColor="@color/text_primary"
-                    tools:ignore="TextContrastCheck,VisualLintTextFieldSize" />
+                    android:textColor="@color/text_primary" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Password Input -->
             <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                app:boxCornerRadiusBottomEnd="16dp"
-                app:boxCornerRadiusBottomStart="16dp"
-                app:boxCornerRadiusTopEnd="16dp"
-                app:boxCornerRadiusTopStart="16dp"
-                app:boxStrokeColor="@color/input_stroke_color"
-                app:boxStrokeWidth="2dp"
+                style="@style/LoginTextInputLayout"
+                app:boxStrokeColor="@color/green"
                 app:endIconMode="password_toggle"
-                app:endIconTint="@color/icon_color"
+                app:endIconTint="@color/green"
                 app:startIconDrawable="@drawable/ic_lock"
-                app:startIconTint="@color/icon_color">
+                app:startIconTint="@color/green">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_password"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:autofillHints="password"
                     android:hint="@string/hint_password"
                     android:inputType="textPassword"
-                    android:textColor="@color/text_primary"
-                    tools:ignore="TextContrastCheck,VisualLintTextFieldSize" />
+                    android:textColor="@color/text_primary" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Login Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_login"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:layout_marginBottom="16dp"
-                android:text="@string/btn_login"
-                android:textColor="#212121"
-                android:textSize="16sp"
-                app:backgroundTint="#02A452"
-                app:cornerRadius="16dp"
-                app:elevation="4dp"
-                tools:ignore="VisualLintButtonSize" />
+                style="@style/LoginButton"
+                android:text="Driver Login"
+                app:backgroundTint="@color/green" />
 
         </LinearLayout>
 

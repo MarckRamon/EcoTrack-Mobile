@@ -37,4 +37,6 @@
     <color name="background">#FFFFFF</color>
     <color name="surface">#FFFFFF</color>
     <color name="background_dim">#F8F9FA</color>
+
+    <color name="green">#02A452</color>
 </resources>
