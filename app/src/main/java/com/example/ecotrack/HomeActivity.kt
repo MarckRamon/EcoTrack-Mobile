@@ -19,11 +19,15 @@ import android.app.AlertDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.FirebaseFirestore
+import android.util.Log
 
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
+    private lateinit var firestore: FirebaseFirestore
+    private lateinit var greetingText: TextView
 
     public override fun onStart() {
         super.onStart()
@@ -48,6 +52,7 @@ class HomeActivity : AppCompatActivity() {
             setContentView(R.layout.activity_home)
 
             auth = FirebaseAuth.getInstance()
+            firestore = FirebaseFirestore.getInstance()
 
             supportActionBar?.hide()
 
@@ -59,7 +64,7 @@ class HomeActivity : AppCompatActivity() {
             // Initialize views
             val menuIcon = findViewById<ImageButton>(R.id.menu_icon)
             val profileIcon = findViewById<CircleImageView>(R.id.profile_icon)
-            val greetingText = findViewById<TextView>(R.id.greeting)
+            greetingText = findViewById<TextView>(R.id.greeting)
             val trackingNumberInput = findViewById<TextInputEditText>(R.id.tracking_number_input)
             val servicesRecyclerView = findViewById<RecyclerView>(R.id.services_recycler_view)
 
@@ -72,9 +77,6 @@ class HomeActivity : AppCompatActivity() {
             profileIcon.setOnClickListener {
                 // You can implement profile functionality here instead
             }
-
-            // Set up greeting text
-            greetingText.text = getString(R.string.welcome_message) + " ${getUserName()}"
 
             // Set up tracking input
             trackingNumberInput.setOnEditorActionListener { _, actionId, _ ->
@@ -94,13 +96,35 @@ class HomeActivity : AppCompatActivity() {
                 showLogoutConfirmationDialog()
             }
 
+            // Fetch and display username
+            fetchAndDisplayUsername()
+
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun getUserName(): String {
-        return auth.currentUser?.email?.substringBefore('@') ?: "User"
+    private fun fetchAndDisplayUsername() {
+        val userId = auth.currentUser?.uid
+        if (userId != null) {
+            firestore.collection("users")
+                .document(userId)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null && document.exists()) {
+                        val username = document.getString("username") ?: "User"
+                        greetingText.text = "Hello, $username"
+                    } else {
+                        greetingText.text = "Hello, User"
+                    }
+                }
+                .addOnFailureListener { e ->
+                    greetingText.text = "Hello, User"
+                    Log.e("HomeActivity", "Error fetching username", e)
+                }
+        } else {
+            greetingText.text = "Hello, User"
+        }
     }
 
     private fun handleTrackingSearch(trackingNumber: String) {
