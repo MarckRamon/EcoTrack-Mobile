@@ -5,17 +5,19 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 
-class LoginActivity : AppCompatActivity() {
+class DriverLoginActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_driver_login)
 
         // Initialize Firebase Auth
         auth = FirebaseAuth.getInstance()
@@ -26,8 +28,6 @@ class LoginActivity : AppCompatActivity() {
         val email = findViewById<EditText>(R.id.et_email)
         val password = findViewById<EditText>(R.id.et_password)
         val btnLogin = findViewById<Button>(R.id.btn_login)
-        val btnRegister = findViewById<Button>(R.id.btn_register)
-        val btnTest = findViewById<Button>(R.id.btn_test)
 
         btnLogin.setOnClickListener {
             val emailText = email.text.toString()
@@ -39,14 +39,6 @@ class LoginActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please enter email and password", Toast.LENGTH_SHORT).show()
             }
         }
-
-        btnRegister.setOnClickListener {
-            startActivity(Intent(this, RegisterActivity::class.java))
-        }
-
-        btnTest.setOnClickListener {
-            startActivity(Intent(this, DriverLoginActivity::class.java))
-        }
     }
 
     private fun signIn(email: String, password: String) {
@@ -54,7 +46,7 @@ class LoginActivity : AppCompatActivity() {
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
                     // Sign in success, show success message and update UI
-                    Toast.makeText(baseContext, "Login successful!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(baseContext, "Driver login successful!", Toast.LENGTH_SHORT).show()
                     val user = auth.currentUser
                     updateUI(user)
                 } else {
@@ -68,9 +60,9 @@ class LoginActivity : AppCompatActivity() {
 
     private fun updateUI(user: FirebaseUser?) {
         if (user != null) {
-            // Navigate to HomeActivity
+            // Navigate to DriverHomeActivity (you'll need to create this)
             startActivity(Intent(this, HomeActivity::class.java))
-            finish() // Close LoginActivity
+            finish() // Close DriverLoginActivity
         }
     }
 
