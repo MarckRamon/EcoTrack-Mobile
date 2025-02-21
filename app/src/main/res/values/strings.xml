@@ -19,4 +19,23 @@
     <string name="enter_tracking_number">Please enter your tracking number</string>
     <string name="my_service">My service</string>
     <string name="view_all">View all</string>
+
+
+    <string name="title_activity_driver">DriverActivity</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="no_account">Don\'t have an account?</string>
+
+    <!-- Content Descriptions -->
+    <string name="app_logo">App Logo</string>
+
+    <!-- Error Messages -->
+    <string name="error_invalid_email">Please enter a valid email address</string>
+    <string name="error_invalid_password">Password must be at least 8 characters</string>
+    <string name="error_login_failed">Invalid email or password</string>
+
+    <!-- Success Messages -->
+    <string name="success_login">Successfully signed in!</string>
+
+    <!-- Loading States -->
+    <string name="loading_login">Signing in…</string>
 </resources>
