@@ -89,7 +89,7 @@ class HomeActivity : AppCompatActivity() {
             }
 
             // Set up RecyclerView for services
-            setupServicesRecyclerView(servicesRecyclerView)
+            setupRecyclerView()
 
             // Setup logout button
             findViewById<FloatingActionButton>(R.id.btn_logout).setOnClickListener {
@@ -134,13 +134,14 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupServicesRecyclerView(recyclerView: RecyclerView) {
+    private fun setupRecyclerView() {
         val services = listOf(
-            ServiceItem("Courier", "70K+ Couriers", R.drawable.ic_garbage_truck),
-            ServiceItem("Express", "Next Day Delivery", R.drawable.ic_garbage_truck),
-            ServiceItem("Economy", "3-5 Days Delivery", R.drawable.ic_garbage_truck)
+            ServiceItem("Waste Collection", R.drawable.ic_waste_collection, "Schedule waste collection"),
+            ServiceItem("Recycling", R.drawable.ic_recycling, "Find recycling locations"),
+            ServiceItem("Green Points", R.drawable.ic_green_points, "View your green points")
         )
         
+        val recyclerView = findViewById<RecyclerView>(R.id.services_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyclerView.adapter = ServicesAdapter(services)
     }
@@ -181,6 +182,6 @@ class HomeActivity : AppCompatActivity() {
 // Data class for service items
 data class ServiceItem(
     val title: String,
-    val description: String,
-    val iconResId: Int
+    val iconResId: Int,
+    val description: String
 )

@@ -2,18 +2,16 @@ package com.example.ecotrack
 
 import android.app.Application
 import com.google.firebase.FirebaseApp
+import android.util.Log
 
 class EcoTrackApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        initializeFirebase()
-    }
-
-    private fun initializeFirebase() {
         try {
-            // Initialize Firebase with default configuration
             FirebaseApp.initializeApp(this)
+            Log.d("EcoTrackApplication", "Firebase initialized successfully")
         } catch (e: Exception) {
+            Log.e("EcoTrackApplication", "Failed to initialize Firebase: ${e.message}")
             e.printStackTrace()
         }
     }

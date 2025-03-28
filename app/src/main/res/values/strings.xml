@@ -1,10 +1,11 @@
 <resources>
     <string name="app_name">EcoTrack</string>
-    <string name="title_activity_login">LoginActivity</string>
-    <string name="title_activity_register">RegisterActivity</string>
+    <string name="title_activity_login">Login</string>
+    <string name="title_activity_register">Register</string>
+    <string name="title_activity_home">Home</string>
     <string name="hint_email">Enter Email</string>
     <string name="hint_password">Enter Password</string>
-    <string name="btn_login">Login</string>
+    <string name="btn_login">LOGIN</string>
     <string name="btn_register">Register</string>
     <string name="welcome_back">Welcome Back</string>
     <string name="create_account">Create Account</string>
@@ -12,18 +13,15 @@
     <string name="hint_confirm_password">Confirm Password</string>
     <string name="already_have_account">Already have an account? Sign in</string>
     <string name="title_activity_dashboard">DashboardActivity</string>
-    <string name="title_activity_home">HomeActivity</string>
+    <string name="title_activity_driver">DriverActivity</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="no_account">Don\'t have an account?</string>
     <string name="btn_test">:)</string>
     <string name="welcome_message">Hello,</string>
     <string name="track_your_shipment">Track your shipment</string>
     <string name="enter_tracking_number">Please enter your tracking number</string>
     <string name="my_service">My service</string>
     <string name="view_all">View all</string>
-
-
-    <string name="title_activity_driver">DriverActivity</string>
-    <string name="forgot_password">Forgot Password?</string>
-    <string name="no_account">Don\'t have an account?</string>
 
     <!-- Content Descriptions -->
     <string name="app_logo">App Logo</string>

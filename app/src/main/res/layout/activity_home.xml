@@ -179,4 +179,14 @@
         app:backgroundTint="@color/purple_500"
         app:tint="@color/white" />
 
+    <ImageView
+        android:id="@+id/logoContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginTop="48dp"
+        android:adjustViewBounds="true"
+        android:src="@drawable/grabtrash_logo"
+        app:layout_constraintTop_toBottomOf="@id/toggleContainer"
+        app:layout_constraintStart_toStartOf="parent" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

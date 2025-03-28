@@ -15,6 +15,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.example.ecotrack.models.User
 import com.example.ecotrack.utils.PasswordUtils
 import com.example.ecotrack.utils.DateUtils
+import android.widget.TextView
 
 class RegisterActivity : AppCompatActivity() {
 
@@ -38,7 +39,7 @@ class RegisterActivity : AppCompatActivity() {
         val password = findViewById<TextInputEditText>(R.id.et_password)
         val confirmPassword = findViewById<TextInputEditText>(R.id.et_confirm_password)
         val btnRegister = findViewById<MaterialButton>(R.id.btn_register)
-        val btnLogin = findViewById<MaterialButton>(R.id.btn_login)
+        val btnLogin = findViewById<TextView>(R.id.btn_login)
 
         btnRegister.setOnClickListener {
             when {
@@ -76,6 +77,7 @@ class RegisterActivity : AppCompatActivity() {
         }
 
         btnLogin.setOnClickListener {
+            startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }
     }
