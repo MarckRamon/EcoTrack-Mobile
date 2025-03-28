@@ -21,13 +21,18 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
 import android.util.Log
+import android.os.CountDownTimer
+import android.widget.LinearLayout
+import com.example.ecotrack.ServiceItem
 
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
     private lateinit var firestore: FirebaseFirestore
-    private lateinit var greetingText: TextView
+    private lateinit var welcomeText: TextView
+    private lateinit var timeRemainingText: TextView
+    private var countDownTimer: CountDownTimer? = null
 
     public override fun onStart() {
         super.onStart()
@@ -47,141 +52,92 @@ class HomeActivity : AppCompatActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        try {
-            super.onCreate(savedInstanceState)
-            setContentView(R.layout.activity_home)
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_home)
 
-            auth = FirebaseAuth.getInstance()
-            firestore = FirebaseFirestore.getInstance()
+        auth = FirebaseAuth.getInstance()
+        firestore = FirebaseFirestore.getInstance()
 
-            supportActionBar?.hide()
+        supportActionBar?.hide()
 
-            // Set up toolbar
-            val toolbar = findViewById<Toolbar>(R.id.toolbar)
-            setSupportActionBar(toolbar)
-            supportActionBar?.setDisplayShowTitleEnabled(false)
+        initializeViews()
+        setupClickListeners()
+        startCountdownTimer()
+        loadUserData()
+    }
 
-            // Initialize views
-            val menuIcon = findViewById<ImageButton>(R.id.menu_icon)
-            val profileIcon = findViewById<CircleImageView>(R.id.profile_icon)
-            greetingText = findViewById<TextView>(R.id.greeting)
-            val trackingNumberInput = findViewById<TextInputEditText>(R.id.tracking_number_input)
-            val servicesRecyclerView = findViewById<RecyclerView>(R.id.services_recycler_view)
+    private fun initializeViews() {
+        welcomeText = findViewById(R.id.welcomeText)
+        timeRemainingText = findViewById(R.id.timeRemaining)
+    }
 
-            // Set up click listeners
-            menuIcon.setOnClickListener {
-                // Handle menu click
-                // TODO: Implement navigation drawer or menu functionality
-            }
+    private fun setupClickListeners() {
+        // Notification button click
+        findViewById<ImageButton>(R.id.notificationButton).setOnClickListener {
+            // TODO: Handle notifications
+        }
 
-            profileIcon.setOnClickListener {
-                // You can implement profile functionality here instead
-            }
+        // Profile image click
+        findViewById<CircleImageView>(R.id.profileImage).setOnClickListener {
+            startActivity(Intent(this, ProfileActivity::class.java))
+        }
 
-            // Set up tracking input
-            trackingNumberInput.setOnEditorActionListener { _, actionId, _ ->
-                if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                    handleTrackingSearch(trackingNumberInput.text.toString())
-                    true
-                } else {
-                    false
-                }
-            }
+        // View all click
+        findViewById<TextView>(R.id.viewAll).setOnClickListener {
+            // TODO: Show all reminders
+        }
 
-            // Set up RecyclerView for services
-            setupRecyclerView()
+        // Bottom navigation clicks
+        findViewById<LinearLayout>(R.id.scheduleNav).setOnClickListener {
+            // TODO: Navigate to schedule
+        }
 
-            // Setup logout button
-            findViewById<FloatingActionButton>(R.id.btn_logout).setOnClickListener {
-                showLogoutConfirmationDialog()
-            }
+        findViewById<LinearLayout>(R.id.pointsNav).setOnClickListener {
+            // TODO: Navigate to points
+        }
 
-            // Fetch and display username
-            fetchAndDisplayUsername()
-
-        } catch (e: Exception) {
-            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        findViewById<LinearLayout>(R.id.pickupNav).setOnClickListener {
+            // TODO: Navigate to pickup
         }
     }
 
-    private fun fetchAndDisplayUsername() {
-        val userId = auth.currentUser?.uid
-        if (userId != null) {
-            firestore.collection("users")
-                .document(userId)
-                .get()
+    private fun startCountdownTimer() {
+        // Example: 23 hours countdown
+        val totalTimeInMillis = 23 * 60 * 60 * 1000L
+
+        countDownTimer = object : CountDownTimer(totalTimeInMillis, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val hours = millisUntilFinished / (60 * 60 * 1000)
+                val minutes = (millisUntilFinished % (60 * 60 * 1000)) / (60 * 1000)
+                val seconds = (millisUntilFinished % (60 * 1000)) / 1000
+
+                timeRemainingText.text = "${hours}h ${minutes}m ${seconds}s remaining"
+            }
+
+            override fun onFinish() {
+                timeRemainingText.text = "Time's up!"
+            }
+        }.start()
+    }
+
+    private fun loadUserData() {
+        val currentUser = auth.currentUser
+        currentUser?.let { user ->
+            firestore.collection("users").document(user.uid).get()
                 .addOnSuccessListener { document ->
                     if (document != null && document.exists()) {
-                        val username = document.getString("username") ?: "User"
-                        greetingText.text = "Hello, $username"
-                    } else {
-                        greetingText.text = "Hello, User"
+                        val firstName = document.getString("firstName") ?: "User"
+                        welcomeText.text = "Welcome, $firstName!"
                     }
                 }
                 .addOnFailureListener { e ->
-                    greetingText.text = "Hello, User"
-                    Log.e("HomeActivity", "Error fetching username", e)
+                    Log.w("HomeActivity", "Error loading user data", e)
                 }
-        } else {
-            greetingText.text = "Hello, User"
         }
     }
 
-    private fun handleTrackingSearch(trackingNumber: String) {
-        if (trackingNumber.isNotEmpty()) {
-            // TODO: Implement tracking search functionality
-            Toast.makeText(this, "Searching for tracking number: $trackingNumber", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun setupRecyclerView() {
-        val services = listOf(
-            ServiceItem("Waste Collection", R.drawable.ic_waste_collection, "Schedule waste collection"),
-            ServiceItem("Recycling", R.drawable.ic_recycling, "Find recycling locations"),
-            ServiceItem("Green Points", R.drawable.ic_green_points, "View your green points")
-        )
-        
-        val recyclerView = findViewById<RecyclerView>(R.id.services_recycler_view)
-        recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        recyclerView.adapter = ServicesAdapter(services)
-    }
-
-    private fun showLogoutConfirmationDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Logout")
-            .setMessage("Are you sure you want to logout?")
-            .setPositiveButton("Yes") { dialog, _ ->
-                signOut()
-                dialog.dismiss()
-            }
-            .setNegativeButton("No") { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    private fun signOut() {
-        try {
-            // Sign out from Firebase
-            Firebase.auth.signOut()
-            
-            // Show success message
-            Toast.makeText(this, "Successfully logged out", Toast.LENGTH_SHORT).show()
-            
-            // Navigate back to LoginActivity and clear the back stack
-            val intent = Intent(this, LoginActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            startActivity(intent)
-            finish()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Logout failed: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+    override fun onDestroy() {
+        super.onDestroy()
+        countDownTimer?.cancel()
     }
 }
-
-// Data class for service items
-data class ServiceItem(
-    val title: String,
-    val iconResId: Int,
-    val description: String
-)

@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.ecotrack.ServiceItem
 
 class ServicesAdapter(private val services: List<ServiceItem>) :
     RecyclerView.Adapter<ServicesAdapter.ServiceViewHolder>() {
