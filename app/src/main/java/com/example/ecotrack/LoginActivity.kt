@@ -224,7 +224,7 @@ class LoginActivity : BaseActivity() {
                     // Continue anyway - we'll use our custom backend
                 }
                 
-                Log.d(TAG, "Attempting to login with email: $email")
+                Log.d(TAG, "Attempting to login with email: $email as ${if (isCustomerSelected) "Customer" else "Driver"}")
                 val loginRequest = LoginRequest(email.trim(), password)
                 
                 try {
@@ -233,17 +233,61 @@ class LoginActivity : BaseActivity() {
                         if (response.isSuccessful) {
                             val loginResponse = response.body()
                             loginResponse?.let {
-                                Log.d(TAG, "Login successful. Token: ${it.token}, UserId: ${it.userId}")
+                                Log.d(TAG, "Login successful. Token: ${it.token}, UserId: ${it.userId}, Role: ${it.role}")
+                                
+                                // Save token first so we can extract the role from it
                                 sessionManager.saveToken(it.token)
+                                
+                                // Extract role from JWT token (more reliable than API response field)
+                                val extractedRole = sessionManager.extractRoleFromToken(it.token)
+                                
+                                // Validate the role matches the selected login type
+                                if (extractedRole != null) {
+                                    // Check if this is an admin account
+                                    if (extractedRole == "admin") {
+                                        // Admin accounts need their own login interface
+                                        Toast.makeText(
+                                            this@LoginActivity,
+                                            "This is an admin account. Please use admin login.",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                        showLoading(false)
+                                        // Logout to prevent accessing with wrong account type
+                                        sessionManager.logout()
+                                        return@let
+                                    }
+                                    
+                                    val correctRoleSelected = (isCustomerSelected && extractedRole == "customer") || 
+                                                          (!isCustomerSelected && extractedRole == "driver")
+                                    
+                                    if (!correctRoleSelected) {
+                                        // User is using the wrong login interface
+                                        val message = if (isCustomerSelected) {
+                                            "This is a driver account. Please use the driver login."
+                                        } else {
+                                            "This is a customer account. Please use the customer login."
+                                        }
+                                        Toast.makeText(this@LoginActivity, message, Toast.LENGTH_LONG).show()
+                                        showLoading(false)
+                                        return@let
+                                    }
+                                    
+                                    // Save the correct role from the token
+                                    sessionManager.saveUserType(extractedRole)
+                                } else {
+                                    // Fallback to UI selection if we couldn't extract the role
+                                    sessionManager.saveUserType(if (isCustomerSelected) "customer" else "driver")
+                                }
+                                
+                                // Store credentials
                                 if (it.userId != null) {
                                     sessionManager.saveUserId(it.userId)
                                 }
-                                // Save user type
-                                sessionManager.saveUserType(if (isCustomerSelected) "customer" else "driver")
                                 
                                 Toast.makeText(this@LoginActivity, "Login successful", Toast.LENGTH_SHORT).show()
-                                startActivity(Intent(this@LoginActivity, HomeActivity::class.java))
-                                finish()
+                                
+                                // Redirect to the appropriate home page
+                                redirectToProperHomePage()
                             }
                         } else {
                             val statusCode = response.code()
@@ -278,6 +322,24 @@ class LoginActivity : BaseActivity() {
                 }
             }
         }
+    }
+    
+    /**
+     * Redirects the user to the appropriate home page based on user type
+     */
+    private fun redirectToProperHomePage() {
+        val userType = sessionManager.getUserType()
+        
+        val intent = if (userType == "driver") {
+            // Navigate to driver home page
+            Intent(this, DriverHomeActivity::class.java)
+        } else {
+            // Navigate to customer home page
+            Intent(this, HomeActivity::class.java)
+        }
+        
+        startActivity(intent)
+        finish()
     }
     
     private fun showLoading(isLoading: Boolean) {

@@ -22,9 +22,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.ecotrack.databinding.ActivityHomeBinding
 
 class HomeActivity : BaseActivity() {
 
+    private lateinit var binding: ActivityHomeBinding
     private val apiService = ApiService.create()
     private lateinit var welcomeText: TextView
     private lateinit var timeRemainingText: TextView
@@ -33,51 +35,153 @@ class HomeActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_home)
+        binding = ActivityHomeBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Check if user has customer role before proceeding
+        validateCustomerAccount()
+        
+        // Set click listeners for navigation
+        setupNavigation()
 
         // Parent class BaseActivity already handles session checks
         supportActionBar?.hide()
 
         initializeViews()
-        setupClickListeners()
         startCountdownTimer()
         loadUserData()
     }
 
     private fun initializeViews() {
-        welcomeText = findViewById(R.id.welcomeText)
-        timeRemainingText = findViewById(R.id.timeRemaining)
+        welcomeText = binding.welcomeText
+        timeRemainingText = binding.timeRemaining
     }
 
-    private fun setupClickListeners() {
-        // Notification button click
-        findViewById<ImageButton>(R.id.notificationButton).setOnClickListener {
-            // BaseActivity already calls updateLastActivity() in onUserInteraction
-            // TODO: Handle notifications
-        }
-
-        // Profile image click
-        findViewById<CircleImageView>(R.id.profileImage).setOnClickListener {
+    private fun setupNavigation() {
+        // Setup navigation, profile button, etc.
+        binding.profileImage?.setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
+    }
 
-        // View all click
-        findViewById<TextView>(R.id.viewAll).setOnClickListener {
-            // TODO: Show all reminders
+    private fun validateCustomerAccount() {
+        // First check the stored user type
+        val userType = sessionManager.getUserType()
+        
+        if (userType != "customer") {
+            Log.w(TAG, "Non-customer account detected in HomeActivity: $userType")
+            
+            val message = when (userType) {
+                "driver" -> "Driver accounts should use the driver interface. Redirecting..."
+                "admin" -> "Admin accounts should use the admin interface. Redirecting..."
+                else -> "Invalid account type. Please login again."
+            }
+            
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            
+            // Redirect based on account type
+            when (userType) {
+                "driver" -> redirectToDriverHome()
+                "admin" -> {
+                    // For now just logout, later redirect to admin interface
+                    sessionManager.logout()
+                    startActivity(Intent(this, LoginActivity::class.java))
+                    finish()
+                }
+                else -> {
+                    // Unknown role, logout and redirect to login
+                    sessionManager.logout()
+                    startActivity(Intent(this, LoginActivity::class.java))
+                    finish()
+                }
+            }
+            return
         }
+        
+        // Load the user profile
+        loadUserProfile()
+    }
 
-        // Bottom navigation clicks
-        findViewById<LinearLayout>(R.id.scheduleNav).setOnClickListener {
-            // TODO: Navigate to schedule
+    private fun loadUserProfile() {
+        val userId = sessionManager.getUserId()
+        val token = sessionManager.getToken()
+        
+        if (userId == null || token == null) {
+            Log.e(TAG, "Missing user credentials, redirecting to login")
+            // BaseActivity will handle redirection
+            return
         }
+        
+        // Extract role directly from token for a more reliable check
+        val roleFromToken = sessionManager.extractRoleFromToken(token)
+        if (roleFromToken != null && roleFromToken != "customer") {
+            Log.w(TAG, "Non-customer role detected in token: $roleFromToken")
+            
+            val message = when (roleFromToken) {
+                "driver" -> "Driver accounts should use the driver interface."
+                "admin" -> "Admin accounts should use the admin interface."
+                else -> "Invalid account type. Please login again."
+            }
+            
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            
+            when (roleFromToken) {
+                "driver" -> {
+                    // Save the role and redirect
+                    sessionManager.saveUserType("driver")
+                    redirectToDriverHome()
+                }
+                "admin" -> {
+                    // For now just logout, later redirect to admin interface
+                    sessionManager.logout()
+                    startActivity(Intent(this, LoginActivity::class.java))
+                    finish()
+                }
+                else -> {
+                    sessionManager.logout()
+                    startActivity(Intent(this, LoginActivity::class.java))
+                    finish()
+                }
+            }
+            return
+        }
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = apiService.getProfile(userId, "Bearer $token")
+                
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
+                        val profile = response.body()
+                        profile?.let {
+                            // Update UI with profile data
+                            binding.welcomeText?.text = "Welcome, ${it.firstName}"
+                        }
+                    } else {
+                        Log.e(TAG, "Failed to load profile: ${response.code()}")
+                        Toast.makeText(
+                            this@HomeActivity,
+                            "Failed to load profile",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading profile", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@HomeActivity,
+                        "Error loading profile: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
 
-        findViewById<LinearLayout>(R.id.pointsNav).setOnClickListener {
-            // TODO: Navigate to points
-        }
-
-        findViewById<LinearLayout>(R.id.pickupNav).setOnClickListener {
-            // TODO: Navigate to pickup
-        }
+    private fun redirectToDriverHome() {
+        startActivity(Intent(this, DriverHomeActivity::class.java))
+        finish()
     }
 
     private fun startCountdownTimer() {

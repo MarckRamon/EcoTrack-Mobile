@@ -1,12 +1,7 @@
 package com.example.ecotrack.utils
 
 import android.util.Log
-import com.example.ecotrack.models.LoginRequest
-import com.example.ecotrack.models.LoginResponse
-import com.example.ecotrack.models.RegisterRequest
-import com.example.ecotrack.models.RegisterResponse
-import com.example.ecotrack.models.ProfileUpdateRequest
-import com.example.ecotrack.models.ProfileResponse
+import com.example.ecotrack.models.*
 import com.example.ecotrack.utils.NetworkUtils.Companion.ChunkedTransferFixInterceptor
 import com.google.gson.GsonBuilder
 import okhttp3.ConnectionSpec
@@ -20,30 +15,30 @@ import java.util.concurrent.TimeUnit
 
 interface ApiService {
     @POST("api/users/login")
-    suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+    suspend fun login(@Body loginRequest: LoginRequest): Response<LoginResponse>
 
     @POST("api/users/register")
-    suspend fun register(@Body request: RegisterRequest): Response<RegisterResponse>
+    suspend fun register(@Body registrationRequest: RegistrationRequest): Response<Map<String, Any>>
 
     @GET("api/users/profile/{userId}")
     suspend fun getProfile(
         @Path("userId") userId: String,
-        @Header("Authorization") token: String
-    ): Response<ProfileResponse>
+        @Header("Authorization") authToken: String
+    ): Response<UserProfile>
 
     @PUT("api/users/profile/{userId}")
     suspend fun updateProfile(
         @Path("userId") userId: String,
-        @Header("Authorization") token: String,
-        @Body request: ProfileUpdateRequest
-    ): Response<ProfileResponse>
+        @Header("Authorization") authToken: String,
+        @Body profileUpdateRequest: ProfileUpdateRequest
+    ): Response<Map<String, String>>
 
-    @PUT("api/users/profile/{userId}/email")
-    suspend fun updateEmail(
+    @PUT("api/users/profile/{userId}/password")
+    suspend fun updatePassword(
         @Path("userId") userId: String,
-        @Header("Authorization") token: String,
-        @Body request: ProfileUpdateRequest
-    ): Response<ProfileResponse>
+        @Header("Authorization") authToken: String,
+        @Body passwordUpdateRequest: PasswordUpdateRequest
+    ): Response<Map<String, String>>
 
     companion object {
         private const val TAG = "ApiService"

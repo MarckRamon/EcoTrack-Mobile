@@ -38,7 +38,7 @@ class SessionManager private constructor(context: Context) {
         private const val USER_TYPE_KEY = "user_type"
         private const val TOKEN_EXPIRY = "token_expiry"
         private const val KEY_LAST_ACTIVITY = "last_activity"
-        private const val SESSION_TIMEOUT = 5L // 5 seconds for testing
+        private const val SESSION_TIMEOUT = 30L // 5 seconds for testing
         
         // Keep a single instance to avoid multiple timers
         @Volatile
@@ -331,5 +331,37 @@ class SessionManager private constructor(context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Error showing session expired dialog", e)
         }
+    }
+
+    /**
+     * Extracts the role field from the JWT token
+     * @param token The JWT token to extract the role from
+     * @return The role string or null if not found
+     */
+    fun extractRoleFromToken(token: String): String? {
+        try {
+            val parts = token.split(".")
+            if (parts.size == 3) {
+                val payload = parts[1]
+                val decodedBytes = Base64.decode(payload, Base64.URL_SAFE)
+                val decodedString = String(decodedBytes)
+                Log.d(TAG, "Decoded JWT payload: $decodedString")
+                
+                val jsonObject = JSONObject(decodedString)
+                return if (jsonObject.has("role")) {
+                    val role = jsonObject.getString("role")
+                    Log.d(TAG, "Extracted role from token: $role")
+                    role
+                } else {
+                    Log.w(TAG, "No role field found in token payload")
+                    null
+                }
+            } else {
+                Log.w(TAG, "Invalid JWT format, expected 3 parts but got ${parts.size}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting role from token", e)
+        }
+        return null
     }
 } 

@@ -26,10 +26,10 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".DriverLoginActivity"
+            android:name=".DriverHomeActivity"
             android:exported="false"
             android:theme="@style/Theme.EcoTrack"
-            android:windowSoftInputMode="adjustResize"/>
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".HomeActivity"
             android:exported="false"

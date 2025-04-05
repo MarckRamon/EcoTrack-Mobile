@@ -7,7 +7,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.ecotrack.databinding.ActivityRegisterBinding
-import com.example.ecotrack.models.RegisterRequest
+import com.example.ecotrack.models.RegistrationRequest
 import com.example.ecotrack.utils.ApiService
 import com.example.ecotrack.utils.SessionManager
 import com.google.firebase.auth.FirebaseAuth
@@ -31,23 +31,15 @@ class RegisterActivity : AppCompatActivity() {
         sessionManager.setCurrentActivity(this)
 
         binding.btnRegister.setOnClickListener {
-            val email = binding.etEmail.text.toString()
+            val firstName = binding.etFirstName.text.toString().trim()
+            val lastName = binding.etLastName.text.toString().trim()
+            val email = binding.etEmail.text.toString().trim()
             val password = binding.etPassword.text.toString()
             val confirmPassword = binding.etConfirmPassword.text.toString()
-            val username = binding.etUsername.text.toString()
-            val firstName = binding.etFirstName.text.toString()
-            val lastName = binding.etLastName.text.toString()
 
-            if (email.isNotEmpty() && password.isNotEmpty() && confirmPassword.isNotEmpty() &&
-                username.isNotEmpty() && firstName.isNotEmpty() && lastName.isNotEmpty()) {
-                if (password == confirmPassword) {
-                    showLoading(true)
-                    registerUser(email, password, username, firstName, lastName)
-                } else {
-                    Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+            if (validateInputs(firstName, lastName, email, password, confirmPassword)) {
+                showLoading(true)
+                registerUser(firstName, lastName, email, password)
             }
         }
 
@@ -67,13 +59,37 @@ class RegisterActivity : AppCompatActivity() {
         sessionManager.setCurrentActivity(null)
     }
 
-    private fun registerUser(
+    private fun validateInputs(
+        firstName: String,
+        lastName: String,
         email: String,
         password: String,
-        username: String,
-        firstName: String,
-        lastName: String
-    ) {
+        confirmPassword: String
+    ): Boolean {
+        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        if (password.length < 6) {
+            Toast.makeText(this, "Password should be at least 6 characters", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        if (password != confirmPassword) {
+            Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        return true
+    }
+
+    private fun registerUser(firstName: String, lastName: String, email: String, password: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Sign out from Firebase first to prevent interference
@@ -84,70 +100,121 @@ class RegisterActivity : AppCompatActivity() {
                     // Continue anyway - we'll use our custom backend
                 }
                 
-                Log.d(TAG, "Attempting to register with email: $email, username: $username")
-                
-                // Clean up inputs
-                val cleanEmail = email.trim()
-                val cleanUsername = username.trim()
-                val cleanFirstName = firstName.trim()
-                val cleanLastName = lastName.trim()
-                
-                val registerRequest = RegisterRequest(
-                    cleanEmail, password, cleanUsername, cleanFirstName, cleanLastName
+                // Create registration request
+                val registrationRequest = RegistrationRequest(
+                    username = null, // Username is optional or auto-generated
+                    firstName = firstName,
+                    lastName = lastName,
+                    email = email,
+                    password = password,
+                    role = "customer" // Set role as customer for all registrations
                 )
                 
                 try {
-                    val response = apiService.register(registerRequest)
+                    val response = apiService.register(registrationRequest)
                     withContext(Dispatchers.Main) {
                         if (response.isSuccessful) {
-                            val registerResponse = response.body()
-                            registerResponse?.let {
-                                Log.d(TAG, "Registration successful. UserId: ${it.userId}")
-                                sessionManager.saveUserId(it.userId)
-                                // Redirect to login instead of showing dialog
-                                Toast.makeText(this@RegisterActivity, "Registration successful! Please log in.", Toast.LENGTH_SHORT).show()
-                                startActivity(Intent(this@RegisterActivity, LoginActivity::class.java))
-                                finish()
+                            Log.d(TAG, "Registration successful")
+                            val responseBody = response.body()
+                            Log.d(TAG, "Response: $responseBody")
+                            
+                            responseBody?.let {
+                                val userId = it["userId"] as? String
+                                Log.d(TAG, "UserId from response: $userId")
+                                
+                                if (userId != null) {
+                                    // Auto-login after registration
+                                    loginAfterRegistration(email, password)
+                                } else {
+                                    Toast.makeText(this@RegisterActivity, "Registration successful! Please login.", Toast.LENGTH_LONG).show()
+                                    navigateToLogin()
+                                }
+                            } ?: run {
+                                Toast.makeText(this@RegisterActivity, "Registration successful! Please login.", Toast.LENGTH_LONG).show()
+                                navigateToLogin()
                             }
                         } else {
-                            val statusCode = response.code()
-                            Log.e(TAG, "Registration failed with code: $statusCode, message: ${response.message()}")
+                            val errorBody = response.errorBody()?.string()
+                            Log.e(TAG, "Registration failed: ${response.code()} - $errorBody")
                             
-                            try {
-                                val errorBody = response.errorBody()?.string()
-                                Log.e(TAG, "Error body: $errorBody")
-                                
-                                val errorMessage = when (statusCode) {
-                                    400 -> "Invalid registration data. Please check your information."
-                                    409 -> "Email or username already exists. Please use a different one."
-                                    500 -> "Server error, please try again later"
-                                    else -> "Registration failed: ${errorBody ?: response.message()}"
-                                }
-                                
-                                Toast.makeText(this@RegisterActivity, errorMessage, Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error parsing error response", e)
-                                Toast.makeText(this@RegisterActivity, "Registration failed", Toast.LENGTH_SHORT).show()
+                            var errorMessage = "Registration failed"
+                            if (errorBody?.contains("User with this email already exists") == true) {
+                                errorMessage = "This email is already registered"
                             }
+                            
+                            Toast.makeText(this@RegisterActivity, errorMessage, Toast.LENGTH_LONG).show()
+                            showLoading(false)
                         }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Network error during registration", e)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@RegisterActivity, "Network error: Please check your connection", Toast.LENGTH_SHORT).show()
+                        showLoading(false)
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception during registration", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@RegisterActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            } finally {
-                withContext(Dispatchers.Main) {
                     showLoading(false)
                 }
             }
         }
+    }
+    
+    private fun loginAfterRegistration(email: String, password: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val loginRequest = com.example.ecotrack.models.LoginRequest(email, password)
+                val response = apiService.login(loginRequest)
+                
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
+                        val loginResponse = response.body()
+                        loginResponse?.let {
+                            Log.d(TAG, "Auto-login successful. Token: ${it.token}, UserId: ${it.userId}")
+                            sessionManager.saveToken(it.token)
+                            sessionManager.saveUserId(it.userId ?: "")
+                            sessionManager.saveUserType("customer") // Always customer for new registrations
+                            
+                            Toast.makeText(this@RegisterActivity, "Registration successful!", Toast.LENGTH_LONG).show()
+                            
+                            // Navigate to main screen
+                            val intent = Intent(this@RegisterActivity, HomeActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            startActivity(intent)
+                            finish()
+                        } ?: run {
+                            // Empty response body, just navigate to login
+                            Toast.makeText(this@RegisterActivity, "Registration successful! Please login.", Toast.LENGTH_LONG).show()
+                            navigateToLogin()
+                        }
+                    } else {
+                        // Failed to auto-login, navigate to login screen
+                        Log.d(TAG, "Auto-login failed, redirecting to login")
+                        Toast.makeText(this@RegisterActivity, "Registration successful! Please login.", Toast.LENGTH_LONG).show()
+                        navigateToLogin()
+                    }
+                    
+                    showLoading(false)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during auto-login", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@RegisterActivity, "Registration successful! Please login.", Toast.LENGTH_LONG).show()
+                    navigateToLogin()
+                    showLoading(false)
+                }
+            }
+        }
+    }
+    
+    private fun navigateToLogin() {
+        val intent = Intent(this, LoginActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(intent)
+        finish()
     }
     
     private fun showLoading(isLoading: Boolean) {
