@@ -1,6 +1,5 @@
 package com.example.ecotrack
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageButton
@@ -12,52 +11,31 @@ import android.widget.TextView
 import android.widget.Toast
 import android.view.inputmethod.EditorInfo
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import android.content.Intent
 import android.app.AlertDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.firestore.FirebaseFirestore
 import android.util.Log
 import android.os.CountDownTimer
 import android.widget.LinearLayout
-import com.example.ecotrack.ServiceItem
+import com.example.ecotrack.utils.ApiService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
+class HomeActivity : BaseActivity() {
 
-class HomeActivity : AppCompatActivity() {
-
-    private lateinit var auth: FirebaseAuth
-    private lateinit var firestore: FirebaseFirestore
+    private val apiService = ApiService.create()
     private lateinit var welcomeText: TextView
     private lateinit var timeRemainingText: TextView
     private var countDownTimer: CountDownTimer? = null
-
-    public override fun onStart() {
-        super.onStart()
-        // Check if user is signed in (non-null) and update UI accordingly.
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            // User is signed in, update UI
-            updateUI(currentUser)
-        } else {
-            // User is signed out, handle accordingly
-        }
-    }
-
-    private fun updateUI(user: FirebaseUser?) {
-        // TODO: Implement UI update based on user state
-    }
-
+    private val TAG = "HomeActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
 
-        auth = FirebaseAuth.getInstance()
-        firestore = FirebaseFirestore.getInstance()
-
+        // Parent class BaseActivity already handles session checks
         supportActionBar?.hide()
 
         initializeViews()
@@ -74,6 +52,7 @@ class HomeActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         // Notification button click
         findViewById<ImageButton>(R.id.notificationButton).setOnClickListener {
+            // BaseActivity already calls updateLastActivity() in onUserInteraction
             // TODO: Handle notifications
         }
 
@@ -121,19 +100,80 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun loadUserData() {
-        val currentUser = auth.currentUser
-        currentUser?.let { user ->
-            firestore.collection("users").document(user.uid).get()
-                .addOnSuccessListener { document ->
-                    if (document != null && document.exists()) {
-                        val firstName = document.getString("firstName") ?: "User"
-                        welcomeText.text = "Welcome, $firstName!"
+        val token = sessionManager.getToken()
+        val userId = sessionManager.getUserId()
+        
+        if (token == null || userId == null) {
+            Log.e(TAG, "loadUserData - Missing credentials - token: $token, userId: $userId")
+            // BaseActivity will handle the redirect to login if needed
+            return
+        }
+        
+        Log.d(TAG, "Loading profile data for userId: $userId")
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = apiService.getProfile(userId, "Bearer $token")
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
+                        val profile = response.body()
+                        profile?.let {
+                            Log.d(TAG, "Profile loaded successfully: ${it.firstName} ${it.lastName}, email: ${it.email}")
+                            welcomeText.text = "Welcome, ${it.firstName}!"
+                        }
+                    } else {
+                        val errorCode = response.code()
+                        val errorMessage = response.message()
+                        Log.e(TAG, "Failed to load profile: $errorCode - $errorMessage")
+                        
+                        try {
+                            val errorBody = response.errorBody()?.string()
+                            Log.e(TAG, "Error body: $errorBody")
+                            
+                            // Handle 403 error specially - this usually means the token is invalid
+                            // after changing email, the token might no longer be valid
+                            if (errorCode == 403) {
+                                Log.e(TAG, "403 Forbidden error - token likely invalid after email change")
+                                Toast.makeText(
+                                    this@HomeActivity, 
+                                    "Your session has expired after profile update. Please login again.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                
+                                // Force logout and redirect to login
+                                sessionManager.logout()
+                                navigateToLogin()
+                                return@withContext
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing error response", e)
+                        }
                     }
                 }
-                .addOnFailureListener { e ->
-                    Log.w("HomeActivity", "Error loading user data", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading user data", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@HomeActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+            }
         }
+    }
+
+    // Override onResume to refresh data when returning from ProfileActivity
+    override fun onResume() {
+        super.onResume()
+        // BaseActivity already handles setCurrentActivity and updateLastActivity
+        
+        // Always refresh profile data when returning to this activity
+        Log.d(TAG, "onResume - refreshing profile data")
+        loadUserData()
+    }
+    
+    // This is called when the activity is brought back to the foreground
+    override fun onRestart() {
+        super.onRestart()
+        Log.d(TAG, "onRestart - refreshing profile data")
+        loadUserData()
     }
 
     override fun onDestroy() {

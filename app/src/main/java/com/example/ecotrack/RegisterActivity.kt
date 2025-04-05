@@ -3,137 +3,155 @@ package com.example.ecotrack
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputEditText
+import com.example.ecotrack.databinding.ActivityRegisterBinding
+import com.example.ecotrack.models.RegisterRequest
+import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.SessionManager
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthWeakPasswordException
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthUserCollisionException
-import com.google.firebase.firestore.FirebaseFirestore
-import com.example.ecotrack.models.User
-import com.example.ecotrack.utils.PasswordUtils
-import com.example.ecotrack.utils.DateUtils
-import android.widget.TextView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class RegisterActivity : AppCompatActivity() {
-
-    private lateinit var auth: FirebaseAuth
-    private lateinit var firestore: FirebaseFirestore
+    private lateinit var binding: ActivityRegisterBinding
+    private lateinit var sessionManager: SessionManager
+    private val apiService = ApiService.create()
+    private val TAG = "RegisterActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_register)
+        binding = ActivityRegisterBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        // Initialize Firebase Auth and Firestore
-        auth = FirebaseAuth.getInstance()
-        firestore = FirebaseFirestore.getInstance()
+        sessionManager = SessionManager.getInstance(this)
+        sessionManager.setCurrentActivity(this)
 
-        supportActionBar?.hide()
+        binding.btnRegister.setOnClickListener {
+            val email = binding.etEmail.text.toString()
+            val password = binding.etPassword.text.toString()
+            val confirmPassword = binding.etConfirmPassword.text.toString()
+            val username = binding.etUsername.text.toString()
+            val firstName = binding.etFirstName.text.toString()
+            val lastName = binding.etLastName.text.toString()
 
-        val username = findViewById<TextInputEditText>(R.id.et_username)
-        val firstName = findViewById<TextInputEditText>(R.id.et_first_name)
-        val lastName = findViewById<TextInputEditText>(R.id.et_last_name)
-        val email = findViewById<TextInputEditText>(R.id.et_email)
-        val password = findViewById<TextInputEditText>(R.id.et_password)
-        val confirmPassword = findViewById<TextInputEditText>(R.id.et_confirm_password)
-        val btnRegister = findViewById<MaterialButton>(R.id.btn_register)
-        val btnLogin = findViewById<TextView>(R.id.btn_login)
-
-        btnRegister.setOnClickListener {
-            when {
-                username.text.toString().isEmpty() -> {
-                    showToast("Please enter a username")
+            if (email.isNotEmpty() && password.isNotEmpty() && confirmPassword.isNotEmpty() &&
+                username.isNotEmpty() && firstName.isNotEmpty() && lastName.isNotEmpty()) {
+                if (password == confirmPassword) {
+                    showLoading(true)
+                    registerUser(email, password, username, firstName, lastName)
+                } else {
+                    Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show()
                 }
-                firstName.text.toString().isEmpty() -> {
-                    showToast("Please enter your first name")
-                }
-                lastName.text.toString().isEmpty() -> {
-                    showToast("Please enter your last name")
-                }
-                email.text.toString().isEmpty() -> {
-                    showToast("Please enter your email")
-                }
-                password.text.toString().isEmpty() -> {
-                    showToast("Please enter a password")
-                }
-                confirmPassword.text.toString().isEmpty() -> {
-                    showToast("Please confirm your password")
-                }
-                password.text.toString() != confirmPassword.text.toString() -> {
-                    showToast("Passwords do not match")
-                }
-                else -> {
-                    createAccount(
-                        username.text.toString(),
-                        firstName.text.toString(),
-                        lastName.text.toString(),
-                        email.text.toString(),
-                        password.text.toString()
-                    )
-                }
+            } else {
+                Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
             }
         }
 
-        btnLogin.setOnClickListener {
+        binding.btnLogin.setOnClickListener {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }
     }
 
-    private fun createAccount(username: String, firstName: String, lastName: String, email: String, password: String) {
-        // Show loading indicator
-        // You might want to add a ProgressBar in your layout
-        
-        // Hash the password before creating the account
-        val hashedPassword = PasswordUtils.hashPassword(password)
-        
-        auth.createUserWithEmailAndPassword(email, password)  // Original password for Firebase Auth
-            .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    val firebaseUser = auth.currentUser
-                    firebaseUser?.let { user ->
-                        val userData = User(
-                            uid = user.uid,
-                            username = username,
-                            firstName = firstName,
-                            lastName = lastName,
-                            email = email,
-                            password = hashedPassword,  // Store hashed password in Firestore
-                            createdAt = DateUtils.getCurrentFormattedDateTime()  // Add timestamp
-                        )
-
-                        firestore.collection("users")
-                            .document(user.uid)
-                            .set(userData)
-                            .addOnSuccessListener {
-                                Log.d("RegisterActivity", "User data saved successfully")
-                                Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show()
-                                val intent = Intent(this, LoginActivity::class.java)
-                                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                                startActivity(intent)
-                                finish()
-                            }
-                            .addOnFailureListener { e ->
-                                Log.e("RegisterActivity", "Error saving user data", e)
-                                Toast.makeText(this, "Failed to save user data: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                    }
-                } else {
-                    // Handle specific authentication errors
-                    val errorMessage = when (task.exception) {
-                        is FirebaseAuthWeakPasswordException -> "Password is too weak"
-                        is FirebaseAuthInvalidCredentialsException -> "Invalid email format"
-                        is FirebaseAuthUserCollisionException -> "This email is already registered"
-                        else -> "Registration failed: ${task.exception?.message}"
-                    }
-                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
-                }
-            }
+    override fun onResume() {
+        super.onResume()
+        sessionManager.setCurrentActivity(this)
     }
 
-    private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    override fun onPause() {
+        super.onPause()
+        sessionManager.setCurrentActivity(null)
+    }
+
+    private fun registerUser(
+        email: String,
+        password: String,
+        username: String,
+        firstName: String,
+        lastName: String
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Sign out from Firebase first to prevent interference
+                try {
+                    FirebaseAuth.getInstance().signOut()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error signing out from Firebase", e)
+                    // Continue anyway - we'll use our custom backend
+                }
+                
+                Log.d(TAG, "Attempting to register with email: $email, username: $username")
+                
+                // Clean up inputs
+                val cleanEmail = email.trim()
+                val cleanUsername = username.trim()
+                val cleanFirstName = firstName.trim()
+                val cleanLastName = lastName.trim()
+                
+                val registerRequest = RegisterRequest(
+                    cleanEmail, password, cleanUsername, cleanFirstName, cleanLastName
+                )
+                
+                try {
+                    val response = apiService.register(registerRequest)
+                    withContext(Dispatchers.Main) {
+                        if (response.isSuccessful) {
+                            val registerResponse = response.body()
+                            registerResponse?.let {
+                                Log.d(TAG, "Registration successful. UserId: ${it.userId}")
+                                sessionManager.saveUserId(it.userId)
+                                // Redirect to login instead of showing dialog
+                                Toast.makeText(this@RegisterActivity, "Registration successful! Please log in.", Toast.LENGTH_SHORT).show()
+                                startActivity(Intent(this@RegisterActivity, LoginActivity::class.java))
+                                finish()
+                            }
+                        } else {
+                            val statusCode = response.code()
+                            Log.e(TAG, "Registration failed with code: $statusCode, message: ${response.message()}")
+                            
+                            try {
+                                val errorBody = response.errorBody()?.string()
+                                Log.e(TAG, "Error body: $errorBody")
+                                
+                                val errorMessage = when (statusCode) {
+                                    400 -> "Invalid registration data. Please check your information."
+                                    409 -> "Email or username already exists. Please use a different one."
+                                    500 -> "Server error, please try again later"
+                                    else -> "Registration failed: ${errorBody ?: response.message()}"
+                                }
+                                
+                                Toast.makeText(this@RegisterActivity, errorMessage, Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error parsing error response", e)
+                                Toast.makeText(this@RegisterActivity, "Registration failed", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Network error during registration", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@RegisterActivity, "Network error: Please check your connection", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception during registration", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@RegisterActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    showLoading(false)
+                }
+            }
+        }
+    }
+    
+    private fun showLoading(isLoading: Boolean) {
+        binding.progressBar?.visibility = if (isLoading) View.VISIBLE else View.GONE
+        binding.btnRegister.isEnabled = !isLoading
     }
 }

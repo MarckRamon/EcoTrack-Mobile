@@ -1,47 +1,25 @@
 package com.example.ecotrack
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.ecotrack.ui.theme.EcoTrackTheme
+import androidx.appcompat.app.AppCompatActivity
+import com.example.ecotrack.utils.SessionManager
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            EcoTrackTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
+        setContentView(R.layout.activity_main)
+        
+        // Initialize SessionManager with application context
+        SessionManager.getInstance(applicationContext)
+        
+        // Navigate to login or home based on auth state
+        val sessionManager = SessionManager.getInstance(this)
+        if (sessionManager.isLoggedIn()) {
+            startActivity(android.content.Intent(this, HomeActivity::class.java))
+        } else {
+            startActivity(android.content.Intent(this, LoginActivity::class.java))
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    EcoTrackTheme {
-        Greeting("Android")
+        finish()
     }
 }

@@ -2,32 +2,43 @@ package com.example.ecotrack
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
 import com.google.android.material.button.MaterialButton
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.ecotrack.utils.ApiService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class ProfileActivity : AppCompatActivity() {
-    private lateinit var auth: FirebaseAuth
-    private lateinit var firestore: FirebaseFirestore
+class ProfileActivity : BaseActivity() {
+    private val apiService = ApiService.create()
+    private val TAG = "ProfileActivity"
+    private lateinit var userNameText: TextView
+    private lateinit var userEmailText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)
-
-        auth = FirebaseAuth.getInstance()
-        firestore = FirebaseFirestore.getInstance()
-
+        
+        // BaseActivity already handles session checks
         supportActionBar?.hide()
+        initViews()
         setupClickListeners()
         loadUserData()
     }
 
+    private fun initViews() {
+        userNameText = findViewById(R.id.userName)
+        userEmailText = findViewById(R.id.userEmail)
+    }
+
     private fun setupClickListeners() {
         findViewById<LinearLayout>(R.id.editInfoButton).setOnClickListener {
-            startActivity(Intent(this, EditProfileActivity::class.java))
+            val intent = Intent(this, EditProfileActivity::class.java)
+            startActivity(intent)
         }
 
         findViewById<LinearLayout>(R.id.forgotPasswordButton).setOnClickListener {
@@ -39,9 +50,8 @@ class ProfileActivity : AppCompatActivity() {
         }
 
         findViewById<MaterialButton>(R.id.logoutButton).setOnClickListener {
-            auth.signOut()
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish()
+            sessionManager.logout()
+            navigateToLogin()
         }
 
         // Bottom navigation click listeners
@@ -64,24 +74,82 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun loadUserData() {
-        val currentUser = auth.currentUser
-        currentUser?.let { user ->
-            firestore.collection("users").document(user.uid).get()
-                .addOnSuccessListener { document ->
-                    if (document != null && document.exists()) {
-                        // Update UI with user data
-                        val firstName = document.getString("firstName") ?: ""
-                        val lastName = document.getString("lastName") ?: ""
-                        findViewById<TextView>(R.id.userName).text = "$firstName $lastName"
-                        findViewById<TextView>(R.id.userEmail).text = document.getString("email")
+        val token = sessionManager.getToken()
+        val userId = sessionManager.getUserId()
+        
+        if (token == null || userId == null) {
+            Log.e(TAG, "loadUserData - Missing credentials - token: $token, userId: $userId")
+            // BaseActivity will handle the navigation to login
+            return
+        }
+        
+        Log.d(TAG, "Loading profile data for user ID: $userId")
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = apiService.getProfile(userId, "Bearer $token")
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
+                        val profile = response.body()
+                        profile?.let {
+                            Log.d(TAG, "Profile loaded successfully: ${it.firstName} ${it.lastName}, email: ${it.email}")
+                            userNameText.text = "${it.firstName} ${it.lastName}"
+                            userEmailText.text = it.email
+                        }
+                    } else {
+                        val errorCode = response.code()
+                        val errorMessage = response.message()
+                        Log.e(TAG, "Failed to load profile: $errorCode - $errorMessage")
+                        
+                        try {
+                            val errorBody = response.errorBody()?.string()
+                            Log.e(TAG, "Error body: $errorBody")
+                            
+                            // Handle 403 error specially - this usually means the token is invalid
+                            // after changing email, the token might no longer be valid
+                            if (errorCode == 403) {
+                                Log.e(TAG, "403 Forbidden error - token likely invalid after email change")
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        this@ProfileActivity, 
+                                        "Your session has expired after profile update. Please login again.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    
+                                    // Force logout and redirect to login
+                                    sessionManager.logout()
+                                    navigateToLogin()
+                                }
+                                return@withContext
+                            }
+                            
+                            Toast.makeText(
+                                this@ProfileActivity, 
+                                "Failed to load profile data: $errorMessage",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing error response", e)
+                            Toast.makeText(this@ProfileActivity, "Failed to load profile data", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading user data", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@ProfileActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
     // Override onResume to refresh data when returning from EditProfileActivity
     override fun onResume() {
         super.onResume()
+        // BaseActivity already handles session management
+        
+        // Always refresh profile data when returning to this activity
+        Log.d(TAG, "onResume - refreshing profile data")
         loadUserData()
     }
 } 
