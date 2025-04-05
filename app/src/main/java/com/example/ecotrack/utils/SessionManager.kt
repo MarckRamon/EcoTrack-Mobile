@@ -38,7 +38,7 @@ class SessionManager private constructor(context: Context) {
         private const val USER_TYPE_KEY = "user_type"
         private const val TOKEN_EXPIRY = "token_expiry"
         private const val KEY_LAST_ACTIVITY = "last_activity"
-        private const val SESSION_TIMEOUT = 30L // 5 seconds for testing
+        private const val SESSION_TIMEOUT = 3600L // 5 seconds for testing
         
         // Keep a single instance to avoid multiple timers
         @Volatile
@@ -363,5 +363,46 @@ class SessionManager private constructor(context: Context) {
             Log.e(TAG, "Error extracting role from token", e)
         }
         return null
+    }
+
+    /**
+     * Extracts the email field from the JWT token
+     * @param token The JWT token to extract the email from
+     * @return The email string or null if not found
+     */
+    fun extractEmailFromToken(token: String): String? {
+        try {
+            val parts = token.split(".")
+            if (parts.size == 3) {
+                val payload = parts[1]
+                val decodedBytes = Base64.decode(payload, Base64.URL_SAFE)
+                val decodedString = String(decodedBytes)
+                Log.d(TAG, "Decoded JWT payload: $decodedString")
+                
+                val jsonObject = JSONObject(decodedString)
+                return if (jsonObject.has("email")) {
+                    val email = jsonObject.getString("email")
+                    Log.d(TAG, "Extracted email from token: $email")
+                    email
+                } else {
+                    Log.w(TAG, "No email field found in token payload")
+                    null
+                }
+            } else {
+                Log.w(TAG, "Invalid JWT format, expected 3 parts but got ${parts.size}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting email from token", e)
+        }
+        return null
+    }
+
+    /**
+     * Gets the email of the current logged-in user from the token
+     * @return The email string or null if not found or not logged in
+     */
+    fun getUserEmail(): String? {
+        val token = getToken() ?: return null
+        return extractEmailFromToken(token)
     }
 } 

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    tools:context=".SecurityQuestionsActivity">
+
+    <!-- Top Bar -->
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:layout_marginTop="24dp"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_arrow_back"
+            android:contentDescription="Back"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Security Questions"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginStart="16dp"/>
+
+        <!-- Empty space to maintain layout -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+    </LinearLayout>
+
+    <!-- Security Question 1 -->
+    <TextView
+        android:id="@+id/question1Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Security Question 1"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:layout_marginTop="32dp"
+        android:layout_marginStart="24dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/topBar"/>
+
+    <TextView
+        android:id="@+id/question1Text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        android:textSize="14sp"
+        android:textColor="@color/grey"
+        android:text="What is your mother's maiden name?"
+        app:layout_constraintTop_toBottomOf="@id/question1Label"
+        app:layout_constraintStart_toStartOf="@id/question1Label"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <TextView
+        android:id="@+id/answer1Text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        android:textSize="14sp"
+        android:textColor="@color/grey"
+        android:text="Security Answer"
+        app:layout_constraintTop_toBottomOf="@id/question1Text"
+        app:layout_constraintStart_toStartOf="@id/question1Label"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Security Question 2 -->
+    <TextView
+        android:id="@+id/question2Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Security Question 2"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:layout_marginTop="32dp"
+        app:layout_constraintStart_toStartOf="@id/question1Label"
+        app:layout_constraintTop_toBottomOf="@id/answer1Text"/>
+
+    <TextView
+        android:id="@+id/question2Text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        android:textSize="14sp"
+        android:textColor="@color/grey"
+        android:text="What was the name of your first pet?"
+        app:layout_constraintTop_toBottomOf="@id/question2Label"
+        app:layout_constraintStart_toStartOf="@id/question1Label"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <TextView
+        android:id="@+id/answer2Text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        android:textSize="14sp"
+        android:textColor="@color/grey"
+        android:text="Security Answer"
+        app:layout_constraintTop_toBottomOf="@id/question2Text"
+        app:layout_constraintStart_toStartOf="@id/question1Label"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Security Question 3 -->
+    <TextView
+        android:id="@+id/question3Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Security Question 3"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:layout_marginTop="32dp"
+        app:layout_constraintStart_toStartOf="@id/question1Label"
+        app:layout_constraintTop_toBottomOf="@id/answer2Text"/>
+
+    <TextView
+        android:id="@+id/question3Text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        android:textSize="14sp"
+        android:textColor="@color/grey"
+        android:text="In what city were you born?"
+        app:layout_constraintTop_toBottomOf="@id/question3Label"
+        app:layout_constraintStart_toStartOf="@id/question1Label"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <TextView
+        android:id="@+id/answer3Text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        android:textSize="14sp"
+        android:textColor="@color/grey"
+        android:text="Security Answer"
+        app:layout_constraintTop_toBottomOf="@id/question3Text"
+        app:layout_constraintStart_toStartOf="@id/question1Label"
+        app:layout_constraintEnd_toEndOf="parent"/>
+</androidx.constraintlayout.widget.ConstraintLayout> 

@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.widget.ImageButton
 
 class ProfileActivity : BaseActivity() {
     private val apiService = ApiService.create()
@@ -36,6 +37,11 @@ class ProfileActivity : BaseActivity() {
     }
 
     private fun setupClickListeners() {
+        // Back button
+        findViewById<ImageButton>(R.id.backButton).setOnClickListener {
+            onBackPressed()
+        }
+
         findViewById<LinearLayout>(R.id.editInfoButton).setOnClickListener {
             val intent = Intent(this, EditProfileActivity::class.java)
             startActivity(intent)
@@ -46,7 +52,13 @@ class ProfileActivity : BaseActivity() {
         }
 
         findViewById<LinearLayout>(R.id.configureNotificationsButton).setOnClickListener {
-            // TODO: Handle notifications settings
+            val intent = Intent(this, NotificationsActivity::class.java)
+            startActivity(intent)
+        }
+
+        findViewById<LinearLayout>(R.id.securityQuestionsButton).setOnClickListener {
+            val intent = Intent(this, SecurityQuestionsActivity::class.java)
+            startActivity(intent)
         }
 
         findViewById<MaterialButton>(R.id.logoutButton).setOnClickListener {
@@ -54,23 +66,7 @@ class ProfileActivity : BaseActivity() {
             navigateToLogin()
         }
 
-        // Bottom navigation click listeners
-        findViewById<LinearLayout>(R.id.homeNav).setOnClickListener {
-            startActivity(Intent(this, HomeActivity::class.java))
-            finish()
-        }
-
-        findViewById<LinearLayout>(R.id.scheduleNav).setOnClickListener {
-            // TODO: Navigate to schedule
-        }
-
-        findViewById<LinearLayout>(R.id.pointsNav).setOnClickListener {
-            // TODO: Navigate to points
-        }
-
-        findViewById<LinearLayout>(R.id.pickupNav).setOnClickListener {
-            // TODO: Navigate to pickup
-        }
+        // Remove bottom navigation click listeners since we removed those elements
     }
 
     private fun loadUserData() {

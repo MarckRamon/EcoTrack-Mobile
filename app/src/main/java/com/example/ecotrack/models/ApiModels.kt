@@ -17,7 +17,9 @@ data class RegistrationRequest(
     val lastName: String,
     val email: String,
     val password: String,
-    val role: String = "customer"
+    val phoneNumber: String,
+    val role: String = "customer",
+    val securityQuestions: List<SecurityQuestionAnswer>? = null
 )
 
 data class RegisterResponse(
@@ -56,4 +58,6 @@ data class PasswordUpdateRequest(
 
 data class ApiError(
     val error: String
-) 
+)
+
+// UserSecurityQuestionsResponse has been moved to SecurityQuestion.kt 

@@ -40,6 +40,22 @@ interface ApiService {
         @Body passwordUpdateRequest: PasswordUpdateRequest
     ): Response<Map<String, String>>
 
+    @GET("api/users/security-questions")
+    suspend fun getSecurityQuestions(): Response<SecurityQuestionsResponse>
+
+    @GET("users/{userId}/security-questions")
+    suspend fun getUserSecurityQuestions(@Header("Authorization") token: String, @Path("userId") userId: String): Response<UserSecurityQuestionsResponse>
+
+    @GET("api/users/profile/security-question")
+    suspend fun getUserProfileSecurityQuestions(
+        @Header("Authorization") token: String
+    ): Response<UserSecurityQuestionsResponse>
+
+    @GET("api/users/profile/security-questions")
+    suspend fun getUserProfileSecurityQuestionsAlternative(
+        @Header("Authorization") token: String
+    ): Response<UserSecurityQuestionsResponse>
+
     companion object {
         private const val TAG = "ApiService"
         private const val BASE_URL = "http://10.0.2.2:8080/" // Android emulator localhost

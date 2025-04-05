@@ -54,6 +54,8 @@
             android:name=".EditProfileActivity"
             android:exported="false"
             android:theme="@style/Theme.EcoTrack"/>
+        <activity android:name=".NotificationsActivity" />
+        <activity android:name=".SecurityQuestionsActivity" />
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />
