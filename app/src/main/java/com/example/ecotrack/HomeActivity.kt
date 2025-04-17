@@ -62,6 +62,11 @@ class HomeActivity : BaseActivity() {
         binding.profileImage?.setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
+        
+        // Setup navigation to Map when Location is clicked
+        binding.pointsNav?.setOnClickListener {
+            startActivity(Intent(this, MapActivity::class.java))
+        }
     }
 
     private fun validateCustomerAccount() {

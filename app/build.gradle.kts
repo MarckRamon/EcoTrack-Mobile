@@ -84,6 +84,17 @@ dependencies {
     // BCrypt
     implementation("at.favre.lib:bcrypt:0.10.2")
     
+    // OpenStreetMap dependencies
+    implementation("org.osmdroid:osmdroid-android:6.1.16")
+    
+    // Fix duplicate classes by excluding transitive dependencies
+    configurations.all {
+        resolutionStrategy {
+            // Exclude ormlite-core from ormlite-android (it brings its own)
+            exclude(group = "com.j256.ormlite", module = "ormlite-core")
+        }
+    }
+    
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

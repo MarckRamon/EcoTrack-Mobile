@@ -56,6 +56,12 @@ interface ApiService {
         @Header("Authorization") token: String
     ): Response<UserSecurityQuestionsResponse>
 
+    @GET("api/pickup-locations")
+    suspend fun getPickupSites(): PickupLocationsResponse
+
+    @GET("api/pickup-locations/{id}")
+    suspend fun getPickupSiteDetails(@Path("id") id: String): PickupSite
+
     companion object {
         private const val TAG = "ApiService"
         private const val BASE_URL = "http://10.0.2.2:8080/" // Android emulator localhost
