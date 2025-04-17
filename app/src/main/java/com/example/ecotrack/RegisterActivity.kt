@@ -34,7 +34,7 @@ class RegisterActivity : AppCompatActivity() {
     private var password = ""
     
     // Security questions data
-    private var securityQuestions = listOf<SecurityQuestion>()
+    private var securityQuestions: List<SecurityQuestion> = listOf()
     private var selectedQuestionIds = mutableListOf<String?>(null, null, null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,59 +88,198 @@ class RegisterActivity : AppCompatActivity() {
     }
     
     private fun setupQuestionSpinners() {
-        binding.question1Spinner.setOnItemClickListener { _, _, position, _ ->
-            selectedQuestionIds[0] = securityQuestions.getOrNull(position)?.id
-        }
-        
-        binding.question2Spinner.setOnItemClickListener { _, _, position, _ ->
-            selectedQuestionIds[1] = securityQuestions.getOrNull(position)?.id
-        }
-        
-        binding.question3Spinner.setOnItemClickListener { _, _, position, _ ->
-            selectedQuestionIds[2] = securityQuestions.getOrNull(position)?.id
-        }
+        // We'll set click listeners after the adapters are set in loadSecurityQuestions()
+        // This prevents crashes when clicking on spinners before data is loaded
     }
     
     private fun loadSecurityQuestions() {
+        Log.d(TAG, "Starting to load security questions")
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                Log.d(TAG, "Making API call to get security questions")
                 val response = apiService.getSecurityQuestions()
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful && response.body() != null) {
                         val securityQuestionsResponse = response.body()!!
-                        securityQuestions = securityQuestionsResponse.questions
+                        securityQuestions = securityQuestionsResponse.questions ?: emptyList()
+                        Log.d(TAG, "Security questions loaded successfully: ${securityQuestions.size} questions")
+                        Log.d(TAG, "Raw security questions data: $securityQuestions")
+                        
+                        if (securityQuestions.isEmpty()) {
+                            Log.e(TAG, "No security questions received from API")
+                            Toast.makeText(
+                                this@RegisterActivity,
+                                "Could not load security questions. Please try again later.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@withContext
+                        }
+                        
+                        Log.d(TAG, "Question IDs: ${securityQuestions.map { it.id }}")
                         
                         // Populate the dropdown menus
-                        val questionTexts = securityQuestions.map { it.questionText }
+                        val questionTexts = securityQuestions
+                            .mapNotNull { if (it.questionText.isNullOrBlank()) null else it.questionText }
+                            .toList()
+                        Log.d(TAG, "Filtered question texts (${questionTexts.size}): $questionTexts")
+
+                        if (questionTexts.isEmpty()) {
+                            Log.e(TAG, "No valid security questions found")
+                            Toast.makeText(
+                                this@RegisterActivity,
+                                "Could not load security questions. Please try again later.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@withContext
+                        }
                         
-                        val adapter1 = ArrayAdapter(this@RegisterActivity, 
-                            android.R.layout.simple_dropdown_item_1line, questionTexts)
+                        // Create a list of non-null strings for safety
+                        val safeQuestionTexts = questionTexts.map { it ?: "Unknown Question" }.toList()
+                        
+                        // Create custom adapters that safely handle null values
+                        val adapter1 = object : ArrayAdapter<String>(
+                            this@RegisterActivity,
+                            android.R.layout.simple_dropdown_item_1line,
+                            safeQuestionTexts
+                        ) {
+                            override fun getItem(position: Int): String {
+                                return if (position >= 0 && position < safeQuestionTexts.size) {
+                                    safeQuestionTexts[position]
+                                } else {
+                                    "Unknown Question"
+                                }
+                            }
+                        }
                         binding.question1Spinner.setAdapter(adapter1)
                         
-                        val adapter2 = ArrayAdapter(this@RegisterActivity, 
-                            android.R.layout.simple_dropdown_item_1line, questionTexts)
+                        val adapter2 = object : ArrayAdapter<String>(
+                            this@RegisterActivity,
+                            android.R.layout.simple_dropdown_item_1line,
+                            safeQuestionTexts
+                        ) {
+                            override fun getItem(position: Int): String {
+                                return if (position >= 0 && position < safeQuestionTexts.size) {
+                                    safeQuestionTexts[position]
+                                } else {
+                                    "Unknown Question"
+                                }
+                            }
+                        }
                         binding.question2Spinner.setAdapter(adapter2)
                         
-                        val adapter3 = ArrayAdapter(this@RegisterActivity, 
-                            android.R.layout.simple_dropdown_item_1line, questionTexts)
+                        val adapter3 = object : ArrayAdapter<String>(
+                            this@RegisterActivity,
+                            android.R.layout.simple_dropdown_item_1line,
+                            safeQuestionTexts
+                        ) {
+                            override fun getItem(position: Int): String {
+                                return if (position >= 0 && position < safeQuestionTexts.size) {
+                                    safeQuestionTexts[position]
+                                } else {
+                                    "Unknown Question"
+                                }
+                            }
+                        }
                         binding.question3Spinner.setAdapter(adapter3)
+                        
+                        // Set up the item click listeners after adapters are set
+                        binding.question1Spinner.setOnItemClickListener { _, _, position, _ ->
+                            try {
+                                Log.d(TAG, "Question 1 clicked, position: $position, text: ${binding.question1Spinner.text}")
+                                if (position >= 0 && position < safeQuestionTexts.size) {
+                                    val selectedText = safeQuestionTexts[position]
+                                    // Find the corresponding question in the original list
+                                    val questionIndex = securityQuestions.indexOfFirst { 
+                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText 
+                                    }
+                                    
+                                    if (questionIndex >= 0) {
+                                        selectedQuestionIds[0] = securityQuestions[questionIndex].id
+                                        Log.d(TAG, "Selected question 1: $selectedText with ID: ${selectedQuestionIds[0]}")
+                                    } else {
+                                        Log.e(TAG, "Could not find question with text: $selectedText")
+                                    }
+                                } else {
+                                    Log.e(TAG, "Invalid position for question 1: $position")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error selecting question 1", e)
+                            }
+                        }
+                        
+                        binding.question2Spinner.setOnItemClickListener { _, _, position, _ ->
+                            try {
+                                Log.d(TAG, "Question 2 clicked, position: $position, text: ${binding.question2Spinner.text}")
+                                if (position >= 0 && position < safeQuestionTexts.size) {
+                                    val selectedText = safeQuestionTexts[position]
+                                    // Find the corresponding question in the original list
+                                    val questionIndex = securityQuestions.indexOfFirst { 
+                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText 
+                                    }
+                                    
+                                    if (questionIndex >= 0) {
+                                        selectedQuestionIds[1] = securityQuestions[questionIndex].id
+                                        Log.d(TAG, "Selected question 2: $selectedText with ID: ${selectedQuestionIds[1]}")
+                                    } else {
+                                        Log.e(TAG, "Could not find question with text: $selectedText")
+                                    }
+                                } else {
+                                    Log.e(TAG, "Invalid position for question 2: $position")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error selecting question 2", e)
+                            }
+                        }
+                        
+                        binding.question3Spinner.setOnItemClickListener { _, _, position, _ ->
+                            try {
+                                Log.d(TAG, "Question 3 clicked, position: $position, text: ${binding.question3Spinner.text}")
+                                if (position >= 0 && position < safeQuestionTexts.size) {
+                                    val selectedText = safeQuestionTexts[position]
+                                    // Find the corresponding question in the original list
+                                    val questionIndex = securityQuestions.indexOfFirst { 
+                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText 
+                                    }
+                                    
+                                    if (questionIndex >= 0) {
+                                        selectedQuestionIds[2] = securityQuestions[questionIndex].id
+                                        Log.d(TAG, "Selected question 3: $selectedText with ID: ${selectedQuestionIds[2]}")
+                                    } else {
+                                        Log.e(TAG, "Could not find question with text: $selectedText")
+                                    }
+                                } else {
+                                    Log.e(TAG, "Invalid position for question 3: $position")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error selecting question 3", e)
+                            }
+                        }
                     } else {
                         Log.e(TAG, "Failed to load security questions: ${response.errorBody()?.string()}")
+                        Log.e(TAG, "Response code: ${response.code()}")
+                        Log.e(TAG, "Response message: ${response.message()}")
                         Toast.makeText(
                             this@RegisterActivity,
-                            "Failed to load security questions. Please try again.",
+                            "Failed to load security questions. Using default questions.",
                             Toast.LENGTH_LONG
                         ).show()
+                        // Use hardcoded questions as fallback
+                        loadHardcodedSecurityQuestions()
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading security questions", e)
+                Log.e(TAG, "Error message: ${e.message}")
+                Log.e(TAG, "Stack trace: ${e.stackTraceToString()}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@RegisterActivity,
-                        "Network error: Please check your connection",
+                        "Error loading security questions. Using default questions.",
                         Toast.LENGTH_SHORT
                     ).show()
+                    
+                    // Use hardcoded security questions as fallback
+                    loadHardcodedSecurityQuestions()
                 }
             }
         }
@@ -209,24 +348,31 @@ class RegisterActivity : AppCompatActivity() {
         val answer3 = binding.etAnswer3.text.toString().trim()
         
         // Check if all questions are selected
-        if (selectedQuestionIds[0] == null || selectedQuestionIds[1] == null || selectedQuestionIds[2] == null) {
+        if (selectedQuestionIds[0].isNullOrEmpty() || 
+            selectedQuestionIds[1].isNullOrEmpty() || 
+            selectedQuestionIds[2].isNullOrEmpty()) {
+            
+            Log.e(TAG, "Validation failed - missing question IDs: ${selectedQuestionIds}")
             Toast.makeText(this, "Please select all security questions", Toast.LENGTH_SHORT).show()
             return false
         }
         
         // Check for duplicate questions
-        val uniqueQuestionIds = selectedQuestionIds.filterNotNull().toSet()
+        val uniqueQuestionIds = selectedQuestionIds.filterNotNull().filter { it.isNotEmpty() }.toSet()
         if (uniqueQuestionIds.size < 3) {
+            Log.e(TAG, "Validation failed - duplicate questions: ${selectedQuestionIds}")
             Toast.makeText(this, "Please select different questions for each field", Toast.LENGTH_SHORT).show()
             return false
         }
         
         // Check if all answers are provided
         if (answer1.isEmpty() || answer2.isEmpty() || answer3.isEmpty()) {
+            Log.e(TAG, "Validation failed - missing answers")
             Toast.makeText(this, "Please provide an answer for each question", Toast.LENGTH_SHORT).show()
             return false
         }
         
+        Log.d(TAG, "Security questions validation successful")
         return true
     }
 
@@ -235,6 +381,9 @@ class RegisterActivity : AppCompatActivity() {
         
         // Create security question answers
         val securityQuestionAnswers = mutableListOf<SecurityQuestionAnswer>()
+        
+        // Log the selected question IDs for debugging
+        Log.d(TAG, "Registration - Selected Question IDs: ${selectedQuestionIds}")
         
         securityQuestionAnswers.add(SecurityQuestionAnswer(
             questionId = selectedQuestionIds[0]!!,
@@ -250,6 +399,9 @@ class RegisterActivity : AppCompatActivity() {
             questionId = selectedQuestionIds[2]!!,
             answer = binding.etAnswer3.text.toString().trim()
         ))
+        
+        // Log the final security question answers for debugging
+        Log.d(TAG, "Registration - Security Question Answers: $securityQuestionAnswers")
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -323,5 +475,127 @@ class RegisterActivity : AppCompatActivity() {
         binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         binding.btnNext.isEnabled = !isLoading && binding.userInfoContainer.visibility == View.VISIBLE
         binding.btnSubmit.isEnabled = !isLoading && binding.securityQuestionsContainer.visibility == View.VISIBLE
+    }
+
+    private fun findQuestionIdByText(questionText: String): String? {
+        if (questionText.isBlank()) return null
+        
+        return securityQuestions.find { !it.questionText.isNullOrBlank() && it.questionText == questionText }?.id
+    }
+
+    private fun loadHardcodedSecurityQuestions() {
+        Log.d(TAG, "Loading hardcoded security questions")
+        securityQuestions = listOf(
+            SecurityQuestion(
+                id = "MOTHERS_MAIDEN_NAME",
+                questionText = "What is your mother's maiden name?"
+            ),
+            SecurityQuestion(
+                id = "BIRTH_CITY",
+                questionText = "In what city were you born?"
+            ),
+            SecurityQuestion(
+                id = "FAVORITE_COLOR",
+                questionText = "What is your favorite color?"
+            ),
+            SecurityQuestion(
+                id = "FIRST_PET",
+                questionText = "What was the name of your first pet?"
+            ),
+            SecurityQuestion(
+                id = "CHILDHOOD_NICKNAME",
+                questionText = "What was your childhood nickname?"
+            )
+        )
+        
+        // Populate the dropdown menus
+        val questionTexts = securityQuestions.map { it.questionText ?: "Unknown Question" }
+        Log.d(TAG, "Hardcoded question texts: $questionTexts")
+        
+        val adapter1 = object : ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            questionTexts
+        ) {
+            override fun getItem(position: Int): String {
+                return if (position >= 0 && position < questionTexts.size) {
+                    questionTexts[position]
+                } else {
+                    "Unknown Question"
+                }
+            }
+        }
+        binding.question1Spinner.setAdapter(adapter1)
+        
+        val adapter2 = object : ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            questionTexts
+        ) {
+            override fun getItem(position: Int): String {
+                return if (position >= 0 && position < questionTexts.size) {
+                    questionTexts[position]
+                } else {
+                    "Unknown Question"
+                }
+            }
+        }
+        binding.question2Spinner.setAdapter(adapter2)
+        
+        val adapter3 = object : ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            questionTexts
+        ) {
+            override fun getItem(position: Int): String {
+                return if (position >= 0 && position < questionTexts.size) {
+                    questionTexts[position]
+                } else {
+                    "Unknown Question"
+                }
+            }
+        }
+        binding.question3Spinner.setAdapter(adapter3)
+        
+        // Set up listeners
+        setupQuestionSpinnerListeners(questionTexts)
+    }
+    
+    private fun setupQuestionSpinnerListeners(questionTexts: List<String>) {
+        binding.question1Spinner.setOnItemClickListener { _, _, position, _ ->
+            try {
+                Log.d(TAG, "Question 1 clicked, position: $position")
+                if (position >= 0 && position < securityQuestions.size) {
+                    selectedQuestionIds[0] = securityQuestions[position].id
+                    Log.d(TAG, "Selected question 1 ID: ${selectedQuestionIds[0]}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error selecting question 1", e)
+            }
+        }
+        
+        binding.question2Spinner.setOnItemClickListener { _, _, position, _ ->
+            try {
+                Log.d(TAG, "Question 2 clicked, position: $position")
+                if (position >= 0 && position < securityQuestions.size) {
+                    selectedQuestionIds[1] = securityQuestions[position].id
+                    Log.d(TAG, "Selected question 2 ID: ${selectedQuestionIds[1]}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error selecting question 2", e)
+            }
+        }
+        
+        binding.question3Spinner.setOnItemClickListener { _, _, position, _ ->
+            try {
+                Log.d(TAG, "Question 3 clicked, position: $position")
+                if (position >= 0 && position < securityQuestions.size) {
+                    selectedQuestionIds[2] = securityQuestions[position].id
+                    Log.d(TAG, "Selected question 3 ID: ${selectedQuestionIds[2]}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error selecting question 3", e)
+            }
+        }
     }
 }

@@ -175,13 +175,22 @@ class MapActivity : BaseActivity() {
                     progressBar.visibility = View.GONE
                     
                     pickupSites.clear()
-                    if (response.success && response.pickupSites.isNotEmpty()) {
-                        pickupSites.addAll(response.pickupSites)
-                        addMarkersToMap(response.pickupSites)
+                    if (response.isSuccessful && response.body() != null) {
+                        val result = response.body()!!
+                        if (result.success && result.pickupSites.isNotEmpty()) {
+                            pickupSites.addAll(result.pickupSites)
+                            addMarkersToMap(result.pickupSites)
+                        } else {
+                            Toast.makeText(
+                                this@MapActivity,
+                                result.message ?: "No pickup sites found",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     } else {
                         Toast.makeText(
                             this@MapActivity,
-                            response.message ?: "No pickup sites found",
+                            "Failed to load pickup sites: ${response.errorBody()?.string()}",
                             Toast.LENGTH_SHORT
                         ).show()
                     }

@@ -57,10 +57,10 @@ interface ApiService {
     ): Response<UserSecurityQuestionsResponse>
 
     @GET("api/pickup-locations")
-    suspend fun getPickupSites(): PickupLocationsResponse
+    suspend fun getPickupSites(): Response<PickupLocationsResponse>
 
     @GET("api/pickup-locations/{id}")
-    suspend fun getPickupSiteDetails(@Path("id") id: String): PickupSite
+    suspend fun getPickupSiteDetails(@Path("id") id: String): Response<PickupSite>
 
     companion object {
         private const val TAG = "ApiService"

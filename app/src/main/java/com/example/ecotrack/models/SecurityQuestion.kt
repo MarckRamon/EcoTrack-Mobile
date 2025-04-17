@@ -4,20 +4,24 @@ import com.google.gson.annotations.SerializedName
 
 data class SecurityQuestionsResponse(
     @SerializedName("questions")
-    val questions: List<SecurityQuestion>,
+    val questions: List<SecurityQuestion> = emptyList(),
     val answers: List<String>? = null
 )
 
 data class SecurityQuestion(
-    @SerializedName("questionId")
-    val id: String,
+    @SerializedName("id")
+    val id: String = "",
     
-    @SerializedName("questionText")
-    val questionText: String,
+    @SerializedName("text")
+    val questionText: String? = null,
     
     @SerializedName("answer")
     val answer: String? = null
-)
+) {
+    override fun toString(): String {
+        return questionText ?: "Unknown Question"
+    }
+}
 
 data class SecurityQuestionAnswer(
     @SerializedName("questionId")
