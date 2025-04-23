@@ -61,6 +61,19 @@
             android:theme="@style/Theme.EcoTrack"/>
         <activity android:name=".NotificationsActivity" />
         <activity android:name=".SecurityQuestionsActivity" />
+        <activity
+            android:name=".DriverLoginActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EcoTrack"/>
+        <activity
+            android:name=".DriverProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EcoTrack"/>
+        <activity
+            android:name=".DriverEditProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EcoTrack"/>
+        <activity android:name=".DriverActivity" />
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />
