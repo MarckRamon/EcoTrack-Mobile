@@ -6,17 +6,20 @@ import android.util.Log
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.widget.Toolbar
+import android.widget.ImageButton
 import com.example.ecotrack.utils.ApiService
 import com.example.ecotrack.utils.SessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.widget.ImageView
 
 class DriverHomeActivity : BaseActivity() {
-    private lateinit var welcomeText: TextView
-    private lateinit var toolbar: Toolbar
+    private lateinit var welcomeTextView: TextView
+    private lateinit var driverTextView: TextView
+    private lateinit var profileImage: ImageView
+    private lateinit var notificationButton: ImageButton
     private val apiService = ApiService.create()
     private val TAG = "DriverHomeActivity"
 
@@ -25,14 +28,53 @@ class DriverHomeActivity : BaseActivity() {
         setContentView(R.layout.activity_driver_home)
         
         // Initialize UI components
-        toolbar = findViewById(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.title = "Driver Dashboard"
-        
-        welcomeText = findViewById(R.id.tvWelcome)
+        initViews()
+        setupClickListeners()
         
         // Check if user has driver role before loading profile
         validateDriverAccount()
+    }
+    
+    private fun initViews() {
+        // Find views from the updated layout
+        welcomeTextView = findViewById(R.id.welcomeText)
+        driverTextView = findViewById(R.id.tvDriverMode)
+        profileImage = findViewById(R.id.profileImage)
+        notificationButton = findViewById(R.id.notificationButton)
+    }
+    
+    private fun setupClickListeners() {
+        // Setup profile image button
+        profileImage.setOnClickListener {
+            startActivity(Intent(this, DriverProfileActivity::class.java))
+        }
+        
+        // Setup notification button
+        notificationButton.setOnClickListener {
+            Toast.makeText(this, "Notifications feature coming soon", Toast.LENGTH_SHORT).show()
+        }
+        
+        // Setup bottom navigation items
+        setupBottomNavigation()
+    }
+    
+    private fun setupBottomNavigation() {
+        // Set up click listeners for each navigation item
+        findViewById<View>(R.id.homeNav).setOnClickListener { 
+            // Already on home screen
+        }
+        
+        findViewById<View>(R.id.scheduleNav).setOnClickListener {
+            Toast.makeText(this, "Collection Schedule coming soon", Toast.LENGTH_SHORT).show()
+        }
+        
+        findViewById<View>(R.id.pointsNav).setOnClickListener {
+            Toast.makeText(this, "Collection Points coming soon", Toast.LENGTH_SHORT).show()
+        }
+        
+        findViewById<View>(R.id.pickupNav).setOnClickListener {
+            Toast.makeText(this, "Order Pickup coming soon", Toast.LENGTH_SHORT).show()
+        }
     }
     
     /**
@@ -129,7 +171,7 @@ class DriverHomeActivity : BaseActivity() {
                         val profile = response.body()
                         profile?.let {
                             // Update UI with profile data
-                            welcomeText.text = "Welcome, ${it.firstName}"
+                            welcomeTextView.text = "Welcome, ${it.firstName}!"
                         }
                     } else {
                         Log.e(TAG, "Failed to load profile: ${response.code()}")

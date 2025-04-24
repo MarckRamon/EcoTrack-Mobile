@@ -22,16 +22,17 @@
             android:name=".ScheduleActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustPan" /> <activity
-        android:name=".LoginActivity"
-        android:exported="true"
-        android:screenOrientation="portrait"
-        android:windowSoftInputMode="adjustPan">
-        <intent-filter>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent-filter>
-    </activity>
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name=".LoginActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustPan">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".RegisterActivity"
             android:exported="false"
@@ -73,6 +74,20 @@
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustPan" />
         <activity
+            android:name=".DriverProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EcoTrack"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".DriverEditProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EcoTrack"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".DriverActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".DriverHomeActivity"
             android:exported="false"
             android:screenOrientation="portrait"
@@ -82,7 +97,6 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustPan" />
-
     </application>
 
 </manifest>

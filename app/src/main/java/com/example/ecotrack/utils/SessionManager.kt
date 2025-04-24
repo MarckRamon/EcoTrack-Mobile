@@ -38,7 +38,7 @@ class SessionManager private constructor(context: Context) {
         private const val USER_TYPE_KEY = "user_type"
         private const val TOKEN_EXPIRY = "token_expiry"
         private const val KEY_LAST_ACTIVITY = "last_activity"
-        private const val SESSION_TIMEOUT = 3600L // 5 seconds for testing
+        private const val SESSION_TIMEOUT = 3500L // 5 seconds for testing
         
         // Keep a single instance to avoid multiple timers
         @Volatile
