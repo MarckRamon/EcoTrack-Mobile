@@ -126,15 +126,16 @@ class MapActivity : BaseActivity() {
         }
         
         scheduleNav.setOnClickListener {
-            // Navigate to schedule screen if available
-            Toast.makeText(this, "Schedule screen coming soon", Toast.LENGTH_SHORT).show()
+            // Navigate to schedule screen
+            startActivity(Intent(this, ScheduleActivity::class.java))
+            finish()
         }
         
         // pointsNav is the current screen (Location)
         
         pickupNav.setOnClickListener {
-            // Navigate to pickup order screen if available
-            Toast.makeText(this, "Pickup order screen coming soon", Toast.LENGTH_SHORT).show()
+            // For now, just show a toast as the OrderPickupActivity is not implemented yet
+            Toast.makeText(this, "Order Pickup functionality coming soon", Toast.LENGTH_SHORT).show()
         }
     }
     

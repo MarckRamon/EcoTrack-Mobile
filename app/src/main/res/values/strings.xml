@@ -37,4 +37,26 @@
 
     <!-- Loading States -->
     <string name="loading_login">Signing in…</string>
+
+    <!-- Waste Collection Schedule -->
+    <string name="waste_collection_schedule">Waste Collection Schedule</string>
+    <string name="legend">Legend</string>
+    <string name="biodegradable_pickup_schedule">Biodegradable Pickup Schedule</string>
+    <string name="non_biodegradable_pickup_schedule">Non-Biodegradable Pickup Schedule</string>
+    <string name="information">Information</string>
+    <string name="confirm">Confirm</string>
+    <string name="date_placeholder">Date : %s</string>
+    <string name="pickup_time_placeholder">Pickup Time : %s</string>
+    <string name="location_placeholder">Location : %s</string>
+    <string name="waste_type_placeholder">Waste Type : %s</string>
+    <string name="dialog_date_format">Date : %1$s</string>
+    <string name="dialog_pickup_time_format">Pickup Time : %1$s</string>
+    <string name="dialog_location_format">Location : %1$s</string>
+    <string name="dialog_waste_type_format">Waste Type : %1$s</string>
+    <string name="title_activity_schedule">Schedule</string>
+
+    <!-- Navigation Titles -->
+    <string name="title_home">Home</string>
+    <string name="title_location">Location</string>
+    <string name="title_order_pickup">Order Pickup</string>
 </resources>

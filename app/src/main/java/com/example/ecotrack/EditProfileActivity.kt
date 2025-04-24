@@ -67,8 +67,8 @@ class EditProfileActivity : BaseActivity() {
                             Log.d(TAG, "Profile loaded successfully: ${it.firstName} ${it.lastName}, email: ${it.email}")
                             
                             // Store original values
-                            originalFirstName = it.firstName
-                            originalLastName = it.lastName
+                            originalFirstName = it.firstName ?: ""
+                            originalLastName = it.lastName ?: ""
                             originalEmail = it.email
                             
                             // Set UI fields
@@ -151,10 +151,12 @@ class EditProfileActivity : BaseActivity() {
             try {
                 // Create request with all fields
                 val updateRequest = ProfileUpdateRequest(
-                    null,  // username doesn't change
-                    firstName,
-                    lastName,
-                    newEmail  // Updated email
+                    firstName = firstName,
+                    lastName = lastName,
+                    phoneNumber = null,  // No phone number update
+                    username = null,     // No username update
+                    location = null,     // No location update
+                    email = newEmail     // Add email parameter
                 )
                 
                 Log.d(TAG, "Sending profile update request: $updateRequest")
