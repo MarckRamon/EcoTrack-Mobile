@@ -61,6 +61,25 @@ interface ApiService {
 
     @GET("api/pickup-locations/{id}")
     suspend fun getPickupSiteDetails(@Path("id") id: String): Response<PickupSite>
+    
+    // Collection Schedule Endpoints
+    @GET("api/collection-schedules/barangay/{barangayId}")
+    suspend fun getSchedulesByBarangay(
+        @Path("barangayId") barangayId: String,
+        @Header("Authorization") authToken: String
+    ): Response<List<CollectionScheduleResponse>>
+    
+    @GET("api/collection-schedules/barangay/{barangayId}/upcoming")
+    suspend fun getUpcomingSchedules(
+        @Path("barangayId") barangayId: String,
+        @Header("Authorization") authToken: String
+    ): Response<List<CollectionScheduleResponse>>
+    
+    @GET("api/collection-schedules/barangay/{barangayId}/recurring")
+    suspend fun getRecurringSchedules(
+        @Path("barangayId") barangayId: String,
+        @Header("Authorization") authToken: String
+    ): Response<List<CollectionScheduleResponse>>
 
     companion object {
         private const val TAG = "ApiService"
