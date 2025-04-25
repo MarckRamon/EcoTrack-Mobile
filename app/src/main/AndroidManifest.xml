@@ -74,6 +74,11 @@
             android:exported="false"
             android:theme="@style/Theme.EcoTrack"/>
         <activity android:name=".DriverActivity" />
+        <activity
+            android:name=".DriverMapActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EcoTrack"
+            android:label="Collection Points" />
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />

@@ -64,16 +64,12 @@ class DriverHomeActivity : BaseActivity() {
             // Already on home screen
         }
         
-        findViewById<View>(R.id.scheduleNav).setOnClickListener {
-            Toast.makeText(this, "Collection Schedule coming soon", Toast.LENGTH_SHORT).show()
+        findViewById<View>(R.id.jobOrdersNav).setOnClickListener {
+            Toast.makeText(this, "Coming Soon", Toast.LENGTH_SHORT).show()
         }
         
-        findViewById<View>(R.id.pointsNav).setOnClickListener {
-            Toast.makeText(this, "Collection Points coming soon", Toast.LENGTH_SHORT).show()
-        }
-        
-        findViewById<View>(R.id.pickupNav).setOnClickListener {
-            Toast.makeText(this, "Order Pickup coming soon", Toast.LENGTH_SHORT).show()
+        findViewById<View>(R.id.collectionPointsNav).setOnClickListener {
+            startActivity(Intent(this, DriverMapActivity::class.java))
         }
     }
     

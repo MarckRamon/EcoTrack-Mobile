@@ -209,7 +209,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="horizontal"
-            android:weightSum="4">
+            android:weightSum="3">
 
             <LinearLayout
                 android:id="@+id/homeNav"
@@ -234,7 +234,7 @@
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/scheduleNav"
+                android:id="@+id/jobOrdersNav"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
@@ -250,14 +250,14 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Schedule"
+                    android:text="Job Orders"
                     android:textSize="12sp"
                     android:gravity="center"
                     android:textColor="@color/white"/>
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/pointsNav"
+                android:id="@+id/collectionPointsNav"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
@@ -273,30 +273,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Location"
-                    android:textSize="12sp"
-                    android:gravity="center"
-                    android:textColor="@color/white"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/pickupNav"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_cart"
-                    android:tint="@color/white"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Order Pickup"
+                    android:text="Collection Points"
                     android:textSize="12sp"
                     android:gravity="center"
                     android:textColor="@color/white"/>
