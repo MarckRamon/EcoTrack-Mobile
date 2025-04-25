@@ -88,6 +88,12 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".DriverMapActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EcoTrack"
+            android:label="Collection Points"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".DriverHomeActivity"
             android:exported="false"
             android:screenOrientation="portrait"
