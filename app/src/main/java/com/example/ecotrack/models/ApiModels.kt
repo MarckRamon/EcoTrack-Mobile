@@ -1,5 +1,8 @@
 package com.example.ecotrack.models
 
+import com.google.gson.annotations.SerializedName
+import java.time.OffsetDateTime // Import for handling timezone offset
+
 data class LoginRequest(
     val email: String,
     val password: String
@@ -7,8 +10,9 @@ data class LoginRequest(
 
 data class LoginResponse(
     val token: String,
-    val userId: String? = null,
-    val role: String? = null
+    val userId: String,
+    val role: String,
+    val message: String?
 )
 
 data class RegistrationRequest(
@@ -33,26 +37,28 @@ data class Timestamp(
 )
 
 data class UserProfile(
-    val userId: String?,
-    val username: String?,
-    val firstName: String,
-    val lastName: String,
+    val userId: String,
     val email: String,
-    val role: String? = null,
-    val location: String? = null,
-    val createdAt: Timestamp? = null,
-    val preferences: Any? = null
+    val firstName: String?,
+    val lastName: String?,
+    val phoneNumber: String?,
+    val username: String?,
+    val location: Map<String, Any>?,
+    val createdAt: TimestampResponse?,
+    val preferences: Map<String, Any>?
 )
 
 data class ProfileUpdateRequest(
+    val firstName: String?,
+    val lastName: String?,
+    val phoneNumber: String?,
     val username: String?,
-    val firstName: String,
-    val lastName: String,
-    val email: String
+    val location: Map<String, Any>?,
+    val email: String?
 )
 
 data class PasswordUpdateRequest(
-    val oldPassword: String,
+    val currentPassword: String,
     val newPassword: String
 )
 
@@ -60,4 +66,50 @@ data class ApiError(
     val error: String
 )
 
-// UserSecurityQuestionsResponse has been moved to SecurityQuestion.kt 
+data class CollectionSchedule(
+    @SerializedName("scheduleId") // Matches DB field
+    val id: String, // Renamed from scheduleId for consistency if needed, but using API response name is safer
+
+    @SerializedName("barangayId")
+    val barangayId: String?,
+
+    @SerializedName("barangayName")
+    val barangayName: String?,
+
+    // Use the combined field from the database
+    @SerializedName("collectionDateTime") // Matches DB field name
+    val collectionDateTimeString: String?, // Store the raw string first
+
+    @SerializedName("wasteType")
+    val wasteType: String?,
+
+    @SerializedName("isRecurring")
+    val isRecurring: Boolean?,
+
+    @SerializedName("recurringDay") // Matches DB field
+    val recurringDay: String?, // e.g., "MONDAY"
+
+    @SerializedName("recurringTime") // Matches DB field
+    val recurringTime: String?, // e.g., "10:00"
+
+    @SerializedName("notes") // Added from DB schema
+    val notes: String?,
+
+    @SerializedName("isActive") // Added from DB schema
+    val isActive: Boolean?
+
+    // Add other fields like createdAt, updatedAt if needed by the app
+)
+
+data class TimestampResponse(
+    val seconds: Long,
+    val nanos: Int
+)
+
+data class PickupRequest(
+    val userId: String,
+    val locationId: String,
+    val wasteType: String,
+    val scheduledTime: String,
+    val notes: String?
+)

@@ -67,6 +67,18 @@ class HomeActivity : BaseActivity() {
         binding.pointsNav?.setOnClickListener {
             startActivity(Intent(this, MapActivity::class.java))
         }
+        
+        // Setup navigation to Schedule when Schedule is clicked
+        binding.scheduleNav?.setOnClickListener {
+            startActivity(Intent(this, ScheduleActivity::class.java))
+        }
+        
+        // Setup navigation to Order Pickup when Order Pickup is clicked
+        binding.pickupNav?.setOnClickListener {
+            Toast.makeText(this, "Order Pickup functionality coming soon", Toast.LENGTH_SHORT).show()
+            // Implement this when OrderPickupActivity is available
+            // startActivity(Intent(this, OrderPickupActivity::class.java))
+        }
     }
 
     private fun validateCustomerAccount() {

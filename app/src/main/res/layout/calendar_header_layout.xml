@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        style="@style/CalendarDayHeader"
+        android:text="SUN" />
+
+    <TextView
+        style="@style/CalendarDayHeader"
+        android:text="MON" />
+
+    <TextView
+        style="@style/CalendarDayHeader"
+        android:text="TUE" />
+
+    <TextView
+        style="@style/CalendarDayHeader"
+        android:text="WED" />
+
+    <TextView
+        style="@style/CalendarDayHeader"
+        android:text="THU" />
+
+    <TextView
+        style="@style/CalendarDayHeader"
+        android:text="FRI" />
+
+    <TextView
+        style="@style/CalendarDayHeader"
+        android:text="SAT" />
+
+</LinearLayout>
