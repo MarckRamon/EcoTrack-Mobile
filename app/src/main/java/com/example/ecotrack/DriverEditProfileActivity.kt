@@ -80,9 +80,9 @@ class DriverEditProfileActivity : BaseActivity() {
                             Log.d(TAG, "Profile loaded successfully: ${it.firstName} ${it.lastName}, email: ${it.email}")
                             
                             // Store original values
-                            originalFirstName = it.firstName
-                            originalLastName = it.lastName
-                            originalEmail = it.email
+                            originalFirstName = it.firstName ?: ""
+                            originalLastName = it.lastName ?: ""
+                            originalEmail = it.email ?: ""
                             
                             // Set UI fields
                             binding.firstNameInput.setText(it.firstName)
@@ -164,9 +164,11 @@ class DriverEditProfileActivity : BaseActivity() {
             try {
                 // Create request with all fields
                 val updateRequest = ProfileUpdateRequest(
-                    null,  // username doesn't change
                     firstName,
                     lastName,
+                    null,  // phoneNumber is null
+                    null,  // username doesn't change
+                    null,  // location is null
                     newEmail  // Updated email
                 )
                 
