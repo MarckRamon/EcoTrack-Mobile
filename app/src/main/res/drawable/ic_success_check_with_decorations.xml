@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+    
+    <!-- Yellow circle (top left) -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M40,80 a6,6 0 1,1 12,0 a6,6 0 1,1 -12,0"/>
+    
+    <!-- Green dot (top) -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M120,20 a6,6 0 1,1 12,0 a6,6 0 1,1 -12,0"/>
+        
+    <!-- Red dot (top right) -->
+    <path
+        android:fillColor="#F44336"
+        android:pathData="M170,40 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0"/>
+        
+    <!-- Orange curved line (top right) -->
+    <path
+        android:strokeColor="#FF9800"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M220,70 C240,90 230,110 210,120"/>
+    
+    <!-- Purple circle (right) -->
+    <path
+        android:fillColor="#9C27B0"
+        android:pathData="M200,120 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0"/>
+    
+    <!-- Yellow curve (bottom right) -->
+    <path
+        android:strokeColor="#FFC107"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M200,200 C180,210 170,190 180,180"/>
+    
+    <!-- Blue dot (bottom) -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M150,220 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0"/>
+    
+    <!-- Small green dot (bottom) -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M110,210 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0"/>
+    
+    <!-- Light green circle (bottom left) -->
+    <path
+        android:fillColor="#8BC34A"
+        android:pathData="M60,180 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0"/>
+    
+    <!-- Blue curve (left) -->
+    <path
+        android:strokeColor="#2196F3"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M30,160 C10,140 20,120 40,130"/>
+    
+    <!-- Main green circle background -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M120,120 m-60,0 a60,60 0 1,0 120,0 a60,60 0 1,0 -120,0"/>
+    
+    <!-- White checkmark -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M100,120 L115,135 L145,105"/>
+</vector> 

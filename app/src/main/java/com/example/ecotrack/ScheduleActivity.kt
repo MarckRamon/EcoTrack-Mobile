@@ -109,7 +109,9 @@ class ScheduleActivity : BaseActivity() {
         }
         
         binding.pickupNav.setOnClickListener {
-            Toast.makeText(this, "Order Pickup functionality coming soon", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, com.example.ecotrack.ui.pickup.OrderPickupActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            })
         }
     }
     
