@@ -124,7 +124,8 @@ class DriverMapActivity : BaseActivity() {
         }
         
         jobOrdersNav.setOnClickListener {
-            Toast.makeText(this, "Coming Soon", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, DriverJobOrderActivity::class.java))
+            finish()
         }
         
         // collectionPointsNav is the current screen

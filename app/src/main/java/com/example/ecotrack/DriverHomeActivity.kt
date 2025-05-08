@@ -65,11 +65,13 @@ class DriverHomeActivity : BaseActivity() {
         }
         
         findViewById<View>(R.id.jobOrdersNav).setOnClickListener {
-            Toast.makeText(this, "Coming Soon", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, DriverJobOrderActivity::class.java))
+            finish()
         }
         
         findViewById<View>(R.id.collectionPointsNav).setOnClickListener {
             startActivity(Intent(this, DriverMapActivity::class.java))
+            finish()
         }
     }
     
