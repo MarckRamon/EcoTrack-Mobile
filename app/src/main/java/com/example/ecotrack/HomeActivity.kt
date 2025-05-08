@@ -75,9 +75,8 @@ class HomeActivity : BaseActivity() {
         
         // Setup navigation to Order Pickup when Order Pickup is clicked
         binding.pickupNav?.setOnClickListener {
-            Toast.makeText(this, "Order Pickup functionality coming soon", Toast.LENGTH_SHORT).show()
-            // Implement this when OrderPickupActivity is available
-            // startActivity(Intent(this, OrderPickupActivity::class.java))
+            // Navigate to OrderPickupActivity
+            startActivity(Intent(this, com.example.ecotrack.ui.pickup.OrderPickupActivity::class.java))
         }
     }
 

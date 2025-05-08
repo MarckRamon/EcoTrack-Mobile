@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Truck Body -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M41,28h-1v-7.5c0,-1.2 -0.5,-2.3 -1.3,-3.1l-5.1,-5.1C32.8,11.5 31.7,11 30.5,11H24v17h17V28z"/>
+    
+    <!-- Front Cabin -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M5,28V15c0,-2.2 1.8,-4 4,-4h12v17H5z"/>
+    
+    <!-- Window -->
+    <path
+        android:fillColor="#BBDEFB"
+        android:pathData="M7,24V17c0,-1.1 0.9,-2 2,-2h8v9H7z"/>
+    
+    <!-- Recycling Symbol -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M31.5,18.5l-1.5,2.6l-1.5,-2.6l-1,0.6l2,3.4l-2,3.4l1,0.6l1.5,-2.6l1.5,2.6l1,-0.6l-2,-3.4l2,-3.4z"/>
+    
+    <!-- Front Wheel -->
+    <path
+        android:fillColor="#424242"
+        android:pathData="M10,32m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"/>
+    
+    <!-- Front Wheel Hub -->
+    <path
+        android:fillColor="#9E9E9E"
+        android:pathData="M10,32m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
+    
+    <!-- Rear Wheel -->
+    <path
+        android:fillColor="#424242"
+        android:pathData="M36,32m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"/>
+    
+    <!-- Rear Wheel Hub -->
+    <path
+        android:fillColor="#9E9E9E"
+        android:pathData="M36,32m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
+    
+    <!-- Headlight -->
+    <path
+        android:fillColor="#FFEB3B"
+        android:pathData="M6,22h2v2h-2z"/>
+        
+    <!-- Detail Lines -->
+    <path
+        android:strokeColor="#1B5E20"
+        android:strokeWidth="0.5"
+        android:pathData="M24,18h11 M24,22h11"/>
+
+</vector> 

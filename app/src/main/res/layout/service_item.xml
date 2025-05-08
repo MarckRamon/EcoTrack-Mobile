@@ -18,7 +18,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_gravity="center"
-            android:src="@drawable/ic_garbage_truck" />
+            android:src="@drawable/ic_garbage_truck_vector" />
 
         <TextView
             android:id="@+id/serviceTitle"
