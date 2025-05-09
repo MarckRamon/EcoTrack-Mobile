@@ -50,17 +50,17 @@ class OrderPickupActivity : AppCompatActivity() {
     private lateinit var navSchedule: LinearLayout
     private lateinit var navLocation: LinearLayout
     private lateinit var navPickup: LinearLayout
-    
+
     // Xendit API service
     private val xenditApiService by lazy {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
-        
+
         val client = OkHttpClient.Builder()
             .addInterceptor(logging)
             .build()
-            
+
         Retrofit.Builder()
             .baseUrl(XenditApiService.BASE_URL)
             .client(client)
@@ -68,24 +68,24 @@ class OrderPickupActivity : AppCompatActivity() {
             .build()
             .create(XenditApiService::class.java)
     }
-    
+
     // Hard-coded values for demo
     private val pickupOrderAmount = 500.0
     private val taxAmount = 50.0
     private val totalAmount = pickupOrderAmount + taxAmount
-    
+
     // Tag for logging
     private val TAG = "OrderPickupActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Initialize OpenStreetMap configuration
         Configuration.getInstance().load(
             applicationContext,
             PreferenceManager.getDefaultSharedPreferences(applicationContext)
         )
-        
+
         setContentView(R.layout.activity_order_pickup)
 
         // Setup back button
@@ -100,12 +100,12 @@ class OrderPickupActivity : AppCompatActivity() {
         btnProceedToPayment = findViewById(R.id.btn_proceed_to_payment)
         btnEditLocation = findViewById(R.id.btn_edit_location)
         tvLocationAddress = findViewById(R.id.tv_location_address)
-        
+
         // Initialize map
         mapView = findViewById(R.id.map_view)
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
-        
+
         // Setup map with default location
         setupMap()
 
@@ -119,21 +119,21 @@ class OrderPickupActivity : AppCompatActivity() {
         navHome.setOnClickListener {
             navigateToHome()
         }
-        
+
         navSchedule.setOnClickListener {
             // Navigate to schedule screen
             // This would be implemented in a real app
             // For now, just show a quick message or navigate to home
             navigateToHome()
         }
-        
+
         navLocation.setOnClickListener {
             // Navigate to location screen
             // This would be implemented in a real app
             // For now, just show a quick message or navigate to home
             navigateToHome()
         }
-        
+
         // Pickup is the current screen, no need to navigate
 
         // Handle proceed to payment button click
@@ -144,9 +144,13 @@ class OrderPickupActivity : AppCompatActivity() {
 
                 val fullName = etFullName.text.toString()
                 val email = etEmail.text.toString()
-                
+
                 // Ensure PickupOrder has a unique ID, matching Xendit's external_id
-                val uniqueOrderId = "order_${System.currentTimeMillis()}_${UUID.randomUUID()}" 
+                val uniqueOrderId = "order_${System.currentTimeMillis()}_${UUID.randomUUID()}"
+
+                // For testing different payment methods, you can change this to any of the enum values
+                // Options: GCASH, CASH_ON_HAND, CREDIT_CARD, PAYMAYA, GRABPAY, BANK_TRANSFER, OTC
+                val testPaymentMethod = PaymentMethod.GCASH
 
                 val order = PickupOrder(
                     id = uniqueOrderId, // Set the unique ID here
@@ -158,12 +162,15 @@ class OrderPickupActivity : AppCompatActivity() {
                     amount = pickupOrderAmount,
                     tax = taxAmount,
                     total = totalAmount,
-                    paymentMethod = PaymentMethod.GCASH // Default, will be updated by Xendit choice
+                    paymentMethod = testPaymentMethod // Default, will be updated by Xendit choice
                 )
-                
+
+                // Log the initial payment method
+                Log.d(TAG, "Initial payment method: ${testPaymentMethod.name}, display name: ${testPaymentMethod.getDisplayName()}")
+
                 // Save the order temporarily
                 TempOrderHolder.saveOrder(order)
-                
+
                 createXenditInvoice(order) // Pass the order object
             }
         }
@@ -179,13 +186,13 @@ class OrderPickupActivity : AppCompatActivity() {
             startActivityForResult(intent, LOCATION_PICKER_REQUEST)
         }
     }
-    
+
     private fun calculateTotalAmount(): Double {
         return totalAmount
     }
-    
+
     // Renamed for clarity and to accept PickupOrder
-    private fun createXenditInvoice(order: PickupOrder) { 
+    private fun createXenditInvoice(order: PickupOrder) {
         lifecycleScope.launch {
             try {
                 // Use a clear query parameter for status, as path segments might be handled differently by gateways/browsers
@@ -243,28 +250,28 @@ class OrderPickupActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun setupMap() {
         // Default location (can be user's current location in production)
         val defaultLocation = GeoPoint(14.6091, 121.0223) // Manila, Philippines
         selectedLocation = defaultLocation
         selectedAddress = "Lagtang Talisay, 6045 Talisay City"
-        
+
         // Configure map zoom
         mapView.controller.setZoom(15.0)
         mapView.controller.setCenter(defaultLocation)
-        
+
         // Add marker
         addMarkerToMap(defaultLocation)
-        
+
         // Update the location text
         tvLocationAddress.setText(selectedAddress)
     }
-    
+
     private fun addMarkerToMap(geoPoint: GeoPoint) {
         // Clear previous markers
         mapView.overlays.clear()
-        
+
         // Add new marker
         val marker = Marker(mapView)
         marker.position = geoPoint
@@ -272,7 +279,7 @@ class OrderPickupActivity : AppCompatActivity() {
         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
         marker.icon = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)
         mapView.overlays.add(marker)
-        
+
         // Refresh map
         mapView.invalidate()
     }
@@ -320,21 +327,21 @@ class OrderPickupActivity : AppCompatActivity() {
             val longitude = data.getDoubleExtra("LONGITUDE", 0.0)
             selectedLocation = GeoPoint(latitude, longitude)
             selectedAddress = data.getStringExtra("ADDRESS") ?: ""
-            
+
             // Update the map
             mapView.controller.setCenter(selectedLocation)
             addMarkerToMap(selectedLocation!!)
-            
+
             // Update the location text
             tvLocationAddress.setText(selectedAddress)
         }
     }
-    
+
     override fun onResume() {
         super.onResume()
         mapView.onResume()
     }
-    
+
     override fun onPause() {
         super.onPause()
         mapView.onPause()
@@ -348,4 +355,4 @@ class OrderPickupActivity : AppCompatActivity() {
     companion object {
         private const val LOCATION_PICKER_REQUEST = 1001
     }
-} 
+}

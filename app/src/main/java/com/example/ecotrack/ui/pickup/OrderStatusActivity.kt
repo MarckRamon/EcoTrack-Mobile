@@ -2,14 +2,17 @@ package com.example.ecotrack.ui.pickup
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.ecotrack.HomeActivity
 import com.example.ecotrack.R
 import com.example.ecotrack.ui.pickup.model.OrderStatus
+import com.example.ecotrack.ui.pickup.model.PaymentMethod
 import com.example.ecotrack.ui.pickup.model.PickupOrder
 import java.util.*
 
@@ -23,7 +26,7 @@ class OrderStatusActivity : AppCompatActivity() {
     private lateinit var btnCancel: TextView
     private lateinit var backButton: ImageView
     private lateinit var order: PickupOrder
-    
+
     // Bottom navigation
     private lateinit var navHome: LinearLayout
     private lateinit var navSchedule: LinearLayout
@@ -67,15 +70,15 @@ class OrderStatusActivity : AppCompatActivity() {
             navHome.setOnClickListener {
                 navigateToHome()
             }
-            
+
             navSchedule.setOnClickListener {
                 navigateToHome()
             }
-            
+
             navLocation.setOnClickListener {
                 navigateToHome()
             }
-            
+
             navPickup.setOnClickListener {
                 navigateToPickup()
             }
@@ -88,9 +91,35 @@ class OrderStatusActivity : AppCompatActivity() {
         tvPaymentMethod.text = order.paymentMethod.getDisplayName()
         tvLocation.text = order.address
 
+        // Log payment method for debugging
+        Log.d("OrderStatusActivity", "Payment method: ${order.paymentMethod.name}, display name: ${order.paymentMethod.getDisplayName()}")
+
+        // Add debug functionality - long press on payment method text to cycle through payment methods
+        tvPaymentMethod.setOnLongClickListener {
+            // Cycle through payment methods for testing
+            val methods = PaymentMethod.values()
+            val currentIndex = methods.indexOf(order.paymentMethod)
+            val nextIndex = (currentIndex + 1) % methods.size
+            val newMethod = methods[nextIndex]
+
+            // Update the order with the new payment method
+            order = order.copy(paymentMethod = newMethod)
+
+            // Update the UI
+            tvPaymentMethod.text = order.paymentMethod.getDisplayName()
+
+            // Log the change
+            Log.d("OrderStatusActivity", "Changed payment method to: ${order.paymentMethod.name}, display name: ${order.paymentMethod.getDisplayName()}")
+
+            // Show toast
+            Toast.makeText(this, "Payment method changed to: ${order.paymentMethod.getDisplayName()}", Toast.LENGTH_SHORT).show()
+
+            true
+        }
+
         // For demo purposes, simulate that the order has been accepted after 5 seconds
         updateOrderStatus(order.status)
-        
+
         // If order is in PROCESSING status, show the ability to cancel
         if (order.status == OrderStatus.PROCESSING) {
             btnCancel.visibility = View.VISIBLE
@@ -101,7 +130,7 @@ class OrderStatusActivity : AppCompatActivity() {
                 updateOrderStatus(OrderStatus.CANCELLED)
                 btnCancel.visibility = View.GONE
             }
-            
+
             // Simulate driver accepting the order after 5 seconds
             btnCancel.postDelayed({
                 if (!isFinishing) { // Check if activity is still active
@@ -153,4 +182,4 @@ class OrderStatusActivity : AppCompatActivity() {
             }
         }
     }
-} 
+}

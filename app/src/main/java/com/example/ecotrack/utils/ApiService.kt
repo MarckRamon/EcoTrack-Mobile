@@ -2,6 +2,8 @@ package com.example.ecotrack.utils
 
 import android.util.Log
 import com.example.ecotrack.models.*
+import com.example.ecotrack.models.payment.PaymentRequest
+import com.example.ecotrack.models.payment.PaymentResponse
 import com.example.ecotrack.utils.NetworkUtils.Companion.ChunkedTransferFixInterceptor
 import com.google.gson.GsonBuilder
 import okhttp3.ConnectionSpec
@@ -61,25 +63,49 @@ interface ApiService {
 
     @GET("api/pickup-locations/{id}")
     suspend fun getPickupSiteDetails(@Path("id") id: String): Response<PickupSite>
-    
+
     // Collection Schedule Endpoints
     @GET("api/collection-schedules/barangay/{barangayId}")
     suspend fun getSchedulesByBarangay(
         @Path("barangayId") barangayId: String,
         @Header("Authorization") authToken: String
     ): Response<List<CollectionScheduleResponse>>
-    
+
     @GET("api/collection-schedules/barangay/{barangayId}/upcoming")
     suspend fun getUpcomingSchedules(
         @Path("barangayId") barangayId: String,
         @Header("Authorization") authToken: String
     ): Response<List<CollectionScheduleResponse>>
-    
+
     @GET("api/collection-schedules/barangay/{barangayId}/recurring")
     suspend fun getRecurringSchedules(
         @Path("barangayId") barangayId: String,
         @Header("Authorization") authToken: String
     ): Response<List<CollectionScheduleResponse>>
+
+    // Payment Endpoints
+    @POST("api/payments")
+    suspend fun processPayment(
+        @Body paymentRequest: PaymentRequest
+    ): Response<PaymentResponse>
+
+    @GET("api/payments")
+    suspend fun getAllPayments(): Response<List<PaymentResponse>>
+
+    @GET("api/payments/{id}")
+    suspend fun getPaymentById(
+        @Path("id") id: String
+    ): Response<PaymentResponse>
+
+    @GET("api/payments/order/{orderId}")
+    suspend fun getPaymentByOrderId(
+        @Path("orderId") orderId: String
+    ): Response<PaymentResponse>
+
+    @GET("api/payments/customer")
+    suspend fun getPaymentsByCustomerEmail(
+        @Query("email") email: String
+    ): Response<List<PaymentResponse>>
 
     companion object {
         private const val TAG = "ApiService"
@@ -117,4 +143,4 @@ interface ApiService {
                 .create(ApiService::class.java)
         }
     }
-} 
+}
