@@ -4,9 +4,11 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.example.ecotrack.databinding.ActivityDriverEditProfileBinding
+import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.models.ProfileUpdateRequest
 import com.example.ecotrack.utils.ApiService
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +25,15 @@ class DriverEditProfileActivity : BaseActivity() {
     private var originalEmail = ""
     private var originalFirstName = ""
     private var originalLastName = ""
+    private var originalBarangayId: String? = null
+    private var originalBarangayName: String? = null
+    
+    // Selected barangay
+    private var selectedBarangayId: String? = null
+    private var selectedBarangayName: String? = null
+
+    // Barangay data
+    private var barangays: List<Barangay> = listOf()
     
     // Count email update attempts to avoid infinite loops
     private var emailUpdateAttempts = 0
@@ -42,7 +53,9 @@ class DriverEditProfileActivity : BaseActivity() {
             finish()
         }
 
+        // Load user profile and barangays
         loadUserProfile()
+        loadBarangays()
 
         binding.saveButton.setOnClickListener {
             updateProfile()
@@ -83,11 +96,20 @@ class DriverEditProfileActivity : BaseActivity() {
                             originalFirstName = it.firstName ?: ""
                             originalLastName = it.lastName ?: ""
                             originalEmail = it.email ?: ""
+                            originalBarangayId = it.barangayId
+                            originalBarangayName = it.barangayName
                             
                             // Set UI fields
                             binding.firstNameInput.setText(it.firstName)
                             binding.lastNameInput.setText(it.lastName)
                             binding.emailInput.setText(it.email)
+                            
+                            // Set initial barangay selection
+                            if (originalBarangayName != null) {
+                                binding.barangayDropdown.setText(originalBarangayName)
+                                selectedBarangayId = originalBarangayId
+                                selectedBarangayName = originalBarangayName
+                            }
                             
                             // Make email field editable again (with warning)
                             binding.emailInput.isEnabled = true
@@ -136,8 +158,9 @@ class DriverEditProfileActivity : BaseActivity() {
         // Check if any field actually changed
         val nameChanged = firstName != originalFirstName || lastName != originalLastName
         val emailChanged = email != originalEmail
+        val barangayChanged = selectedBarangayId != originalBarangayId
         
-        if (!nameChanged && !emailChanged) {
+        if (!nameChanged && !emailChanged && !barangayChanged) {
             Log.d(TAG, "No changes detected, returning to previous screen")
             Toast.makeText(this, "No changes were made", Toast.LENGTH_SHORT).show()
             showLoading(false)
@@ -148,7 +171,8 @@ class DriverEditProfileActivity : BaseActivity() {
         Log.d(TAG, "Attempting to update profile for userId: $userId")
         Log.d(TAG, "Update data: firstName=$firstName, lastName=$lastName, email=$email")
         Log.d(TAG, "Original values: firstName=$originalFirstName, lastName=$originalLastName, email=$originalEmail")
-        Log.d(TAG, "Email changed: $emailChanged, Name changed: $nameChanged")
+        Log.d(TAG, "Email changed: $emailChanged, Name changed: $nameChanged, Barangay changed: $barangayChanged")
+        Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
         
         updateProfileWithNewEmail(userId, token, firstName, lastName, email)
     }
@@ -164,12 +188,14 @@ class DriverEditProfileActivity : BaseActivity() {
             try {
                 // Create request with all fields
                 val updateRequest = ProfileUpdateRequest(
-                    firstName,
-                    lastName,
-                    null,  // phoneNumber is null
-                    null,  // username doesn't change
-                    null,  // location is null
-                    newEmail  // Updated email
+                    firstName = firstName,
+                    lastName = lastName,
+                    phoneNumber = null,  // No phone number update
+                    username = null,     // Username doesn't change
+                    location = null,     // Location is null
+                    email = newEmail,    // Updated email
+                    barangayId = selectedBarangayId,
+                    barangayName = selectedBarangayName
                 )
                 
                 Log.d(TAG, "Sending profile update request: $updateRequest")
@@ -305,6 +331,75 @@ class DriverEditProfileActivity : BaseActivity() {
             }
             .setCancelable(false)
             .show()
+    }
+
+    private fun loadBarangays() {
+        Log.d(TAG, "Starting to load barangays")
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                Log.d(TAG, "Making API call to get barangays")
+
+                // Get the token from session manager
+                val token = sessionManager.getToken()
+
+                if (token == null) {
+                    Log.e(TAG, "No authentication token available")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@DriverEditProfileActivity, "Authentication error. Please log in again.", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                // Add the Bearer prefix to the token
+                val authHeader = "Bearer $token"
+                Log.d(TAG, "Using auth token for barangay API")
+
+                val response = apiService.getAllBarangays(authHeader)
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful && response.body() != null) {
+                        barangays = response.body()!!.filter { it.isActive }
+                        Log.d(TAG, "Barangays loaded successfully: ${barangays.size} barangays")
+                        Log.d(TAG, "Filtered barangays: $barangays")
+
+                        // Now that we have the data, set up the dropdown
+                        setupBarangayDropdown()
+                    } else {
+                        Log.e(TAG, "Failed to load barangays: ${response.code()} - ${response.message()}")
+                        Toast.makeText(this@DriverEditProfileActivity, "Failed to load barangays. Please try again.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading barangays", e)
+                Log.e(TAG, "Exception details: ${e.message}, cause: ${e.cause}")
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@DriverEditProfileActivity, "Error loading barangays: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun setupBarangayDropdown() {
+        val barangayNames = barangays.map { it.name }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, barangayNames)
+
+        val barangayDropdown = binding.barangayDropdown
+        barangayDropdown.setAdapter(adapter)
+        barangayDropdown.threshold = 0  // Show all items immediately when clicked
+
+        // Set the initial selection if we have the original barangay
+        if (originalBarangayId != null && originalBarangayName != null) {
+            barangayDropdown.setText(originalBarangayName)
+            selectedBarangayId = originalBarangayId
+            selectedBarangayName = originalBarangayName
+        }
+
+        barangayDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedBarangay = barangays[position]
+            selectedBarangayId = selectedBarangay.barangayId
+            selectedBarangayName = selectedBarangay.name
+            Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+        }
     }
     
     private fun showLoading(isLoading: Boolean) {
