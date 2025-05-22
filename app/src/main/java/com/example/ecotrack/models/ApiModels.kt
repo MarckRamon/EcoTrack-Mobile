@@ -23,7 +23,9 @@ data class RegistrationRequest(
     val password: String,
     val phoneNumber: String,
     val role: String = "customer",
-    val securityQuestions: List<SecurityQuestionAnswer>? = null
+    val securityQuestions: List<SecurityQuestionAnswer>? = null,
+    val barangayId: String? = null,
+    val barangayName: String? = null
 )
 
 data class RegisterResponse(
@@ -45,7 +47,9 @@ data class UserProfile(
     val username: String?,
     val location: Map<String, Any>?,
     val createdAt: TimestampResponse?,
-    val preferences: Map<String, Any>?
+    val preferences: Map<String, Any>?,
+    val barangayId: String? = null,
+    val barangayName: String? = null
 )
 
 data class ProfileUpdateRequest(
@@ -54,7 +58,9 @@ data class ProfileUpdateRequest(
     val phoneNumber: String?,
     val username: String?,
     val location: Map<String, Any>?,
-    val email: String?
+    val email: String?,
+    val barangayId: String? = null,
+    val barangayName: String? = null
 )
 
 data class PasswordUpdateRequest(

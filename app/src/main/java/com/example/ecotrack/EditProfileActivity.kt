@@ -4,9 +4,11 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.example.ecotrack.databinding.ActivityEditProfileBinding
+import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.models.ProfileUpdateRequest
 import com.example.ecotrack.utils.ApiService
 import kotlinx.coroutines.CoroutineScope
@@ -18,12 +20,21 @@ class EditProfileActivity : BaseActivity() {
     private lateinit var binding: ActivityEditProfileBinding
     private val apiService = ApiService.create()
     private val TAG = "EditProfileActivity"
-    
+
     // Store original profile values
     private var originalEmail = ""
     private var originalFirstName = ""
     private var originalLastName = ""
-    
+    private var originalBarangayId: String? = null
+    private var originalBarangayName: String? = null
+
+    // Selected barangay
+    private var selectedBarangayId: String? = null
+    private var selectedBarangayName: String? = null
+
+    // Barangay data
+    private var barangays: List<Barangay> = listOf()
+
     // Count email update attempts to avoid infinite loops
     private var emailUpdateAttempts = 0
     private val MAX_EMAIL_ATTEMPTS = 3
@@ -32,14 +43,16 @@ class EditProfileActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityEditProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
         // BaseActivity handles session checks
 
         binding.backButton?.setOnClickListener {
             finish()
         }
 
+        // Load user profile and barangays
         loadUserProfile()
+        loadBarangays()
 
         binding.saveButton.setOnClickListener {
             updateProfile()
@@ -65,17 +78,26 @@ class EditProfileActivity : BaseActivity() {
                         val profile = response.body()
                         profile?.let {
                             Log.d(TAG, "Profile loaded successfully: ${it.firstName} ${it.lastName}, email: ${it.email}")
-                            
+
                             // Store original values
                             originalFirstName = it.firstName ?: ""
                             originalLastName = it.lastName ?: ""
                             originalEmail = it.email
-                            
+                            originalBarangayId = it.barangayId
+                            originalBarangayName = it.barangayName
+
                             // Set UI fields
                             binding.firstNameInput.setText(it.firstName)
                             binding.lastNameInput.setText(it.lastName)
                             binding.emailInput.setText(it.email)
-                            
+
+                            // Set initial barangay selection
+                            if (originalBarangayName != null) {
+                                binding.barangayDropdown.setText(originalBarangayName)
+                                selectedBarangayId = originalBarangayId
+                                selectedBarangayName = originalBarangayName
+                            }
+
                             // Make email field editable again (with warning)
                             binding.emailInput.isEnabled = true
                             binding.emailInputLayout.helperText = "Note: Changing your email will require you to login again"
@@ -84,7 +106,7 @@ class EditProfileActivity : BaseActivity() {
                         Log.e(TAG, "Failed to load profile: ${response.code()} - ${response.message()}")
                         val errorBody = response.errorBody()?.string()
                         Log.e(TAG, "Error body: $errorBody")
-                        
+
                         // Show appropriate error message
                         Toast.makeText(this@EditProfileActivity, "Failed to load profile", Toast.LENGTH_SHORT).show()
                     }
@@ -123,8 +145,9 @@ class EditProfileActivity : BaseActivity() {
         // Check if any field actually changed
         val nameChanged = firstName != originalFirstName || lastName != originalLastName
         val emailChanged = email != originalEmail
-        
-        if (!nameChanged && !emailChanged) {
+        val barangayChanged = selectedBarangayId != originalBarangayId
+
+        if (!nameChanged && !emailChanged && !barangayChanged) {
             Log.d(TAG, "No changes detected, returning to previous screen")
             Toast.makeText(this, "No changes were made", Toast.LENGTH_SHORT).show()
             showLoading(false)
@@ -135,16 +158,17 @@ class EditProfileActivity : BaseActivity() {
         Log.d(TAG, "Attempting to update profile for userId: $userId")
         Log.d(TAG, "Update data: firstName=$firstName, lastName=$lastName, email=$email")
         Log.d(TAG, "Original values: firstName=$originalFirstName, lastName=$originalLastName, email=$originalEmail")
-        Log.d(TAG, "Email changed: $emailChanged, Name changed: $nameChanged")
-        
+        Log.d(TAG, "Email changed: $emailChanged, Name changed: $nameChanged, Barangay changed: $barangayChanged")
+        Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+
         updateProfileWithNewEmail(userId, token, firstName, lastName, email)
     }
-    
+
     private fun updateProfileWithNewEmail(
-        userId: String, 
-        token: String, 
-        firstName: String, 
-        lastName: String, 
+        userId: String,
+        token: String,
+        firstName: String,
+        lastName: String,
         newEmail: String
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -156,24 +180,26 @@ class EditProfileActivity : BaseActivity() {
                     phoneNumber = null,  // No phone number update
                     username = null,     // No username update
                     location = null,     // No location update
-                    email = newEmail     // Add email parameter
+                    email = newEmail,    // Add email parameter
+                    barangayId = selectedBarangayId,
+                    barangayName = selectedBarangayName
                 )
-                
+
                 Log.d(TAG, "Sending profile update request: $updateRequest")
-                
+
                 val response = apiService.updateProfile(
                     userId,
                     "Bearer $token",
                     updateRequest
                 )
-                
+
                 withContext(Dispatchers.Main) {
                     showLoading(false)
-                    
+
                     if (response.isSuccessful) {
                         Log.d(TAG, "Profile updated successfully")
                         val emailChanged = newEmail != originalEmail
-                        
+
                         if (emailChanged) {
                             // If email was changed, need to logout and relogin
                             Toast.makeText(
@@ -181,14 +207,14 @@ class EditProfileActivity : BaseActivity() {
                                 "Profile updated successfully. Please login again with your new email.",
                                 Toast.LENGTH_LONG
                             ).show()
-                            
+
                             // Logout and navigate to login
                             sessionManager.logout()
                             navigateToLogin()
                         } else {
                             Toast.makeText(
                                 this@EditProfileActivity,
-                                "Profile updated successfully", 
+                                "Profile updated successfully",
                                 Toast.LENGTH_SHORT
                             ).show()
                             finish()
@@ -196,14 +222,14 @@ class EditProfileActivity : BaseActivity() {
                     } else {
                         val errorCode = response.code()
                         Log.e(TAG, "Failed to update profile: $errorCode - ${response.message()}")
-                        
+
                         try {
                             val errorBody = response.errorBody()?.string()
                             Log.e(TAG, "Error body: $errorBody")
-                            
+
                             // Check if this is the common "Email is already in use" error
                             val isEmailInUseError = errorBody?.contains("Email is already in use") == true
-                            
+
                             if (isEmailInUseError && emailUpdateAttempts < MAX_EMAIL_ATTEMPTS) {
                                 handleEmailInUseError(userId, token, firstName, lastName, newEmail)
                             } else {
@@ -215,9 +241,9 @@ class EditProfileActivity : BaseActivity() {
                                     errorCode == 404 -> "User profile not found."
                                     else -> "Failed to update profile: ${errorBody ?: "Unknown error"}"
                                 }
-                                
+
                                 Toast.makeText(this@EditProfileActivity, userMessage, Toast.LENGTH_LONG).show()
-                                
+
                                 if (errorCode == 401 || errorCode == 403) {
                                     sessionManager.logout()
                                     navigateToLogin()
@@ -238,7 +264,7 @@ class EditProfileActivity : BaseActivity() {
             }
         }
     }
-    
+
     private fun handleEmailInUseError(
         userId: String,
         token: String,
@@ -249,7 +275,7 @@ class EditProfileActivity : BaseActivity() {
         // Generate alternative email suggestions
         val username = attemptedEmail.substringBefore('@')
         val domain = attemptedEmail.substringAfter('@')
-        
+
         val options = arrayOf(
             // Try with name only changes, keep email the same
             "Continue with original email ($originalEmail)",
@@ -260,7 +286,7 @@ class EditProfileActivity : BaseActivity() {
             // Try another variation
             "${username}.alt@$domain"
         )
-        
+
         AlertDialog.Builder(this)
             .setTitle("Email Already Exists")
             .setMessage(
@@ -271,7 +297,7 @@ class EditProfileActivity : BaseActivity() {
             )
             .setItems(options) { _, which ->
                 emailUpdateAttempts++
-                
+
                 when (which) {
                     0 -> {
                         // Use original email, update only names
@@ -293,7 +319,77 @@ class EditProfileActivity : BaseActivity() {
             .setCancelable(false)
             .show()
     }
-    
+
+    private fun loadBarangays() {
+        Log.d(TAG, "Starting to load barangays")
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                Log.d(TAG, "Making API call to get barangays")
+
+                // Get the token from session manager
+                val token = sessionManager.getToken()
+
+                if (token == null) {
+                    Log.e(TAG, "No authentication token available")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@EditProfileActivity, "Authentication error. Please log in again.", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                // Add the Bearer prefix to the token
+                val authHeader = "Bearer $token"
+                Log.d(TAG, "Using auth token for barangay API")
+
+                val response = apiService.getAllBarangays(authHeader)
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful && response.body() != null) {
+                        barangays = response.body()!!.filter { it.isActive }
+                        Log.d(TAG, "Barangays loaded successfully: ${barangays.size} barangays")
+                        Log.d(TAG, "Filtered barangays: $barangays")
+
+                        // Now that we have the data, set up the dropdown
+                        setupBarangayDropdown()
+                    } else {
+                        Log.e(TAG, "Failed to load barangays: ${response.code()} - ${response.message()}")
+                        Toast.makeText(this@EditProfileActivity, "Failed to load barangays. Please try again.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading barangays", e)
+                Log.e(TAG, "Exception details: ${e.message}, cause: ${e.cause}")
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@EditProfileActivity, "Error loading barangays: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun setupBarangayDropdown() {
+        val barangayNames = barangays.map { it.name }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, barangayNames)
+
+        val barangayDropdown = binding.barangayDropdown
+        barangayDropdown.setAdapter(adapter)
+        barangayDropdown.threshold = 0  // Show all items immediately when clicked
+
+        // Set the initial selection if we have the original barangay
+        // Commenting out this line to see if it prevents the dropdown from filtering initially
+        // if (originalBarangayId != null && originalBarangayName != null) {
+        //     barangayDropdown.setText(originalBarangayName)
+        //     selectedBarangayId = originalBarangayId
+        //     selectedBarangayName = originalBarangayName
+        // }
+
+        barangayDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedBarangay = barangays[position]
+            selectedBarangayId = selectedBarangay.barangayId
+            selectedBarangayName = selectedBarangay.name
+            Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+        }
+    }
+
     private fun showLoading(isLoading: Boolean) {
         binding.saveButton.isEnabled = !isLoading
         binding.progressBar?.visibility = if (isLoading) View.VISIBLE else View.GONE

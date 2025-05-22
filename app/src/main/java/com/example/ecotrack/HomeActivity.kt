@@ -40,7 +40,7 @@ class HomeActivity : BaseActivity() {
 
         // Check if user has customer role before proceeding
         validateCustomerAccount()
-        
+
         // Set click listeners for navigation
         setupNavigation()
 
@@ -62,17 +62,17 @@ class HomeActivity : BaseActivity() {
         binding.profileImage?.setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
-        
+
         // Setup navigation to Map when Location is clicked
         binding.pointsNav?.setOnClickListener {
             startActivity(Intent(this, MapActivity::class.java))
         }
-        
+
         // Setup navigation to Schedule when Schedule is clicked
         binding.scheduleNav?.setOnClickListener {
             startActivity(Intent(this, ScheduleActivity::class.java))
         }
-        
+
         // Setup navigation to Order Pickup when Order Pickup is clicked
         binding.pickupNav?.setOnClickListener {
             // Navigate to OrderPickupActivity
@@ -83,18 +83,18 @@ class HomeActivity : BaseActivity() {
     private fun validateCustomerAccount() {
         // First check the stored user type
         val userType = sessionManager.getUserType()
-        
+
         if (userType != "customer") {
             Log.w(TAG, "Non-customer account detected in HomeActivity: $userType")
-            
+
             val message = when (userType) {
                 "driver" -> "Driver accounts should use the driver interface. Redirecting..."
                 "admin" -> "Admin accounts should use the admin interface. Redirecting..."
                 else -> "Invalid account type. Please login again."
             }
-            
+
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-            
+
             // Redirect based on account type
             when (userType) {
                 "driver" -> redirectToDriverHome()
@@ -113,7 +113,7 @@ class HomeActivity : BaseActivity() {
             }
             return
         }
-        
+
         // Load the user profile
         loadUserProfile()
     }
@@ -121,26 +121,26 @@ class HomeActivity : BaseActivity() {
     private fun loadUserProfile() {
         val userId = sessionManager.getUserId()
         val token = sessionManager.getToken()
-        
+
         if (userId == null || token == null) {
             Log.e(TAG, "Missing user credentials, redirecting to login")
             // BaseActivity will handle redirection
             return
         }
-        
+
         // Extract role directly from token for a more reliable check
         val roleFromToken = sessionManager.extractRoleFromToken(token)
         if (roleFromToken != null && roleFromToken != "customer") {
             Log.w(TAG, "Non-customer role detected in token: $roleFromToken")
-            
+
             val message = when (roleFromToken) {
                 "driver" -> "Driver accounts should use the driver interface."
                 "admin" -> "Admin accounts should use the admin interface."
                 else -> "Invalid account type. Please login again."
             }
-            
+
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-            
+
             when (roleFromToken) {
                 "driver" -> {
                     // Save the role and redirect
@@ -161,11 +161,11 @@ class HomeActivity : BaseActivity() {
             }
             return
         }
-        
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = apiService.getProfile(userId, "Bearer $token")
-                
+
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful) {
                         val profile = response.body()
@@ -222,15 +222,15 @@ class HomeActivity : BaseActivity() {
     private fun loadUserData() {
         val token = sessionManager.getToken()
         val userId = sessionManager.getUserId()
-        
+
         if (token == null || userId == null) {
             Log.e(TAG, "loadUserData - Missing credentials - token: $token, userId: $userId")
             // BaseActivity will handle the redirect to login if needed
             return
         }
-        
+
         Log.d(TAG, "Loading profile data for userId: $userId")
-        
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = apiService.getProfile(userId, "Bearer $token")
@@ -245,21 +245,21 @@ class HomeActivity : BaseActivity() {
                         val errorCode = response.code()
                         val errorMessage = response.message()
                         Log.e(TAG, "Failed to load profile: $errorCode - $errorMessage")
-                        
+
                         try {
                             val errorBody = response.errorBody()?.string()
                             Log.e(TAG, "Error body: $errorBody")
-                            
+
                             // Handle 403 error specially - this usually means the token is invalid
                             // after changing email, the token might no longer be valid
                             if (errorCode == 403) {
                                 Log.e(TAG, "403 Forbidden error - token likely invalid after email change")
                                 Toast.makeText(
-                                    this@HomeActivity, 
+                                    this@HomeActivity,
                                     "Your session has expired after profile update. Please login again.",
                                     Toast.LENGTH_LONG
                                 ).show()
-                                
+
                                 // Force logout and redirect to login
                                 sessionManager.logout()
                                 navigateToLogin()
@@ -283,12 +283,12 @@ class HomeActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         // BaseActivity already handles setCurrentActivity and updateLastActivity
-        
+
         // Always refresh profile data when returning to this activity
         Log.d(TAG, "onResume - refreshing profile data")
         loadUserData()
     }
-    
+
     // This is called when the activity is brought back to the foreground
     override fun onRestart() {
         super.onRestart()

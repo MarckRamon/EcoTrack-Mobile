@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.ecotrack.models.*
 import com.example.ecotrack.models.payment.PaymentRequest
 import com.example.ecotrack.models.payment.PaymentResponse
+import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.utils.NetworkUtils.Companion.ChunkedTransferFixInterceptor
 import com.google.gson.GsonBuilder
 import okhttp3.ConnectionSpec
@@ -83,6 +84,12 @@ interface ApiService {
         @Header("Authorization") authToken: String
     ): Response<List<CollectionScheduleResponse>>
 
+    // Missed Reports Endpoints
+    @GET("api/missed-reports/user")
+    suspend fun getMissedReports(
+        @Header("Authorization") authToken: String
+    ): Response<List<MissedReportResponse>>
+
     // Payment Endpoints
     @POST("api/payments")
     suspend fun processPayment(
@@ -106,6 +113,16 @@ interface ApiService {
     suspend fun getPaymentsByCustomerEmail(
         @Query("email") email: String
     ): Response<List<PaymentResponse>>
+
+    // Barangay Endpoints
+    @GET("api/barangays")
+    suspend fun getAllBarangays(@Header("Authorization") authToken: String): Response<List<Barangay>>
+
+    @GET("api/barangays/{barangayId}")
+    suspend fun getBarangayById(
+        @Path("barangayId") barangayId: String,
+        @Header("Authorization") authToken: String
+    ): Response<Barangay>
 
     companion object {
         private const val TAG = "ApiService"

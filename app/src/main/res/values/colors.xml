@@ -51,4 +51,7 @@
     <color name="legend_background_color">#F5F5F5</color>
     <color name="bottom_nav_selected">@color/white</color>
     <color name="bottom_nav_unselected">#A5D6A7</color>
+
+    <!-- App primary green color -->
+    <color name="green_primary">@color/primaryGreen</color>
 </resources>

@@ -12,6 +12,7 @@ import com.example.ecotrack.databinding.ActivityRegisterBinding
 import com.example.ecotrack.models.RegistrationRequest
 import com.example.ecotrack.models.SecurityQuestion
 import com.example.ecotrack.models.SecurityQuestionAnswer
+import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.utils.ApiService
 import com.example.ecotrack.utils.SessionManager
 import com.google.firebase.auth.FirebaseAuth
@@ -25,17 +26,22 @@ class RegisterActivity : AppCompatActivity() {
     private lateinit var sessionManager: SessionManager
     private val apiService = ApiService.create()
     private val TAG = "RegisterActivity"
-    
+
     // User data to store between steps
     private var firstName = ""
     private var lastName = ""
     private var email = ""
     private var phoneNumber = ""
     private var password = ""
-    
+    private var selectedBarangayId: String? = null
+    private var selectedBarangayName: String? = null
+
     // Security questions data
     private var securityQuestions: List<SecurityQuestion> = listOf()
     private var selectedQuestionIds = mutableListOf<String?>(null, null, null)
+
+    // Barangay data
+    private var barangays: List<Barangay> = listOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,8 +51,9 @@ class RegisterActivity : AppCompatActivity() {
         sessionManager = SessionManager.getInstance(this)
         sessionManager.setCurrentActivity(this)
 
-        // Load security questions from API
+        // Load security questions and barangays from API
         loadSecurityQuestions()
+        loadBarangays()
 
         // First page - Next button
         binding.btnNext.setOnClickListener {
@@ -55,7 +62,7 @@ class RegisterActivity : AppCompatActivity() {
                 showSecurityQuestions()
             }
         }
-        
+
         // Security Questions - Back button
         binding.btnBack.setOnClickListener {
             showUserInfoForm()
@@ -72,7 +79,7 @@ class RegisterActivity : AppCompatActivity() {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }
-        
+
         // Set up the question spinners
         setupQuestionSpinners()
     }
@@ -86,12 +93,12 @@ class RegisterActivity : AppCompatActivity() {
         super.onPause()
         sessionManager.setCurrentActivity(null)
     }
-    
+
     private fun setupQuestionSpinners() {
         // We'll set click listeners after the adapters are set in loadSecurityQuestions()
         // This prevents crashes when clicking on spinners before data is loaded
     }
-    
+
     private fun loadSecurityQuestions() {
         Log.d(TAG, "Starting to load security questions")
         CoroutineScope(Dispatchers.IO).launch {
@@ -104,7 +111,7 @@ class RegisterActivity : AppCompatActivity() {
                         securityQuestions = securityQuestionsResponse.questions ?: emptyList()
                         Log.d(TAG, "Security questions loaded successfully: ${securityQuestions.size} questions")
                         Log.d(TAG, "Raw security questions data: $securityQuestions")
-                        
+
                         if (securityQuestions.isEmpty()) {
                             Log.e(TAG, "No security questions received from API")
                             Toast.makeText(
@@ -114,9 +121,9 @@ class RegisterActivity : AppCompatActivity() {
                             ).show()
                             return@withContext
                         }
-                        
+
                         Log.d(TAG, "Question IDs: ${securityQuestions.map { it.id }}")
-                        
+
                         // Populate the dropdown menus
                         val questionTexts = securityQuestions
                             .mapNotNull { if (it.questionText.isNullOrBlank()) null else it.questionText }
@@ -132,10 +139,10 @@ class RegisterActivity : AppCompatActivity() {
                             ).show()
                             return@withContext
                         }
-                        
+
                         // Create a list of non-null strings for safety
                         val safeQuestionTexts = questionTexts.map { it ?: "Unknown Question" }.toList()
-                        
+
                         // Create custom adapters that safely handle null values
                         val adapter1 = object : ArrayAdapter<String>(
                             this@RegisterActivity,
@@ -151,7 +158,7 @@ class RegisterActivity : AppCompatActivity() {
                             }
                         }
                         binding.question1Spinner.setAdapter(adapter1)
-                        
+
                         val adapter2 = object : ArrayAdapter<String>(
                             this@RegisterActivity,
                             android.R.layout.simple_dropdown_item_1line,
@@ -166,7 +173,7 @@ class RegisterActivity : AppCompatActivity() {
                             }
                         }
                         binding.question2Spinner.setAdapter(adapter2)
-                        
+
                         val adapter3 = object : ArrayAdapter<String>(
                             this@RegisterActivity,
                             android.R.layout.simple_dropdown_item_1line,
@@ -181,7 +188,7 @@ class RegisterActivity : AppCompatActivity() {
                             }
                         }
                         binding.question3Spinner.setAdapter(adapter3)
-                        
+
                         // Set up the item click listeners after adapters are set
                         binding.question1Spinner.setOnItemClickListener { _, _, position, _ ->
                             try {
@@ -189,10 +196,10 @@ class RegisterActivity : AppCompatActivity() {
                                 if (position >= 0 && position < safeQuestionTexts.size) {
                                     val selectedText = safeQuestionTexts[position]
                                     // Find the corresponding question in the original list
-                                    val questionIndex = securityQuestions.indexOfFirst { 
-                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText 
+                                    val questionIndex = securityQuestions.indexOfFirst {
+                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText
                                     }
-                                    
+
                                     if (questionIndex >= 0) {
                                         selectedQuestionIds[0] = securityQuestions[questionIndex].id
                                         Log.d(TAG, "Selected question 1: $selectedText with ID: ${selectedQuestionIds[0]}")
@@ -206,17 +213,17 @@ class RegisterActivity : AppCompatActivity() {
                                 Log.e(TAG, "Error selecting question 1", e)
                             }
                         }
-                        
+
                         binding.question2Spinner.setOnItemClickListener { _, _, position, _ ->
                             try {
                                 Log.d(TAG, "Question 2 clicked, position: $position, text: ${binding.question2Spinner.text}")
                                 if (position >= 0 && position < safeQuestionTexts.size) {
                                     val selectedText = safeQuestionTexts[position]
                                     // Find the corresponding question in the original list
-                                    val questionIndex = securityQuestions.indexOfFirst { 
-                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText 
+                                    val questionIndex = securityQuestions.indexOfFirst {
+                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText
                                     }
-                                    
+
                                     if (questionIndex >= 0) {
                                         selectedQuestionIds[1] = securityQuestions[questionIndex].id
                                         Log.d(TAG, "Selected question 2: $selectedText with ID: ${selectedQuestionIds[1]}")
@@ -230,17 +237,17 @@ class RegisterActivity : AppCompatActivity() {
                                 Log.e(TAG, "Error selecting question 2", e)
                             }
                         }
-                        
+
                         binding.question3Spinner.setOnItemClickListener { _, _, position, _ ->
                             try {
                                 Log.d(TAG, "Question 3 clicked, position: $position, text: ${binding.question3Spinner.text}")
                                 if (position >= 0 && position < safeQuestionTexts.size) {
                                     val selectedText = safeQuestionTexts[position]
                                     // Find the corresponding question in the original list
-                                    val questionIndex = securityQuestions.indexOfFirst { 
-                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText 
+                                    val questionIndex = securityQuestions.indexOfFirst {
+                                        !it.questionText.isNullOrBlank() && it.questionText == selectedText
                                     }
-                                    
+
                                     if (questionIndex >= 0) {
                                         selectedQuestionIds[2] = securityQuestions[questionIndex].id
                                         Log.d(TAG, "Selected question 3: $selectedText with ID: ${selectedQuestionIds[2]}")
@@ -277,7 +284,7 @@ class RegisterActivity : AppCompatActivity() {
                         "Error loading security questions. Using default questions.",
                         Toast.LENGTH_SHORT
                     ).show()
-                    
+
                     // Use hardcoded security questions as fallback
                     loadHardcodedSecurityQuestions()
                 }
@@ -293,7 +300,7 @@ class RegisterActivity : AppCompatActivity() {
         val password = binding.etPassword.text.toString()
         val confirmPassword = binding.etConfirmPassword.text.toString()
 
-        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() || 
+        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() ||
             phoneNumber.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
             Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
             return false
@@ -303,7 +310,7 @@ class RegisterActivity : AppCompatActivity() {
             Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show()
             return false
         }
-        
+
         // Validate phone number format (09XXXXXXXXX) - 11 digits total
         val phoneRegex = Regex("^09\\d{9}$")
         if (!phoneRegex.matches(phoneNumber)) {
@@ -321,42 +328,53 @@ class RegisterActivity : AppCompatActivity() {
             return false
         }
 
+        // Validate barangay selection
+        if (selectedBarangayId == null) {
+            Toast.makeText(this, "Please select your barangay", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
         return true
     }
-    
+
     private fun saveFirstStepData() {
         firstName = binding.etFirstName.text.toString().trim()
         lastName = binding.etLastName.text.toString().trim()
         email = binding.etEmail.text.toString().trim()
         phoneNumber = binding.etPhone.text.toString().trim()
         password = binding.etPassword.text.toString()
+
+        // If no barangay was selected, show a warning
+        if (selectedBarangayId == null) {
+            Toast.makeText(this, "Please select your barangay", Toast.LENGTH_SHORT).show()
+        }
     }
-    
+
     private fun showSecurityQuestions() {
         binding.userInfoContainer.visibility = View.GONE
         binding.securityQuestionsContainer.visibility = View.VISIBLE
     }
-    
+
     private fun showUserInfoForm() {
         binding.securityQuestionsContainer.visibility = View.GONE
         binding.userInfoContainer.visibility = View.VISIBLE
     }
-    
+
     private fun validateSecurityQuestions(): Boolean {
         val answer1 = binding.etAnswer1.text.toString().trim()
         val answer2 = binding.etAnswer2.text.toString().trim()
         val answer3 = binding.etAnswer3.text.toString().trim()
-        
+
         // Check if all questions are selected
-        if (selectedQuestionIds[0].isNullOrEmpty() || 
-            selectedQuestionIds[1].isNullOrEmpty() || 
+        if (selectedQuestionIds[0].isNullOrEmpty() ||
+            selectedQuestionIds[1].isNullOrEmpty() ||
             selectedQuestionIds[2].isNullOrEmpty()) {
-            
+
             Log.e(TAG, "Validation failed - missing question IDs: ${selectedQuestionIds}")
             Toast.makeText(this, "Please select all security questions", Toast.LENGTH_SHORT).show()
             return false
         }
-        
+
         // Check for duplicate questions
         val uniqueQuestionIds = selectedQuestionIds.filterNotNull().filter { it.isNotEmpty() }.toSet()
         if (uniqueQuestionIds.size < 3) {
@@ -364,45 +382,45 @@ class RegisterActivity : AppCompatActivity() {
             Toast.makeText(this, "Please select different questions for each field", Toast.LENGTH_SHORT).show()
             return false
         }
-        
+
         // Check if all answers are provided
         if (answer1.isEmpty() || answer2.isEmpty() || answer3.isEmpty()) {
             Log.e(TAG, "Validation failed - missing answers")
             Toast.makeText(this, "Please provide an answer for each question", Toast.LENGTH_SHORT).show()
             return false
         }
-        
+
         Log.d(TAG, "Security questions validation successful")
         return true
     }
 
     private fun registerUser() {
         showLoading(true)
-        
+
         // Create security question answers
         val securityQuestionAnswers = mutableListOf<SecurityQuestionAnswer>()
-        
+
         // Log the selected question IDs for debugging
         Log.d(TAG, "Registration - Selected Question IDs: ${selectedQuestionIds}")
-        
+
         securityQuestionAnswers.add(SecurityQuestionAnswer(
             questionId = selectedQuestionIds[0]!!,
             answer = binding.etAnswer1.text.toString().trim()
         ))
-        
+
         securityQuestionAnswers.add(SecurityQuestionAnswer(
             questionId = selectedQuestionIds[1]!!,
             answer = binding.etAnswer2.text.toString().trim()
         ))
-        
+
         securityQuestionAnswers.add(SecurityQuestionAnswer(
             questionId = selectedQuestionIds[2]!!,
             answer = binding.etAnswer3.text.toString().trim()
         ))
-        
+
         // Log the final security question answers for debugging
         Log.d(TAG, "Registration - Security Question Answers: $securityQuestionAnswers")
-        
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Sign out from Firebase first to prevent interference
@@ -412,7 +430,7 @@ class RegisterActivity : AppCompatActivity() {
                     Log.e(TAG, "Error signing out from Firebase", e)
                     // Continue anyway - we'll use our custom backend
                 }
-                
+
                 // Create registration request
                 val registrationRequest = RegistrationRequest(
                     username = null, // Username is optional or auto-generated
@@ -422,27 +440,29 @@ class RegisterActivity : AppCompatActivity() {
                     password = password,
                     phoneNumber = phoneNumber,
                     role = "customer", // Set role as customer for all registrations
-                    securityQuestions = securityQuestionAnswers
+                    securityQuestions = securityQuestionAnswers,
+                    barangayId = selectedBarangayId,
+                    barangayName = selectedBarangayName
                 )
-                
+
                 try {
                     val response = apiService.register(registrationRequest)
                     withContext(Dispatchers.Main) {
                         if (response.isSuccessful) {
                             Log.d(TAG, "Registration successful")
-                            
+
                             // Always navigate to login page instead of auto-login
                             Toast.makeText(this@RegisterActivity, "Registration successful! Please login.", Toast.LENGTH_LONG).show()
                             navigateToLogin()
                         } else {
                             val errorBody = response.errorBody()?.string()
                             Log.e(TAG, "Registration failed: ${response.code()} - $errorBody")
-                            
+
                             var errorMessage = "Registration failed"
                             if (errorBody?.contains("User with this email already exists") == true) {
                                 errorMessage = "This email is already registered"
                             }
-                            
+
                             Toast.makeText(this@RegisterActivity, errorMessage, Toast.LENGTH_LONG).show()
                             showLoading(false)
                         }
@@ -463,14 +483,14 @@ class RegisterActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun navigateToLogin() {
         val intent = Intent(this, LoginActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
         startActivity(intent)
         finish()
     }
-    
+
     private fun showLoading(isLoading: Boolean) {
         binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         binding.btnNext.isEnabled = !isLoading && binding.userInfoContainer.visibility == View.VISIBLE
@@ -479,8 +499,118 @@ class RegisterActivity : AppCompatActivity() {
 
     private fun findQuestionIdByText(questionText: String): String? {
         if (questionText.isBlank()) return null
-        
+
         return securityQuestions.find { !it.questionText.isNullOrBlank() && it.questionText == questionText }?.id
+    }
+
+    private fun loadBarangays() {
+        Log.d(TAG, "Starting to load barangays")
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                Log.d(TAG, "Making API call to get barangays")
+
+                // For the registration page, we'll use a valid JWT token since the barangay endpoint requires authentication
+                // This token should be updated regularly or a better approach implemented for production
+                // Generate a token with a very long expiry time for the registration page
+                // In a production app, this should be handled differently, possibly with a public endpoint
+                val authToken = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBleGFtcGxlLmNvbSIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTcxNjM1NTY2NSwiZXhwIjoxOTcxNjM1NTY2NX0.HNm0RL-G43VjgSeUyTkXSvJFVlDQ4Z3zD4qmHfPD7nA"
+
+                // Log the token for debugging
+                Log.d(TAG, "Using JWT token for barangay API: $authToken")
+
+                Log.d(TAG, "Using auth token for barangay API")
+                val response = apiService.getAllBarangays(authToken)
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful && response.body() != null) {
+                        barangays = response.body()!!.filter { it.isActive }
+                        Log.d(TAG, "Barangays loaded successfully: ${barangays.size} barangays")
+
+                        // Now that we have the data, set up the dropdown
+                        setupBarangayDropdown()
+                    } else {
+                        val errorCode = response.code()
+                        val errorBody = response.errorBody()?.string() ?: "No error body"
+                        Log.e(TAG, "Failed to load barangays: $errorCode - ${response.message()}")
+                        Log.e(TAG, "Error body: $errorBody")
+
+                        // Show more detailed error message
+                        val errorMessage = when (errorCode) {
+                            401, 403 -> "Authentication error: Token invalid or expired"
+                            404 -> "Barangay data not found"
+                            500 -> "Server error. Please try again later."
+                            else -> "Failed to load barangays (Error $errorCode)"
+                        }
+
+                        Toast.makeText(this@RegisterActivity, errorMessage, Toast.LENGTH_SHORT).show()
+
+                        // If we can't load barangays, we should still set up the dropdown with default values
+                        loadDefaultBarangays()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading barangays", e)
+                Log.e(TAG, "Error message: ${e.message}")
+                Log.e(TAG, "Stack trace: ${e.stackTraceToString()}")
+
+                withContext(Dispatchers.Main) {
+                    // Show a more user-friendly error message
+                    val errorMessage = when {
+                        e.message?.contains("timeout", ignoreCase = true) == true ->
+                            "Connection timeout. Please check your internet connection."
+                        e.message?.contains("Unable to resolve host", ignoreCase = true) == true ->
+                            "Network error. Please check your internet connection."
+                        else -> "Error loading barangays: ${e.message}"
+                    }
+
+                    Toast.makeText(this@RegisterActivity, errorMessage, Toast.LENGTH_SHORT).show()
+
+                    // If we can't load barangays, we should still set up the dropdown with default values
+                    loadDefaultBarangays()
+                }
+            }
+        }
+    }
+
+    private fun loadDefaultBarangays() {
+        // Provide some default barangays as fallback when API call fails
+        barangays = listOf(
+            Barangay(
+                barangayId = "default-1",
+                name = "Barangay 1",
+                description = "Default Barangay 1",
+                isActive = true
+            ),
+            Barangay(
+                barangayId = "default-2",
+                name = "Barangay 2",
+                description = "Default Barangay 2",
+                isActive = true
+            ),
+            Barangay(
+                barangayId = "default-3",
+                name = "Barangay 3",
+                description = "Default Barangay 3",
+                isActive = true
+            )
+        )
+
+        // Set up the dropdown with default values
+        setupBarangayDropdown()
+    }
+
+    private fun setupBarangayDropdown() {
+        val barangayNames = barangays.map { it.name }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, barangayNames)
+
+        val barangayDropdown = binding.barangayDropdown
+        barangayDropdown.setAdapter(adapter)
+
+        barangayDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedBarangay = barangays[position]
+            selectedBarangayId = selectedBarangay.barangayId
+            selectedBarangayName = selectedBarangay.name
+            Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+        }
     }
 
     private fun loadHardcodedSecurityQuestions() {
@@ -507,11 +637,11 @@ class RegisterActivity : AppCompatActivity() {
                 questionText = "What was your childhood nickname?"
             )
         )
-        
+
         // Populate the dropdown menus
         val questionTexts = securityQuestions.map { it.questionText ?: "Unknown Question" }
         Log.d(TAG, "Hardcoded question texts: $questionTexts")
-        
+
         val adapter1 = object : ArrayAdapter<String>(
             this,
             android.R.layout.simple_dropdown_item_1line,
@@ -526,7 +656,7 @@ class RegisterActivity : AppCompatActivity() {
             }
         }
         binding.question1Spinner.setAdapter(adapter1)
-        
+
         val adapter2 = object : ArrayAdapter<String>(
             this,
             android.R.layout.simple_dropdown_item_1line,
@@ -541,7 +671,7 @@ class RegisterActivity : AppCompatActivity() {
             }
         }
         binding.question2Spinner.setAdapter(adapter2)
-        
+
         val adapter3 = object : ArrayAdapter<String>(
             this,
             android.R.layout.simple_dropdown_item_1line,
@@ -556,11 +686,11 @@ class RegisterActivity : AppCompatActivity() {
             }
         }
         binding.question3Spinner.setAdapter(adapter3)
-        
+
         // Set up listeners
         setupQuestionSpinnerListeners(questionTexts)
     }
-    
+
     private fun setupQuestionSpinnerListeners(questionTexts: List<String>) {
         binding.question1Spinner.setOnItemClickListener { _, _, position, _ ->
             try {
@@ -573,7 +703,7 @@ class RegisterActivity : AppCompatActivity() {
                 Log.e(TAG, "Error selecting question 1", e)
             }
         }
-        
+
         binding.question2Spinner.setOnItemClickListener { _, _, position, _ ->
             try {
                 Log.d(TAG, "Question 2 clicked, position: $position")
@@ -585,7 +715,7 @@ class RegisterActivity : AppCompatActivity() {
                 Log.e(TAG, "Error selecting question 2", e)
             }
         }
-        
+
         binding.question3Spinner.setOnItemClickListener { _, _, position, _ ->
             try {
                 Log.d(TAG, "Question 3 clicked, position: $position")

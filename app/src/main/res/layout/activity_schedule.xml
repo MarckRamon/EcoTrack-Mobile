@@ -64,13 +64,48 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
+    <!-- Barangay Filter -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/barangayFilterLayout"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
+        android:hint="@string/filter_by_barangay"
+        app:boxBackgroundColor="@android:color/white"
+        app:boxStrokeColor="@color/primaryGreen"
+        app:hintTextColor="@color/primaryGreen"
+        app:endIconMode="dropdown_menu"
+        app:endIconTint="@color/primaryGreen"
+        app:layout_constraintTop_toBottomOf="@id/screen_title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <AutoCompleteTextView
+            android:id="@+id/barangayFilterDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none"
+            android:completionThreshold="0"
+            android:textColor="@android:color/black"
+            android:textSize="16sp"
+            android:popupBackground="@android:color/white"
+            android:dropDownHeight="wrap_content"
+            android:dropDownVerticalOffset="8dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
     <!-- Calendar Navigation -->
     <LinearLayout
         android:id="@+id/calendar_navigation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@id/screen_title">
+        app:layout_constraintTop_toBottomOf="@id/barangayFilterLayout">
 
         <LinearLayout
             android:layout_width="match_parent"

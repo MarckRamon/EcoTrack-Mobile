@@ -26,6 +26,7 @@
 
     <!-- Content Descriptions -->
     <string name="app_logo">App Logo</string>
+    <string name="back">Back</string>
 
     <!-- Error Messages -->
     <string name="error_invalid_email">Please enter a valid email address</string>
@@ -59,4 +60,11 @@
     <string name="title_home">Home</string>
     <string name="title_location">Location</string>
     <string name="title_order_pickup">Order Pickup</string>
+    <string name="title_missed_reports">Missed Reports</string>
+
+    <!-- Missed Reports -->
+    <string name="no_missed_reports">No missed reports found</string>
+
+    <!-- Barangay Filter -->
+    <string name="filter_by_barangay">Filter by Barangay</string>
 </resources>

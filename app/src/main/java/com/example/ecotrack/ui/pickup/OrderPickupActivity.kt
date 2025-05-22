@@ -17,6 +17,8 @@ import androidx.lifecycle.lifecycleScope
 import com.example.ecotrack.HomeActivity
 import com.example.ecotrack.R
 import com.example.ecotrack.api.XenditApiService
+import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.SessionManager
 import com.example.ecotrack.models.xendit.CreateInvoiceRequest
 import com.example.ecotrack.models.xendit.Customer
 import com.example.ecotrack.models.xendit.Item
@@ -44,6 +46,14 @@ class OrderPickupActivity : AppCompatActivity() {
     private lateinit var mapView: MapView
     private var selectedLocation: GeoPoint? = null
     private var selectedAddress: String = ""
+
+    // Session manager for user data
+    private lateinit var sessionManager: SessionManager
+    private val apiService = ApiService.create()
+
+    // User's barangay information
+    private var userBarangayId: String? = null
+    private var userBarangayName: String? = null
 
     // Add bottom navigation
     private lateinit var navHome: LinearLayout
@@ -106,8 +116,13 @@ class OrderPickupActivity : AppCompatActivity() {
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
 
-        // Setup map with default location
-        setupMap()
+        // Initialize session manager
+        sessionManager = SessionManager.getInstance(this)
+
+        // Load user profile to get barangay information
+        loadUserProfile()
+
+        // Map will be set up after loading user profile
 
         // Initialize bottom navigation
         navHome = findViewById(R.id.nav_home)
@@ -251,18 +266,87 @@ class OrderPickupActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadUserProfile() {
+        val token = sessionManager.getToken()
+        val userId = sessionManager.getUserId()
+
+        if (token == null || userId == null) {
+            Log.e(TAG, "Missing credentials - token: $token, userId: $userId")
+            // Use default location if user is not logged in
+            setupMap()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                val response = apiService.getProfile(userId, "Bearer $token")
+                if (response.isSuccessful && response.body() != null) {
+                    val profile = response.body()!!
+
+                    // Get user's barangay information
+                    userBarangayId = profile.barangayId
+                    userBarangayName = profile.barangayName
+
+                    Log.d(TAG, "User barangay: $userBarangayName (ID: $userBarangayId)")
+
+                    // Set up map with user's barangay location
+                    setupMap()
+
+                    // Pre-fill user information
+                    etFullName.setText("${profile.firstName ?: ""} ${profile.lastName ?: ""}")
+                    etEmail.setText(profile.email)
+                } else {
+                    Log.e(TAG, "Failed to load profile: ${response.code()} - ${response.message()}")
+                    // Use default location if profile loading fails
+                    setupMap()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading profile", e)
+                // Use default location if profile loading fails
+                setupMap()
+            }
+        }
+    }
+
     private fun setupMap() {
         // Default location (can be user's current location in production)
         val defaultLocation = GeoPoint(14.6091, 121.0223) // Manila, Philippines
-        selectedLocation = defaultLocation
-        selectedAddress = "Lagtang Talisay, 6045 Talisay City"
+
+        // If user has a barangay, use a location based on that barangay
+        if (userBarangayName != null) {
+            // In a real app, you would have a database of barangay coordinates
+            // For now, we'll use a simple mapping for demonstration
+            when (userBarangayName) {
+                "Lagtang" -> {
+                    selectedLocation = GeoPoint(10.2573, 123.8414) // Lagtang, Talisay coordinates
+                    selectedAddress = "Lagtang, Talisay City"
+                }
+                "Tabunok" -> {
+                    selectedLocation = GeoPoint(10.2667, 123.8333) // Tabunok, Talisay coordinates
+                    selectedAddress = "Tabunok, Talisay City"
+                }
+                "Bulacao" -> {
+                    selectedLocation = GeoPoint(10.2833, 123.8500) // Bulacao coordinates
+                    selectedAddress = "Bulacao, Talisay City"
+                }
+                else -> {
+                    // Use default location if barangay is not recognized
+                    selectedLocation = defaultLocation
+                    selectedAddress = userBarangayName ?: "Talisay City"
+                }
+            }
+        } else {
+            // Use default location if user has no barangay
+            selectedLocation = defaultLocation
+            selectedAddress = "Talisay City"
+        }
 
         // Configure map zoom
         mapView.controller.setZoom(15.0)
-        mapView.controller.setCenter(defaultLocation)
+        mapView.controller.setCenter(selectedLocation)
 
         // Add marker
-        addMarkerToMap(defaultLocation)
+        addMarkerToMap(selectedLocation!!)
 
         // Update the location text
         tvLocationAddress.setText(selectedAddress)

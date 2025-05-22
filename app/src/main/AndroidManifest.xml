@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    
+
     <application
         android:name=".EcoTrackApplication"
         android:allowBackup="true"
@@ -106,18 +106,14 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustPan" />
-        
+
         <!-- Pickup flow activities -->
         <activity
             android:name=".ui.pickup.OrderPickupActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustPan" />
-        <activity
-            android:name=".ui.pickup.PaymentMethodActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustPan" />
+
         <activity
             android:name=".ui.pickup.MapPickerActivity"
             android:exported="false"
@@ -135,6 +131,12 @@
             android:windowSoftInputMode="adjustPan" />
         <activity
             android:name=".ui.pickup.OrderSuccessActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustPan" />
+
+        <activity
+            android:name=".MissedReportsActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustPan" />
