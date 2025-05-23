@@ -50,7 +50,7 @@
         android:id="@+id/tvTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Job Order"
+        android:text="Job Orders"
         android:textSize="20sp"
         android:textStyle="bold"
         android:textColor="@color/text_primary"
@@ -58,16 +58,98 @@
         android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/header" />
 
-    <!-- Job Order List -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewJobOrders"
+    <!-- ScrollView to contain both sections -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
         app:layout_constraintTop_toBottomOf="@id/tvTitle"
-        app:layout_constraintBottom_toTopOf="@id/bottomNavigation"
-        tools:listitem="@layout/item_job_order" />
+        app:layout_constraintBottom_toTopOf="@id/endCollectionButton">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="16dp">
+
+            <!-- Available Section -->
+            <TextView
+                android:id="@+id/tvAvailableHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Available"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp" />
+
+            <!-- No Available Orders Message -->
+            <TextView
+                android:id="@+id/tvNoAvailableOrders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No available job orders"
+                android:textSize="16sp"
+                android:textColor="@color/text_secondary"
+                android:gravity="center"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+            <!-- Available Job Order List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerViewAvailableJobOrders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_job_order" />
+
+            <!-- Completed Section -->
+            <TextView
+                android:id="@+id/tvCompletedHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Completed"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="24dp" />
+
+            <!-- No Completed Orders Message -->
+            <TextView
+                android:id="@+id/tvNoCompletedOrders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No completed job orders"
+                android:textSize="16sp"
+                android:textColor="@color/text_secondary"
+                android:gravity="center"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+            <!-- Completed Job Order List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerViewCompletedJobOrders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_job_order" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- End Collection Button -->
+    <Button
+        android:id="@+id/endCollectionButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        android:text="END COLLECTION"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/error"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigation" />
 
     <!-- Bottom Navigation -->
     <com.google.android.material.card.MaterialCardView

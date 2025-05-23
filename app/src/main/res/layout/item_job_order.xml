@@ -35,9 +35,22 @@
             android:text="7953 Oakland St. Honolulu, HI 96815"
             android:textColor="@color/white"
             android:textSize="14sp"
+            android:textStyle="italic"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btnView"
             app:layout_constraintTop_toBottomOf="@id/tvCustomerName" />
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Available"
+            android:textStyle="bold"
+            android:textAllCaps="true"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvAddress" />
 
         <TextView
             android:id="@+id/tvPrice"
@@ -46,9 +59,9 @@
             android:text="₱550"
             android:textColor="@color/white"
             android:textSize="14sp"
+            android:layout_marginStart="0dp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btnView"
-            app:layout_constraintTop_toBottomOf="@id/tvAddress" />
+            app:layout_constraintTop_toBottomOf="@id/tvStatus" />
 
         <Button
             android:id="@+id/btnView"

@@ -2,6 +2,7 @@ package com.example.ecotrack.utils
 
 import android.util.Log
 import com.example.ecotrack.models.*
+import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.models.payment.PaymentRequest
 import com.example.ecotrack.models.payment.PaymentResponse
 import com.example.ecotrack.models.Barangay
@@ -113,6 +114,20 @@ interface ApiService {
     suspend fun getPaymentsByCustomerEmail(
         @Query("email") email: String
     ): Response<List<PaymentResponse>>
+
+    @GET("api/payments/driver/{driverId}")
+    suspend fun getPaymentsByDriverId(
+        @Path("driverId") driverId: String,
+        @Header("Authorization") authToken: String
+    ): Response<List<Payment>>
+    
+    // Driver Job Order Status Update
+    @PUT("api/driver/job/{paymentId}/status")
+    suspend fun updateJobOrderStatus(
+        @Path("paymentId") paymentId: String,
+        @Body statusUpdate: JobOrderStatusUpdate,
+        @Header("Authorization") authToken: String
+    ): Response<Payment>
 
     // Barangay Endpoints
     @GET("api/barangays")
