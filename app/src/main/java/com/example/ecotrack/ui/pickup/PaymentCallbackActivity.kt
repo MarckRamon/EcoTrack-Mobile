@@ -14,6 +14,7 @@ import com.example.ecotrack.R
 import com.example.ecotrack.models.payment.PaymentRequest
 import com.example.ecotrack.ui.pickup.model.PickupOrder
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.SessionManager
 import kotlinx.coroutines.launch
 
 /**
@@ -31,10 +32,16 @@ class PaymentCallbackActivity : AppCompatActivity() {
 
     // API service for backend communication
     private val apiService by lazy { ApiService.create() }
+    
+    // Session manager for user data
+    private lateinit var sessionManager: SessionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //ContentView will only be set if needed (i.e. for failure/unknown status)
+
+        // Initialize session manager
+        sessionManager = SessionManager.getInstance(this)
 
         val data = intent.data
         if (data != null) {
@@ -151,6 +158,23 @@ class PaymentCallbackActivity : AppCompatActivity() {
             progressBar.visibility = View.VISIBLE
             tvStatus.text = "Processing payment..."
         }
+        
+        val token = sessionManager.getToken()
+
+        if (token == null) {
+            Log.e(TAG, "Authentication token is missing. Cannot send payment to backend.")
+            // Handle the case where the token is missing, maybe show an error to the user
+            if (::tvStatus.isInitialized) {
+                progressBar.visibility = View.GONE
+                tvStatus.text = "Error: Authentication failed. Please log in again."
+                Toast.makeText(this, "Authentication failed. Please log in again.", Toast.LENGTH_LONG).show()
+                btnAction.visibility = View.VISIBLE
+                btnAction.text = "GO HOME"
+                btnAction.setOnClickListener { navigateToOrderPickup() }
+            }
+            // Do not proceed with API call if token is null
+            return
+        }
 
         // Get payment reference from Xendit callback or generate one
         val paymentReference = if (data != null) {
@@ -182,7 +206,9 @@ class PaymentCallbackActivity : AppCompatActivity() {
             totalAmount = order.total,
             paymentMethod = order.paymentMethod.getDisplayName(), // Use display name instead of enum name
             paymentReference = paymentReference,
-            notes = "Payment from mobile app"
+            notes = "Payment from mobile app",
+            wasteType = order.wasteType.name, // Include the waste type here
+            barangayId = order.barangayId // Include the barangayId here
         )
 
         // Log the payment method being sent to the backend
@@ -192,7 +218,7 @@ class PaymentCallbackActivity : AppCompatActivity() {
         // Send payment data to backend
         lifecycleScope.launch {
             try {
-                val response = apiService.processPayment(paymentRequest)
+                val response = apiService.processPayment(paymentRequest, "Bearer $token")
 
                 if (response.isSuccessful) {
                     Log.i(TAG, "Payment successfully sent to backend: ${response.body()}")
@@ -209,7 +235,8 @@ class PaymentCallbackActivity : AppCompatActivity() {
                 } else {
                     // Payment was processed by Xendit but failed to save in our backend
                     // We'll still show success to the user but log the error
-                    Log.e(TAG, "Failed to send payment to backend: ${response.errorBody()?.string()}")
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "Failed to send payment to backend: ${response.code()} - ${response.message()} - $errorBody")
 
                     // Remove order from temp storage
                     TempOrderHolder.removeOrder(order.id)

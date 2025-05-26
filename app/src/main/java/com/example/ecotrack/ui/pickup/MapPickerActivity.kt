@@ -10,7 +10,11 @@ import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.ecotrack.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -115,29 +119,32 @@ class MapPickerActivity : AppCompatActivity() {
         // Refresh map
         mapView.invalidate()
         
-        // Get address from coordinates
-        try {
-            val geocoder = Geocoder(this, Locale.getDefault())
-            val addresses: List<Address> = geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1) as List<Address>
-            
-            if (addresses.isNotEmpty()) {
-                val address = addresses[0]
-                val addressStringBuilder = StringBuilder()
-                
-                for (i in 0..address.maxAddressLineIndex) {
-                    addressStringBuilder.append(address.getAddressLine(i))
-                    if (i < address.maxAddressLineIndex) {
-                        addressStringBuilder.append(", ")
+        // Get address from coordinates in a background thread
+        lifecycleScope.launch {
+            currentAddress = try {
+                withContext(Dispatchers.IO) {
+                    val geocoder = Geocoder(this@MapPickerActivity, Locale.getDefault())
+                    val addresses: List<Address> = geocoder.getFromLocation(geoPoint.latitude, geoPoint.longitude, 1) as List<Address>
+                    
+                    if (addresses.isNotEmpty()) {
+                        val address = addresses[0]
+                        val addressStringBuilder = StringBuilder()
+                        
+                        for (i in 0..address.maxAddressLineIndex) {
+                            addressStringBuilder.append(address.getAddressLine(i))
+                            if (i < address.maxAddressLineIndex) {
+                                addressStringBuilder.append(", ")
+                            }
+                        }
+                        addressStringBuilder.toString()
+                    } else {
+                        "Unknown location"
                     }
                 }
-                
-                currentAddress = addressStringBuilder.toString()
-            } else {
-                currentAddress = "Unknown location"
+            } catch (e: Exception) {
+                e.printStackTrace()
+                "Could not determine address"
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            currentAddress = "Could not determine address"
         }
     }
     

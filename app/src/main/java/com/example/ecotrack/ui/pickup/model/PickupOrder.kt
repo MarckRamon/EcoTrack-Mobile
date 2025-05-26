@@ -5,6 +5,17 @@ import kotlinx.parcelize.Parcelize
 import java.text.SimpleDateFormat
 import java.util.*
 
+enum class WasteType {
+    PLASTIC,
+    PAPER,
+    METAL,
+    GLASS,
+    ELECTRONIC,
+    ORGANIC,
+    MIXED,
+    BIOHAZARD
+}
+
 @Parcelize
 data class PickupOrder(
     val id: String = UUID.randomUUID().toString(),
@@ -17,6 +28,8 @@ data class PickupOrder(
     val tax: Double,
     val total: Double,
     val paymentMethod: PaymentMethod,
+    val wasteType: WasteType,
+    val barangayId: String? = null,
     val status: OrderStatus = OrderStatus.PROCESSING,
     val createdAt: Date = Date(),
     val estimatedArrival: Date? = null,

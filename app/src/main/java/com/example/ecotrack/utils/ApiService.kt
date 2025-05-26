@@ -94,7 +94,8 @@ interface ApiService {
     // Payment Endpoints
     @POST("api/payments")
     suspend fun processPayment(
-        @Body paymentRequest: PaymentRequest
+        @Body paymentRequest: PaymentRequest,
+        @Header("Authorization") authToken: String
     ): Response<PaymentResponse>
 
     @GET("api/payments")
@@ -107,12 +108,14 @@ interface ApiService {
 
     @GET("api/payments/order/{orderId}")
     suspend fun getPaymentByOrderId(
-        @Path("orderId") orderId: String
+        @Path("orderId") orderId: String,
+        @Header("Authorization") authToken: String? = null
     ): Response<PaymentResponse>
 
     @GET("api/payments/customer")
     suspend fun getPaymentsByCustomerEmail(
-        @Query("email") email: String
+        @Query("email") email: String,
+        @Header("Authorization") authToken: String? = null
     ): Response<List<PaymentResponse>>
 
     @GET("api/payments/driver/{driverId}")
@@ -138,6 +141,12 @@ interface ApiService {
         @Path("barangayId") barangayId: String,
         @Header("Authorization") authToken: String
     ): Response<Barangay>
+
+    @GET("api/payments/customer/{userId}/active")
+    suspend fun getUserActiveOrders(
+        @Path("userId") userId: String,
+        @Header("Authorization") authToken: String
+    ): Response<List<PaymentResponse>>
 
     companion object {
         private const val TAG = "ApiService"

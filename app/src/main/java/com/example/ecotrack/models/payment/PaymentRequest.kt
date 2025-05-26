@@ -41,5 +41,11 @@ data class PaymentRequest(
     val paymentReference: String,
     
     @SerializedName("notes")
-    val notes: String?
+    val notes: String?,
+
+    @SerializedName("wasteType")
+    val wasteType: String,
+
+    @SerializedName("barangayId")
+    val barangayId: String?
 )

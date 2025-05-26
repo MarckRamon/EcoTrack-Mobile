@@ -6,10 +6,7 @@ import android.os.Bundle
 import android.preference.PreferenceManager
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
@@ -22,8 +19,10 @@ import com.example.ecotrack.utils.SessionManager
 import com.example.ecotrack.models.xendit.CreateInvoiceRequest
 import com.example.ecotrack.models.xendit.Customer
 import com.example.ecotrack.models.xendit.Item
+import com.example.ecotrack.models.payment.PaymentRequest
 import com.example.ecotrack.ui.pickup.model.PaymentMethod
 import com.example.ecotrack.ui.pickup.model.PickupOrder
+import com.example.ecotrack.ui.pickup.model.WasteType
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -40,12 +39,14 @@ class OrderPickupActivity : AppCompatActivity() {
 
     private lateinit var etFullName: EditText
     private lateinit var etEmail: EditText
+    private lateinit var spinnerWasteType: Spinner
     private lateinit var btnProceedToPayment: Button
     private lateinit var btnEditLocation: View
-    private lateinit var tvLocationAddress: android.widget.TextView
+    private lateinit var tvLocationAddress: TextView
     private lateinit var mapView: MapView
     private var selectedLocation: GeoPoint? = null
     private var selectedAddress: String = ""
+    private var selectedWasteType: WasteType = WasteType.MIXED
 
     // Session manager for user data
     private lateinit var sessionManager: SessionManager
@@ -107,9 +108,29 @@ class OrderPickupActivity : AppCompatActivity() {
         // Initialize views
         etFullName = findViewById(R.id.et_full_name)
         etEmail = findViewById(R.id.et_email)
+        spinnerWasteType = findViewById(R.id.spinner_waste_type)
         btnProceedToPayment = findViewById(R.id.btn_proceed_to_payment)
         btnEditLocation = findViewById(R.id.btn_edit_location)
         tvLocationAddress = findViewById(R.id.tv_location_address)
+
+        // Setup waste type spinner
+        val wasteTypes = WasteType.values()
+        val adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            wasteTypes.map { it.name.lowercase().replaceFirstChar { it.uppercase() } }
+        )
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerWasteType.adapter = adapter
+        spinnerWasteType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedWasteType = wasteTypes[position]
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                selectedWasteType = WasteType.MIXED
+            }
+        }
 
         // Initialize map
         mapView = findViewById(R.id.map_view)
@@ -151,6 +172,10 @@ class OrderPickupActivity : AppCompatActivity() {
 
         // Pickup is the current screen, no need to navigate
 
+        // Initialize radio buttons for payment methods
+        val radioCashOnHand = findViewById<RadioButton>(R.id.radio_cash_on_hand)
+        val radioOnlinePayment = findViewById<RadioButton>(R.id.radio_online_payment)
+        
         // Handle proceed to payment button click
         btnProceedToPayment.setOnClickListener {
             if (validateForm()) {
@@ -163,30 +188,28 @@ class OrderPickupActivity : AppCompatActivity() {
                 // Ensure PickupOrder has a unique ID, matching Xendit's external_id
                 val uniqueOrderId = "order_${System.currentTimeMillis()}_${UUID.randomUUID()}"
 
-                // For testing different payment methods, you can change this to any of the enum values
-                // Options: GCASH, CASH_ON_HAND, CREDIT_CARD, PAYMAYA, GRABPAY, BANK_TRANSFER, OTC
-                val testPaymentMethod = PaymentMethod.GCASH
+                // Determine payment method based on radio button selection
+                val selectedPaymentMethod = if (radioCashOnHand.isChecked) {
+                    PaymentMethod.CASH_ON_HAND
+                } else {
+                    PaymentMethod.GCASH // Default online payment method
+                }
 
-                val order = PickupOrder(
-                    id = uniqueOrderId, // Set the unique ID here
-                    fullName = fullName,
-                    email = email,
-                    address = selectedAddress,
-                    latitude = selectedLocation?.latitude ?: 0.0,
-                    longitude = selectedLocation?.longitude ?: 0.0,
-                    amount = pickupOrderAmount,
-                    tax = taxAmount,
-                    total = totalAmount,
-                    paymentMethod = testPaymentMethod // Default, will be updated by Xendit choice
-                )
+                val order = createPickupOrder(selectedPaymentMethod)
 
-                // Log the initial payment method
-                Log.d(TAG, "Initial payment method: ${testPaymentMethod.name}, display name: ${testPaymentMethod.getDisplayName()}")
+                // Log the selected payment method
+                Log.d(TAG, "Selected payment method: ${selectedPaymentMethod.name}, display name: ${selectedPaymentMethod.getDisplayName()}")
 
                 // Save the order temporarily
                 TempOrderHolder.saveOrder(order)
 
-                createXenditInvoice(order) // Pass the order object
+                if (selectedPaymentMethod == PaymentMethod.CASH_ON_HAND) {
+                    // For cash on hand, send directly to backend
+                    processCashOnHandPayment(order)
+                } else {
+                    // For online payment, use Xendit
+                    createXenditInvoice(order)
+                }
             }
         }
 
@@ -206,7 +229,70 @@ class OrderPickupActivity : AppCompatActivity() {
         return totalAmount
     }
 
-    // Renamed for clarity and to accept PickupOrder
+    // Process cash on hand payment directly with backend
+    private fun processCashOnHandPayment(order: PickupOrder) {
+        lifecycleScope.launch {
+            try {
+                // Get auth token
+                val token = sessionManager.getToken()
+                if (token == null) {
+                    throw Exception("Authentication token not available")
+                }
+                
+                // Create a payment request for the backend
+                val paymentRequest = PaymentRequest(
+                    orderId = order.id,
+                    customerName = order.fullName,
+                    customerEmail = order.email,
+                    address = order.address,
+                    latitude = order.latitude,
+                    longitude = order.longitude,
+                    amount = order.amount,
+                    tax = order.tax,
+                    totalAmount = order.total,
+                    paymentMethod = order.paymentMethod.getDisplayName(),
+                    paymentReference = "cash_${order.id}",
+                    notes = "Cash on Hand payment",
+                    wasteType = order.wasteType.name,
+                    barangayId = order.barangayId
+                )
+                
+                // Make an API call to the backend to process the cash payment
+                // This uses the same API endpoint that processes orders after Xendit payment
+                val response = apiService.processPayment(paymentRequest, "Bearer $token")
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val paymentResult = response.body()!!
+                    Log.d(TAG, "Cash on hand payment processed successfully for order ${order.id}")
+                    
+                    // Navigate to success page
+                    runOnUiThread {
+                        // Navigate to OrderSuccessActivity - same as would happen after Xendit payment
+                        val intent = Intent(this@OrderPickupActivity, OrderSuccessActivity::class.java)
+                        intent.putExtra("ORDER_DATA", order)
+                        startActivity(intent)
+                        finish() // Close this activity
+                    }
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    throw Exception("Failed to process payment: $errorBody")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing cash payment", e)
+                runOnUiThread {
+                    btnProceedToPayment.isEnabled = true
+                    btnProceedToPayment.text = "PROCEED TO PAYMENT"
+                    Toast.makeText(
+                        this@OrderPickupActivity,
+                        "Error processing order: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+    
+    // Process online payment via Xendit
     private fun createXenditInvoice(order: PickupOrder) {
         lifecycleScope.launch {
             try {
@@ -375,32 +461,30 @@ class OrderPickupActivity : AppCompatActivity() {
     }
 
     private fun validateForm(): Boolean {
-        var isValid = true
-
-        // Validate full name
-        if (etFullName.text.toString().trim().isEmpty()) {
-            etFullName.error = "Full name is required"
-            isValid = false
-        }
-
-        // Validate email
+        val fullName = etFullName.text.toString().trim()
         val email = etEmail.text.toString().trim()
+
+        if (fullName.isEmpty()) {
+            etFullName.error = "Please enter your full name"
+            return false
+        }
+
         if (email.isEmpty()) {
-            etEmail.error = "Email is required"
-            isValid = false
-        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            etEmail.error = "Please enter your email"
+            return false
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             etEmail.error = "Please enter a valid email address"
-            isValid = false
+            return false
         }
 
-        // Validate location
         if (selectedLocation == null) {
-            // Show error for location
-            tvLocationAddress.error = "Please select a location"
-            isValid = false
+            Toast.makeText(this, "Please select a pickup location", Toast.LENGTH_SHORT).show()
+            return false
         }
 
-        return isValid
+        return true
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -434,6 +518,22 @@ class OrderPickupActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
+    }
+
+    private fun createPickupOrder(paymentMethod: PaymentMethod): PickupOrder {
+        return PickupOrder(
+            fullName = etFullName.text.toString().trim(),
+            email = etEmail.text.toString().trim(),
+            address = selectedAddress,
+            latitude = selectedLocation?.latitude ?: 0.0,
+            longitude = selectedLocation?.longitude ?: 0.0,
+            amount = pickupOrderAmount,
+            tax = taxAmount,
+            total = totalAmount,
+            paymentMethod = paymentMethod,
+            wasteType = selectedWasteType,
+            barangayId = userBarangayId
+        )
     }
 
     companion object {
