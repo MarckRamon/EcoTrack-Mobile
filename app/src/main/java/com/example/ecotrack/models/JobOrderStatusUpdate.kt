@@ -6,6 +6,6 @@ import com.google.gson.annotations.SerializedName
  * Model class for updating job order status
  */
 data class JobOrderStatusUpdate(
-    @SerializedName("status")
+    @SerializedName("jobOrderStatus")
     val status: String
 ) 

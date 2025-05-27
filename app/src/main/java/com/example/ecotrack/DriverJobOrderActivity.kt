@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
@@ -13,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.ecotrack.adapters.PaymentOrderAdapter
 import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
+import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.io.IOException
@@ -29,6 +31,8 @@ class DriverJobOrderActivity : BaseActivity() {
     private lateinit var tvAvailableHeader: TextView
     private lateinit var tvCompletedHeader: TextView
     private lateinit var endCollectionButton: Button
+    private lateinit var profileImage: CircleImageView
+    private lateinit var notificationIcon: ImageView
     
     private val apiService = ApiService.create()
     private val TAG = "DriverJobOrderActivity"
@@ -58,6 +62,8 @@ class DriverJobOrderActivity : BaseActivity() {
         tvAvailableHeader = findViewById(R.id.tvAvailableHeader)
         tvCompletedHeader = findViewById(R.id.tvCompletedHeader)
         endCollectionButton = findViewById(R.id.endCollectionButton)
+        profileImage = findViewById(R.id.profileImage)
+        notificationIcon = findViewById(R.id.iconLeft)
         
         // Set up RecyclerViews
         availableRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -67,6 +73,16 @@ class DriverJobOrderActivity : BaseActivity() {
         endCollectionButton.setOnClickListener {
             Toast.makeText(this, "End Collection clicked", Toast.LENGTH_SHORT).show()
             // This is static for now as requested
+        }
+        
+        // Set up profile image click
+        profileImage.setOnClickListener {
+            startActivity(Intent(this, DriverProfileActivity::class.java))
+        }
+        
+        // Set up notification icon click
+        notificationIcon.setOnClickListener {
+            Toast.makeText(this, "Notifications feature coming soon", Toast.LENGTH_SHORT).show()
         }
     }
     

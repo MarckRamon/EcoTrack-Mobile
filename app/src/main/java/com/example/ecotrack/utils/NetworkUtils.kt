@@ -31,8 +31,14 @@ class NetworkUtils {
                     throw e
                 }
                 
-                // If the response body is chunked, we need special handling to avoid EOFExceptions
-                if (response.header("Transfer-Encoding") == "chunked") {
+                // Check for error responses first
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "Response not successful: ${response.code}")
+                    return response
+                }
+                
+                // If the response body is chunked or has potential issues, handle it carefully
+                if (response.header("Transfer-Encoding") == "chunked" || response.code == 500) {
                     try {
                         val originalBody = response.body
                         if (originalBody != null) {
@@ -41,11 +47,24 @@ class NetworkUtils {
                             
                             // Read as much as we can safely
                             try {
-                                originalSource.request(Long.MAX_VALUE)
-                                buffer.writeAll(originalSource)
+                                // Try to read a limited amount first to avoid blocking
+                                val bytesRead = originalSource.read(buffer, 8192) // 8KB buffer
+                                if (bytesRead > 0) {
+                                    // If we got some data, try to read more
+                                    try {
+                                        originalSource.request(Long.MAX_VALUE)
+                                        buffer.writeAll(originalSource)
+                                    } catch (e: IOException) {
+                                        Log.e(TAG, "Error reading full chunked response, using partial data", e)
+                                        // Continue with what we have
+                                    }
+                                }
                             } catch (e: IOException) {
                                 Log.e(TAG, "Error reading chunked response", e)
-                                // Just return what we've got so far
+                                // Just return what we've got so far, or the original response if nothing
+                                if (buffer.size == 0L) {
+                                    return response
+                                }
                             }
                             
                             // Create a new response with a non-chunked body

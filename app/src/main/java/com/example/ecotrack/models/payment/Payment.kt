@@ -18,7 +18,7 @@ data class Payment(
     val customerName: String,
     
     @SerializedName("customerEmail")
-    val customerEmail: String,
+    val customerEmail: String? = null,
     
     @SerializedName("address")
     val address: String,
@@ -39,16 +39,16 @@ data class Payment(
     val totalAmount: Double,
     
     @SerializedName("notes")
-    val notes: String,
+    val notes: String? = null,
     
     @SerializedName("status")
     val status: String,
     
     @SerializedName("paymentReference")
-    val paymentReference: String,
+    val paymentReference: String? = null,
     
     @SerializedName("barangayId")
-    val barangayId: String,
+    val barangayId: String? = null,
     
     @SerializedName("latitude")
     val latitude: Double,
@@ -57,13 +57,13 @@ data class Payment(
     val longitude: Double,
     
     @SerializedName("driverId")
-    val driverId: String,
+    val driverId: String? = null,
     
     @SerializedName("createdAt")
-    val createdAt: Date,
+    val createdAt: Date? = null,
     
     @SerializedName("updatedAt")
-    val updatedAt: Date,
+    val updatedAt: Date? = null,
     
     @SerializedName("jobOrderStatus")
     val jobOrderStatus: String = "Available",

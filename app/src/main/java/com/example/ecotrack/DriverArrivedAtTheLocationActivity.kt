@@ -127,6 +127,11 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
     }
     
     private fun updateJobOrderStatus(status: String) {
+        if (status.isBlank()) {
+            Toast.makeText(this, "Status cannot be empty", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
         payment?.let { payment ->
             // Show loading indicator
             showLoading("Updating status...")
@@ -135,37 +140,130 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
                 try {
                     val token = sessionManager.getToken()
                     if (token != null) {
-                        val response = apiService.updateJobOrderStatus(
-                            paymentId = payment.id,
-                            statusUpdate = JobOrderStatusUpdate(status),
-                            authToken = "Bearer $token"
-                        )
-                        
-                        if (response.isSuccessful && response.body() != null) {
-                            // Update successful
-                            val updatedPayment = response.body()
+                        try {
+                            // Create the status update object with the non-empty status
+                            val statusUpdate = JobOrderStatusUpdate(status)
+                            Log.d(TAG, "Sending status update: $statusUpdate with status: $status")
+                            Log.d(TAG, "Payment ID: ${payment.id}")
+                            Log.d(TAG, "Auth token: Bearer $token")
+                            
+                            val response = apiService.updateJobOrderStatus(
+                                paymentId = payment.id,
+                                statusUpdate = statusUpdate,
+                                authToken = "Bearer $token"
+                            )
+                            
+                            Log.d(TAG, "Response code: ${response.code()}")
+                            Log.d(TAG, "Response message: ${response.message()}")
+                            Log.d(TAG, "Response body: ${response.body()}")
+                            
+                            if (response.isSuccessful && response.body() != null) {
+                                // Update successful
+                                val updatedPayment = response.body()
+                                hideLoading()
+                                
+                                // Show success message
+                                Toast.makeText(this@DriverArrivedAtTheLocationActivity, "Arrival confirmed!", Toast.LENGTH_SHORT).show()
+                                
+                                // Navigate to the collection completed screen
+                                val intent = Intent(this@DriverArrivedAtTheLocationActivity, DriverJobOrderStatusActivity::class.java)
+                                
+                                // Pass the updated payment data to the next activity
+                                intent.putExtra("PAYMENT", updatedPayment)
+                                intent.putExtra("MODE", DriverJobOrderStatusActivity.JobOrderStatusMode.COMPLETE)
+                                
+                                startActivity(intent)
+                                finish()
+                            } else {
+                                // Error updating status but we'll proceed with local update
+                                Log.e(TAG, "Server error: ${response.code()} - ${response.message()}")
+                                
+                                // Create a new payment object with updated status instead of using copy()
+                                val updatedPayment = Payment(
+                                    id = payment.id,
+                                    orderId = payment.orderId,
+                                    customerName = payment.customerName,
+                                    customerEmail = payment.customerEmail,
+                                    address = payment.address,
+                                    phoneNumber = payment.phoneNumber,
+                                    paymentMethod = payment.paymentMethod,
+                                    amount = payment.amount,
+                                    tax = payment.tax,
+                                    totalAmount = payment.totalAmount,
+                                    notes = payment.notes,
+                                    status = payment.status,
+                                    paymentReference = payment.paymentReference,
+                                    barangayId = payment.barangayId,
+                                    latitude = payment.latitude,
+                                    longitude = payment.longitude,
+                                    driverId = payment.driverId,
+                                    createdAt = payment.createdAt,
+                                    updatedAt = payment.updatedAt,
+                                    jobOrderStatus = status,
+                                    wasteType = payment.wasteType
+                                )
+                                
+                                hideLoading()
+                                
+                                // Show warning message
+                                Toast.makeText(
+                                    this@DriverArrivedAtTheLocationActivity,
+                                    "Server error, proceeding with local update",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                
+                                // Navigate to the collection completed screen with locally updated payment
+                                val intent = Intent(this@DriverArrivedAtTheLocationActivity, DriverJobOrderStatusActivity::class.java)
+                                intent.putExtra("PAYMENT", updatedPayment)
+                                intent.putExtra("MODE", DriverJobOrderStatusActivity.JobOrderStatusMode.COMPLETE)
+                                
+                                startActivity(intent)
+                                finish()
+                            }
+                        } catch (e: Exception) {
+                            // Handle network error but still proceed
+                            Log.e(TAG, "Network error: ${e.message}", e)
+                            
+                            // Create a new payment object with updated status instead of using copy()
+                            val updatedPayment = Payment(
+                                id = payment.id,
+                                orderId = payment.orderId,
+                                customerName = payment.customerName,
+                                customerEmail = payment.customerEmail,
+                                address = payment.address,
+                                phoneNumber = payment.phoneNumber,
+                                paymentMethod = payment.paymentMethod,
+                                amount = payment.amount,
+                                tax = payment.tax,
+                                totalAmount = payment.totalAmount,
+                                notes = payment.notes,
+                                status = payment.status,
+                                paymentReference = payment.paymentReference,
+                                barangayId = payment.barangayId,
+                                latitude = payment.latitude,
+                                longitude = payment.longitude,
+                                driverId = payment.driverId,
+                                createdAt = payment.createdAt,
+                                updatedAt = payment.updatedAt,
+                                jobOrderStatus = status,
+                                wasteType = payment.wasteType
+                            )
+                            
                             hideLoading()
                             
-                            // Show success message
-                            Toast.makeText(this@DriverArrivedAtTheLocationActivity, "Arrival confirmed!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@DriverArrivedAtTheLocationActivity,
+                                "Network error, proceeding with local update",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             
-                            // Navigate to the collection completed screen
+                            // Navigate to the collection completed screen with locally updated payment
                             val intent = Intent(this@DriverArrivedAtTheLocationActivity, DriverJobOrderStatusActivity::class.java)
-                            
-                            // Pass the updated payment data to the next activity
                             intent.putExtra("PAYMENT", updatedPayment)
                             intent.putExtra("MODE", DriverJobOrderStatusActivity.JobOrderStatusMode.COMPLETE)
                             
                             startActivity(intent)
                             finish()
-                        } else {
-                            // Error updating status
-                            hideLoading()
-                            Toast.makeText(
-                                this@DriverArrivedAtTheLocationActivity,
-                                "Failed to update job status: ${response.message()}",
-                                Toast.LENGTH_SHORT
-                            ).show()
                         }
                     } else {
                         hideLoading()

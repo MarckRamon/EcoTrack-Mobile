@@ -215,6 +215,11 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     }
     
     private fun updateJobOrderStatus(status: String) {
+        if (status.isBlank()) {
+            Toast.makeText(this, "Status cannot be empty", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
         payment?.let { payment ->
             // Show loading indicator
             showLoading("Updating status...")
@@ -223,58 +228,173 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                 try {
                     val token = sessionManager.getToken()
                     if (token != null) {
-                        val response = apiService.updateJobOrderStatus(
-                            paymentId = payment.id,
-                            statusUpdate = JobOrderStatusUpdate(status),
-                            authToken = "Bearer $token"
-                        )
-                        
-                        if (response.isSuccessful && response.body() != null) {
-                            // Update successful
-                            val updatedPayment = response.body()
-                            hideLoading()
+                        try {
+                            // Create the status update object with the non-empty status
+                            val statusUpdate = JobOrderStatusUpdate(status)
+                            Log.d(TAG, "Sending status update: $statusUpdate with status: $status")
+                            Log.d(TAG, "Payment ID: ${payment.id}")
+                            Log.d(TAG, "Auth token: Bearer $token")
                             
-                            // Update UI
-                            statusTextView.text = status
+                            val response = apiService.updateJobOrderStatus(
+                                paymentId = payment.id,
+                                statusUpdate = statusUpdate,
+                                authToken = "Bearer $token"
+                            )
                             
-                            if (mode == JobOrderStatusMode.ACCEPT) {
-                                // For Accept Job Order mode
-                                when (status) {
-                                    "Accepted", "In-Progress" -> {
-                                        // Navigate to the arrived at location screen
-                                        val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
-                                        intent.putExtra("PAYMENT", updatedPayment)
-                                        startActivity(intent)
+                            Log.d(TAG, "Response code: ${response.code()}")
+                            Log.d(TAG, "Response message: ${response.message()}")
+                            Log.d(TAG, "Response body: ${response.body()}")
+                            
+                            if (response.isSuccessful && response.body() != null) {
+                                // Update successful
+                                val updatedPayment = response.body()
+                                hideLoading()
+                                
+                                // Update UI
+                                statusTextView.text = status
+                                
+                                if (mode == JobOrderStatusMode.ACCEPT) {
+                                    // For Accept Job Order mode
+                                    when (status) {
+                                        "Accepted", "In-Progress" -> {
+                                            // Navigate to the arrived at location screen
+                                            val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
+                                            intent.putExtra("PAYMENT", updatedPayment)
+                                            startActivity(intent)
+                                        }
+                                        else -> {
+                                            // Handle other statuses if needed
+                                            val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
+                                            intent.putExtra("PAYMENT", updatedPayment)
+                                            startActivity(intent)
+                                        }
                                     }
-                                    else -> {
-                                        // Handle other statuses if needed
-                                        val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
-                                        intent.putExtra("PAYMENT", updatedPayment)
-                                        startActivity(intent)
-                                    }
+                                } else {
+                                    // Collection completed mode
+                                    statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.green))
+                                    
+                                    // Disable the button
+                                    actionButton.isEnabled = false
+                                    actionButton.alpha = 0.5f
+                                    
+                                    // Show success message
+                                    Toast.makeText(this@DriverJobOrderStatusActivity, "Collection completed successfully!", Toast.LENGTH_SHORT).show()
+                                    
+                                    // Navigate back to DriverJobOrderActivity
+                                    navigateToJobOrders()
                                 }
                             } else {
+                                // Error updating status but we'll proceed with local update
+                                Log.e(TAG, "Server error: ${response.code()} - ${response.message()}")
+                                
+                                // Create a new payment object with updated status instead of using copy()
+                                val updatedPayment = Payment(
+                                    id = payment.id,
+                                    orderId = payment.orderId,
+                                    customerName = payment.customerName,
+                                    customerEmail = payment.customerEmail,
+                                    address = payment.address,
+                                    phoneNumber = payment.phoneNumber,
+                                    paymentMethod = payment.paymentMethod,
+                                    amount = payment.amount,
+                                    tax = payment.tax,
+                                    totalAmount = payment.totalAmount,
+                                    notes = payment.notes,
+                                    status = payment.status,
+                                    paymentReference = payment.paymentReference,
+                                    barangayId = payment.barangayId,
+                                    latitude = payment.latitude,
+                                    longitude = payment.longitude,
+                                    driverId = payment.driverId,
+                                    createdAt = payment.createdAt,
+                                    updatedAt = payment.updatedAt,
+                                    jobOrderStatus = status,
+                                    wasteType = payment.wasteType
+                                )
+                                
+                                hideLoading()
+                                
+                                // Show warning message
+                                Toast.makeText(
+                                    this@DriverJobOrderStatusActivity,
+                                    "Server error, proceeding with local update",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                
+                                // Continue with the flow using the locally updated payment
+                                if (mode == JobOrderStatusMode.ACCEPT) {
+                                    // For Accept Job Order mode
+                                    val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
+                                    intent.putExtra("PAYMENT", updatedPayment)
+                                    startActivity(intent)
+                                } else {
+                                    // Collection completed mode
+                                    statusTextView.text = status
+                                    statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.green))
+                                    
+                                    // Disable the button
+                                    actionButton.isEnabled = false
+                                    actionButton.alpha = 0.5f
+                                    
+                                    // Navigate back to DriverJobOrderActivity
+                                    navigateToJobOrders()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Handle network error but still proceed
+                            Log.e(TAG, "Network error: ${e.message}", e)
+                            
+                            // Create a new payment object with updated status instead of using copy()
+                            val updatedPayment = Payment(
+                                id = payment.id,
+                                orderId = payment.orderId,
+                                customerName = payment.customerName,
+                                customerEmail = payment.customerEmail,
+                                address = payment.address,
+                                phoneNumber = payment.phoneNumber,
+                                paymentMethod = payment.paymentMethod,
+                                amount = payment.amount,
+                                tax = payment.tax,
+                                totalAmount = payment.totalAmount,
+                                notes = payment.notes,
+                                status = payment.status,
+                                paymentReference = payment.paymentReference,
+                                barangayId = payment.barangayId,
+                                latitude = payment.latitude,
+                                longitude = payment.longitude,
+                                driverId = payment.driverId,
+                                createdAt = payment.createdAt,
+                                updatedAt = payment.updatedAt,
+                                jobOrderStatus = status,
+                                wasteType = payment.wasteType
+                            )
+                            
+                            hideLoading()
+                            
+                            Toast.makeText(
+                                this@DriverJobOrderStatusActivity,
+                                "Network error, proceeding with local update",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            
+                            // Continue with the flow using the locally updated payment
+                            if (mode == JobOrderStatusMode.ACCEPT) {
+                                // For Accept Job Order mode
+                                val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
+                                intent.putExtra("PAYMENT", updatedPayment)
+                                startActivity(intent)
+                            } else {
                                 // Collection completed mode
+                                statusTextView.text = status
                                 statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.green))
                                 
                                 // Disable the button
                                 actionButton.isEnabled = false
                                 actionButton.alpha = 0.5f
                                 
-                                // Show success message
-                                Toast.makeText(this@DriverJobOrderStatusActivity, "Collection completed successfully!", Toast.LENGTH_SHORT).show()
-                                
                                 // Navigate back to DriverJobOrderActivity
                                 navigateToJobOrders()
                             }
-                        } else {
-                            // Error updating status
-                            hideLoading()
-                            Toast.makeText(
-                                this@DriverJobOrderStatusActivity,
-                                "Failed to update job status: ${response.message()}",
-                                Toast.LENGTH_SHORT
-                            ).show()
                         }
                     } else {
                         hideLoading()
