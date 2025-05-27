@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Search Box -->
+    <EditText
+        android:id="@+id/searchEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Search barangay..."
+        android:inputType="text"
+        android:padding="12dp"
+        android:background="@drawable/search_background"
+        android:drawableStart="@drawable/ic_search"
+        android:drawablePadding="8dp"
+        android:layout_marginBottom="16dp"
+        android:maxLines="1" />
+
+    <!-- Barangay List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/barangayRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="400dp"
+        android:scrollbars="vertical"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp" />
+
+</LinearLayout> 

@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/text1"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="16dp"
-    android:ellipsize="end"
-    android:maxLines="1"
     android:textSize="16sp"
-    android:textStyle="normal"
-    android:background="@android:color/white"
-    android:textColor="@android:color/black"
-    style="@style/DropdownStyle" />
+    android:textColor="@color/black"
+    android:background="?android:attr/selectableItemBackground"
+    android:ellipsize="end"
+    android:maxLines="1" />

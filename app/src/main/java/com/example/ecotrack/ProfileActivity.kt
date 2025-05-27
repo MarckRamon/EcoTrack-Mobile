@@ -19,6 +19,7 @@ class ProfileActivity : BaseActivity() {
     private val TAG = "ProfileActivity"
     private lateinit var userNameText: TextView
     private lateinit var userEmailText: TextView
+    private lateinit var userBarangayText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,12 +35,55 @@ class ProfileActivity : BaseActivity() {
     private fun initViews() {
         userNameText = findViewById(R.id.userName)
         userEmailText = findViewById(R.id.userEmail)
+        userBarangayText = findViewById(R.id.userBarangay)
     }
 
     private fun setupClickListeners() {
         // Back button
         findViewById<ImageButton>(R.id.backButton).setOnClickListener {
             onBackPressed()
+        }
+
+        // Refresh button
+        findViewById<ImageButton>(R.id.refreshButton).setOnClickListener {
+            Toast.makeText(this, "Refreshing profile data...", Toast.LENGTH_SHORT).show()
+            loadUserData()
+        }
+
+        // Add debug feature - long press on profile info to show raw data
+        findViewById<LinearLayout>(R.id.profileInfo).setOnLongClickListener {
+            val userId = sessionManager.getUserId()
+            val token = sessionManager.getToken()
+            
+            if (userId != null && token != null) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val response = apiService.getProfile(userId, "Bearer $token")
+                        withContext(Dispatchers.Main) {
+                            if (response.isSuccessful && response.body() != null) {
+                                val profile = response.body()!!
+                                val rawData = "User ID: $userId\n" +
+                                        "First Name: ${profile.firstName}\n" +
+                                        "Last Name: ${profile.lastName}\n" +
+                                        "Email: ${profile.email}\n" +
+                                        "Barangay ID: ${profile.barangayId}\n" +
+                                        "Barangay Name: ${profile.barangayName}\n" +
+                                        "Phone: ${profile.phoneNumber}\n" +
+                                        "Username: ${profile.username}"
+                                
+                                android.app.AlertDialog.Builder(this@ProfileActivity)
+                                    .setTitle("Raw Profile Data")
+                                    .setMessage(rawData)
+                                    .setPositiveButton("OK", null)
+                                    .show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error fetching raw profile data", e)
+                    }
+                }
+            }
+            true
         }
 
         findViewById<LinearLayout>(R.id.editInfoButton).setOnClickListener {
@@ -89,8 +133,17 @@ class ProfileActivity : BaseActivity() {
                         val profile = response.body()
                         profile?.let {
                             Log.d(TAG, "Profile loaded successfully: ${it.firstName} ${it.lastName}, email: ${it.email}")
+                            Log.d(TAG, "Barangay info: ID=${it.barangayId}, Name=${it.barangayName}")
                             userNameText.text = "${it.firstName} ${it.lastName}"
                             userEmailText.text = it.email
+                            
+                            // Set barangay text or hide it if not available
+                            if (it.barangayName != null) {
+                                userBarangayText.text = "Barangay: ${it.barangayName}"
+                                userBarangayText.visibility = android.view.View.VISIBLE
+                            } else {
+                                userBarangayText.visibility = android.view.View.GONE
+                            }
                         }
                     } else {
                         val errorCode = response.code()

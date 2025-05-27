@@ -3,8 +3,12 @@ package com.example.ecotrack
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.example.ecotrack.databinding.ActivityEditProfileBinding
@@ -48,6 +52,18 @@ class EditProfileActivity : BaseActivity() {
 
         binding.backButton?.setOnClickListener {
             finish()
+        }
+
+        // Set up barangay field to show dialog instead of dropdown
+        binding.barangayDropdown.isFocusable = false
+        binding.barangayDropdown.isClickable = true
+        binding.barangayDropdown.setOnClickListener {
+            showBarangaySelectionDialog()
+        }
+        
+        // Make sure the dropdown icon also shows the dialog
+        binding.barangayInputLayout.setEndIconOnClickListener {
+            showBarangaySelectionDialog()
         }
 
         // Load user profile and barangays
@@ -133,9 +149,38 @@ class EditProfileActivity : BaseActivity() {
         val firstName = binding.firstNameInput.text.toString().trim()
         val lastName = binding.lastNameInput.text.toString().trim()
         val email = binding.emailInput.text.toString().trim()
+        val barangayText = binding.barangayDropdown.text.toString().trim()
 
         if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty()) {
             Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Check if the barangay text entered matches any of our loaded barangays
+        if (selectedBarangayId == null || selectedBarangayName == null) {
+            // Try to find the barangay by name
+            val matchingBarangay = barangays.find { it.name.equals(barangayText, ignoreCase = true) }
+            if (matchingBarangay != null) {
+                // Found a match, update the selection
+                selectedBarangayId = matchingBarangay.barangayId
+                selectedBarangayName = matchingBarangay.name
+                Log.d(TAG, "Found matching barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+            } else if (barangayText.isNotEmpty() && barangayText != originalBarangayName) {
+                // User entered something that's not in our list
+                Toast.makeText(this, "Please select a valid barangay from the dropdown", Toast.LENGTH_SHORT).show()
+                return
+            } else {
+                // Keep the original barangay if nothing was entered or it matches the original
+                selectedBarangayId = originalBarangayId
+                selectedBarangayName = originalBarangayName
+                Log.d(TAG, "Using original barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+            }
+        }
+
+        // Final check to ensure we have a valid barangayId
+        if (selectedBarangayId == null) {
+            Log.e(TAG, "No valid barangayId selected, cannot proceed with update")
+            Toast.makeText(this, "Please select a valid barangay", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -182,10 +227,12 @@ class EditProfileActivity : BaseActivity() {
                     location = null,     // No location update
                     email = newEmail,    // Add email parameter
                     barangayId = selectedBarangayId,
-                    barangayName = selectedBarangayName
+                    barangayName = null  // Don't send barangayName, only use barangayId
                 )
 
+                // Debug logging to see exactly what we're sending
                 Log.d(TAG, "Sending profile update request: $updateRequest")
+                Log.d(TAG, "Barangay details - ID: $selectedBarangayId, Name: $selectedBarangayName")
 
                 val response = apiService.updateProfile(
                     userId,
@@ -321,72 +368,133 @@ class EditProfileActivity : BaseActivity() {
     }
 
     private fun loadBarangays() {
-        Log.d(TAG, "Starting to load barangays")
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Log.d(TAG, "Making API call to get barangays")
-
                 // Get the token from session manager
                 val token = sessionManager.getToken()
 
                 if (token == null) {
                     Log.e(TAG, "No authentication token available")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@EditProfileActivity, "Authentication error. Please log in again.", Toast.LENGTH_SHORT).show()
-                    }
                     return@launch
                 }
 
                 // Add the Bearer prefix to the token
                 val authHeader = "Bearer $token"
-                Log.d(TAG, "Using auth token for barangay API")
 
                 val response = apiService.getAllBarangays(authHeader)
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful && response.body() != null) {
-                        barangays = response.body()!!.filter { it.isActive }
-                        Log.d(TAG, "Barangays loaded successfully: ${barangays.size} barangays")
-                        Log.d(TAG, "Filtered barangays: $barangays")
-
-                        // Now that we have the data, set up the dropdown
-                        setupBarangayDropdown()
+                        val allBarangays = response.body()!!
+                        
+                        // Use all barangays regardless of active status for now
+                        barangays = allBarangays
+                        
+                        // Set initial selection if needed
+                        if (originalBarangayName != null && binding.barangayDropdown.text.toString().isEmpty()) {
+                            binding.barangayDropdown.setText(originalBarangayName)
+                            selectedBarangayId = originalBarangayId
+                            selectedBarangayName = originalBarangayName
+                        } else {
+                            // Keep existing selection or leave empty
+                        }
                     } else {
                         Log.e(TAG, "Failed to load barangays: ${response.code()} - ${response.message()}")
-                        Toast.makeText(this@EditProfileActivity, "Failed to load barangays. Please try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading barangays", e)
-                Log.e(TAG, "Exception details: ${e.message}, cause: ${e.cause}")
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@EditProfileActivity, "Error loading barangays: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
             }
         }
     }
 
-    private fun setupBarangayDropdown() {
-        val barangayNames = barangays.map { it.name }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, barangayNames)
-
-        val barangayDropdown = binding.barangayDropdown
-        barangayDropdown.setAdapter(adapter)
-        barangayDropdown.threshold = 0  // Show all items immediately when clicked
-
-        // Set the initial selection if we have the original barangay
-        // Commenting out this line to see if it prevents the dropdown from filtering initially
-        // if (originalBarangayId != null && originalBarangayName != null) {
-        //     barangayDropdown.setText(originalBarangayName)
-        //     selectedBarangayId = originalBarangayId
-        //     selectedBarangayName = originalBarangayName
-        // }
-
-        barangayDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selectedBarangay = barangays[position]
+    // Replace dropdown with a dialog selection
+    private fun showBarangaySelectionDialog() {
+        if (barangays.isEmpty()) {
+            loadBarangays()
+            return
+        }
+        
+        // Sort barangays alphabetically for easier selection
+        val sortedBarangays = barangays.sortedBy { it.name }
+        
+        // Create dialog with searchable list
+        val dialogView = layoutInflater.inflate(R.layout.dialog_barangay_selection, null)
+        val recyclerView = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.barangayRecyclerView)
+        val searchEditText = dialogView.findViewById<EditText>(R.id.searchEditText)
+        
+        // Create dialog reference that will be initialized later
+        var dialogInterface: AlertDialog? = null
+        
+        // Set up RecyclerView
+        recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        val adapter = BarangayAdapter(sortedBarangays) { selectedBarangay ->
+            // Handle selection
             selectedBarangayId = selectedBarangay.barangayId
             selectedBarangayName = selectedBarangay.name
-            Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+            binding.barangayDropdown.setText(selectedBarangay.name)
+            
+            // Dismiss dialog
+            dialogInterface?.dismiss()
+        }
+        recyclerView.adapter = adapter
+        
+        // Set up search functionality
+        searchEditText.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val searchText = s.toString().trim().lowercase()
+                if (searchText.isEmpty()) {
+                    adapter.updateList(sortedBarangays)
+                } else {
+                    val filteredList = sortedBarangays.filter { 
+                        it.name.lowercase().contains(searchText) 
+                    }
+                    adapter.updateList(filteredList)
+                }
+            }
+            
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+        
+        // Create and show dialog
+        dialogInterface = AlertDialog.Builder(this)
+            .setTitle("Select Barangay")
+            .setView(dialogView)
+            .setNegativeButton("Cancel", null)
+            .create()
+        
+        dialogInterface.show()
+    }
+
+    // Adapter for barangay selection
+    private inner class BarangayAdapter(
+        private var barangays: List<Barangay>,
+        private val onItemClick: (Barangay) -> Unit
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<BarangayAdapter.ViewHolder>() {
+        
+        inner class ViewHolder(itemView: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(itemView) {
+            val nameTextView: TextView = itemView.findViewById(R.id.barangayName)
+        }
+        
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_barangay, parent, false)
+            return ViewHolder(view)
+        }
+        
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val barangay = barangays[position]
+            holder.nameTextView.text = barangay.name
+            
+            holder.itemView.setOnClickListener {
+                onItemClick(barangay)
+            }
+        }
+        
+        override fun getItemCount() = barangays.size
+        
+        fun updateList(newList: List<Barangay>) {
+            barangays = newList
+            notifyDataSetChanged()
         }
     }
 
