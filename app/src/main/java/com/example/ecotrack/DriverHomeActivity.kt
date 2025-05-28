@@ -6,20 +6,19 @@ import android.util.Log
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
-import android.widget.ImageButton
+import android.widget.ImageView
 import com.example.ecotrack.utils.ApiService
 import com.example.ecotrack.utils.SessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.widget.ImageView
 
 class DriverHomeActivity : BaseActivity() {
     private lateinit var welcomeTextView: TextView
     private lateinit var driverTextView: TextView
     private lateinit var profileImage: ImageView
-    private lateinit var notificationButton: ImageButton
+    private lateinit var notificationButton: ImageView
     private val apiService = ApiService.create()
     private val TAG = "DriverHomeActivity"
 

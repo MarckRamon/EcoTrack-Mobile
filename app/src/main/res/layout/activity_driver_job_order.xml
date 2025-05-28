@@ -59,7 +59,7 @@
         android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/header" />
 
-    <!-- ScrollView to contain both sections -->
+    <!-- ScrollView to contain all sections -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -74,6 +74,38 @@
             android:orientation="vertical"
             android:paddingBottom="16dp">
 
+            <!-- In-Progress Section -->
+            <TextView
+                android:id="@+id/tvInProgressHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="In-Progress"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp" />
+
+            <!-- No In-Progress Orders Message -->
+            <TextView
+                android:id="@+id/tvNoInProgressOrders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No in-progress job orders"
+                android:textSize="16sp"
+                android:textColor="@color/text_secondary"
+                android:gravity="center"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+            <!-- In-Progress Job Order List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerViewInProgressJobOrders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_job_order" />
+
             <!-- Available Section -->
             <TextView
                 android:id="@+id/tvAvailableHeader"
@@ -84,7 +116,7 @@
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 android:layout_marginStart="16dp"
-                android:layout_marginTop="16dp" />
+                android:layout_marginTop="24dp" />
 
             <!-- No Available Orders Message -->
             <TextView
@@ -98,6 +130,19 @@
                 android:layout_marginTop="8dp"
                 android:visibility="gone" />
 
+            <!-- Available Jobs Disabled Message -->
+            <TextView
+                android:id="@+id/tvAvailableDisabledMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="You have an active job order. Complete it to accept a new one."
+                android:textSize="16sp"
+                android:textColor="@color/error"
+                android:gravity="center"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
             <!-- Available Job Order List -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewAvailableJobOrders"
@@ -105,6 +150,20 @@
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_job_order" />
+                
+            <!-- View More Available Button -->
+            <TextView
+                android:id="@+id/btnViewMoreAvailable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="View More →"
+                android:textSize="16sp"
+                android:textColor="@color/secondary"
+                android:gravity="end"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="8dp"
+                android:padding="8dp"
+                android:visibility="gone" />
 
             <!-- Completed Section -->
             <TextView
@@ -137,6 +196,20 @@
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_job_order" />
+                
+            <!-- View History Button -->
+            <TextView
+                android:id="@+id/btnViewHistory"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="View History →"
+                android:textSize="16sp"
+                android:textColor="@color/gray"
+                android:gravity="end"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="8dp"
+                android:padding="8dp"
+                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
 
@@ -156,7 +229,7 @@
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/bottomNavigation"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
+        android:layout_height="65dp"
         app:cardBackgroundColor="@color/secondary"
         app:cardElevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"

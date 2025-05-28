@@ -30,6 +30,7 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.text.NumberFormat
+import java.util.Date
 import java.util.Locale
 
 class DriverJobOrderStatusActivity : BaseActivity() {
@@ -176,8 +177,8 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                         startActivity(intent)
                     }
                     else -> {
-                        // Update job order status to "Accepted"
-                        updateJobOrderStatus("Accepted")
+                        // Check if driver already has an active job
+                        checkForActiveJobs()
                     }
                 }
             }
@@ -196,6 +197,80 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             
             cancelButton.setOnClickListener {
                 hideConfirmationDialog()
+            }
+        }
+    }
+    
+    private fun checkForActiveJobs() {
+        // Show loading indicator
+        showLoading("Checking active jobs...")
+        
+        lifecycleScope.launch {
+            try {
+                val driverId = sessionManager.getUserId()
+                val token = sessionManager.getToken()
+                
+                if (driverId != null && token != null) {
+                    val response = apiService.getPaymentsByDriverId(
+                        driverId = driverId,
+                        authToken = "Bearer $token"
+                    )
+                    
+                    if (response.isSuccessful) {
+                        val payments = response.body()
+                        
+                        // Check if there are any active jobs (In-Progress or Accepted)
+                        val activeJobs = payments?.filter { 
+                            it.jobOrderStatus == "In-Progress" || it.jobOrderStatus == "Accepted" 
+                        } ?: emptyList()
+                        
+                        if (activeJobs.isNotEmpty()) {
+                            // Driver has active jobs, show message and don't allow accepting new job
+                            hideLoading()
+                            Toast.makeText(
+                                this@DriverJobOrderStatusActivity, 
+                                "Complete your active job order before accepting a new one", 
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            // No active jobs, proceed with accepting this job
+                            hideLoading()
+                            updateJobOrderStatus("Accepted")
+                        }
+                    } else {
+                        // Error checking active jobs, proceed with caution
+                        Log.e(TAG, "Error checking active jobs: ${response.code()} - ${response.message()}")
+                        hideLoading()
+                        
+                        // Show warning but allow accepting the job
+                        Toast.makeText(
+                            this@DriverJobOrderStatusActivity,
+                            "Could not verify active jobs. Proceeding with caution.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        updateJobOrderStatus("Accepted")
+                    }
+                } else {
+                    // Missing driver ID or token
+                    hideLoading()
+                    Toast.makeText(
+                        this@DriverJobOrderStatusActivity,
+                        "Authentication error. Please log in again.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                // Handle network error
+                Log.e(TAG, "Error checking active jobs: ${e.message}", e)
+                hideLoading()
+                
+                // Show warning but allow accepting the job
+                Toast.makeText(
+                    this@DriverJobOrderStatusActivity,
+                    "Network error. Proceeding with caution.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                updateJobOrderStatus("Accepted")
             }
         }
     }
@@ -288,6 +363,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                 Log.e(TAG, "Server error: ${response.code()} - ${response.message()}")
                                 
                                 // Create a new payment object with updated status instead of using copy()
+                                val currentDate = Date() // Get current date
                                 val updatedPayment = Payment(
                                     id = payment.id,
                                     orderId = payment.orderId,
@@ -307,7 +383,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                     longitude = payment.longitude,
                                     driverId = payment.driverId,
                                     createdAt = payment.createdAt,
-                                    updatedAt = payment.updatedAt,
+                                    updatedAt = if (status == "Completed") currentDate else payment.updatedAt,
                                     jobOrderStatus = status,
                                     wasteType = payment.wasteType
                                 )
@@ -345,6 +421,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                             Log.e(TAG, "Network error: ${e.message}", e)
                             
                             // Create a new payment object with updated status instead of using copy()
+                            val currentDate = Date() // Get current date
                             val updatedPayment = Payment(
                                 id = payment.id,
                                 orderId = payment.orderId,
@@ -364,7 +441,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                 longitude = payment.longitude,
                                 driverId = payment.driverId,
                                 createdAt = payment.createdAt,
-                                updatedAt = payment.updatedAt,
+                                updatedAt = if (status == "Completed") currentDate else payment.updatedAt,
                                 jobOrderStatus = status,
                                 wasteType = payment.wasteType
                             )

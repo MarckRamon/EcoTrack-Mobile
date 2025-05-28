@@ -36,7 +36,6 @@ class DriverMapActivity : BaseActivity() {
     private lateinit var siteName: TextView
     private lateinit var garbageType: TextView
     private lateinit var closeButton: Button
-    private lateinit var backButton: View
     private lateinit var profileImage: CircleImageView
     private lateinit var homeNav: View
     private lateinit var jobOrdersNav: View
@@ -72,7 +71,6 @@ class DriverMapActivity : BaseActivity() {
         siteName = findViewById(R.id.siteName)
         garbageType = findViewById(R.id.garbageType)
         closeButton = findViewById(R.id.closeButton)
-        backButton = findViewById(R.id.backButton)
         profileImage = findViewById(R.id.profileImage)
         homeNav = findViewById(R.id.homeNav)
         jobOrdersNav = findViewById(R.id.jobOrdersNav)
@@ -92,10 +90,6 @@ class DriverMapActivity : BaseActivity() {
     private fun setupListeners() {
         closeButton.setOnClickListener {
             infoCardView.visibility = View.GONE
-        }
-        
-        backButton.setOnClickListener {
-            finish()
         }
         
         findViewById<View>(R.id.refreshButton).setOnClickListener {

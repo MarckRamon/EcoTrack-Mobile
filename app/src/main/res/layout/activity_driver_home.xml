@@ -8,66 +8,44 @@
     android:background="@color/white"
     tools:context=".DriverHomeActivity">
 
-    <!-- Header Section -->
-    <LinearLayout
+    <!-- App Logo and Header -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/headerLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:elevation="4dp"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageButton
+        <ImageView
             android:id="@+id/notificationButton"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_popup_reminder"
-            android:tint="#888888"
-            android:contentDescription="Notifications"/>
+            android:src="@drawable/ic_notification"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Grab"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:textColor="#069D4F"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Trash"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:textColor="#333333"/>
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_more"
-                android:tint="#069D4F"
-                android:layout_marginStart="4dp"/>
-        </LinearLayout>
+        <ImageView
+            android:id="@+id/appLogo"
+            android:layout_width="140dp"
+            android:layout_height="36dp"
+            android:src="@drawable/grabtrash_logo"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/profileImage"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:src="@drawable/raph"
-            app:civ_border_width="1dp"
-            app:civ_border_color="#EEEEEE"
-            android:clickable="true"
-            android:focusable="true"/>
-    </LinearLayout>
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.4" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Welcome Section -->
     <LinearLayout
@@ -166,7 +144,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:src="@android:drawable/ic_media_play"
-                        android:tint="#69CC67"/>
+                        app:tint="#69CC67"/>
                 </LinearLayout>
             </LinearLayout>
 
@@ -182,7 +160,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@android:drawable/ic_menu_recent_history"
-                    android:tint="@color/white"
+                    app:tint="@color/white"
                     android:layout_marginEnd="8dp"/>
 
                 <TextView
@@ -199,7 +177,7 @@
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/bottomNavLayout"
         android:layout_width="match_parent"
-        android:layout_height="80dp"
+        android:layout_height="65dp"
         app:cardElevation="0dp"
         app:cardBackgroundColor="@color/secondary"
         app:shapeAppearance="@style/BottomNavShape"
@@ -223,7 +201,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_home"
-                    android:tint="@color/white"/>
+                    app:tint="@color/white"/>
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -245,7 +223,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_calendar"
-                    android:tint="@color/white"/>
+                    app:tint="@color/white"/>
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -268,7 +246,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_location"
-                    android:tint="@color/white"/>
+                    app:tint="@color/white"/>
 
                 <TextView
                     android:layout_width="wrap_content"
