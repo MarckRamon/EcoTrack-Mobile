@@ -75,11 +75,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     private var customerLatitude = 14.5995 // Default location (Philippines)
     private var customerLongitude = 120.9842 // Default location (Philippines)
     private var customerLocation: GeoPoint? = null
-    
-    // Cache for active jobs check
-    private var lastActiveJobsCheckTime = 0L
-    private val MIN_CHECK_INTERVAL = 30000L // 30 seconds interval
-    private var cachedActiveJobs: List<Payment>? = null
 
     enum class JobOrderStatusMode {
         ACCEPT,      // For accepting job orders (similar to DriverAcceptJobOrderActivity)
@@ -216,54 +211,18 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                 val token = sessionManager.getToken()
                 
                 if (driverId != null && token != null) {
-                    val currentTime = System.currentTimeMillis()
-                    if (currentTime - lastActiveJobsCheckTime > MIN_CHECK_INTERVAL || cachedActiveJobs == null) {
-                        // Time to refresh the cache
-                        lastActiveJobsCheckTime = currentTime
-                        
-                        val response = apiService.getPaymentsByDriverId(
-                            driverId = driverId,
-                            authToken = "Bearer $token"
-                        )
-                        
-                        if (response.isSuccessful) {
-                            val payments = response.body()
-                            
-                            // Check if there are any active jobs (In-Progress or Accepted)
-                            cachedActiveJobs = payments?.filter { 
-                                it.jobOrderStatus == "In-Progress" || it.jobOrderStatus == "Accepted" 
-                            } ?: emptyList()
-                            
-                            if (cachedActiveJobs?.isNotEmpty() == true) {
-                                // Driver has active jobs, show message and don't allow accepting new job
-                                hideLoading()
-                                Toast.makeText(
-                                    this@DriverJobOrderStatusActivity, 
-                                    "Complete your active job order before accepting a new one", 
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            } else {
-                                // No active jobs, proceed with accepting this job
-                                hideLoading()
-                                updateJobOrderStatus("Accepted")
-                            }
-                        } else {
-                            // Error checking active jobs, proceed with caution
-                            Log.e(TAG, "Error checking active jobs: ${response.code()} - ${response.message()}")
-                            hideLoading()
-                            
-                            // Show warning but allow accepting the job
-                            Toast.makeText(
-                                this@DriverJobOrderStatusActivity,
-                                "Could not verify active jobs. Proceeding with caution.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            updateJobOrderStatus("Accepted")
-                        }
-                    } else {
-                        // Use cached active jobs
-                        Log.d(TAG, "Using cached active jobs data (${currentTime - lastActiveJobsCheckTime}ms since last check)")
-                        val activeJobs = cachedActiveJobs ?: emptyList()
+                    val response = apiService.getPaymentsByDriverId(
+                        driverId = driverId,
+                        authToken = "Bearer $token"
+                    )
+
+                    if (response.isSuccessful) {
+                        val payments = response.body()
+
+                        // Check if there are any active jobs (In-Progress or Accepted)
+                        val activeJobs = payments?.filter {
+                            it.jobOrderStatus == "In-Progress" || it.jobOrderStatus == "Accepted"
+                        } ?: emptyList()
                         
                         if (activeJobs.isNotEmpty()) {
                             // Driver has active jobs, show message and don't allow accepting new job

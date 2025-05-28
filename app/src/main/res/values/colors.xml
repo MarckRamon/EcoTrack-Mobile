@@ -23,6 +23,7 @@
     <!-- Secondary Brand Colors -->
     <color name="secondary">#34A853</color>
     <color name="secondary_dark">#2D904B</color>
+    <color name="secondary_light">#81C995</color>
 
     <!-- Text Colors -->
     <color name="text_primary">#202124</color>
@@ -34,6 +35,7 @@
     <color name="stroke_color">#E0E0E0</color>
     <color name="icon_color">#5F6368</color>
     <color name="error">#D93025</color>
+    <color name="error_light">#F28B82</color>
 
     <!-- Background Colors -->
     <color name="background">#FFFFFF</color>

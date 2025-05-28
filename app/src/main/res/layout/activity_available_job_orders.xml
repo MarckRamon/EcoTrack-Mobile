@@ -8,20 +8,17 @@
     tools:context=".AvailableJobOrdersActivity">
 
     <!-- Toolbar -->
-
-    <!-- No Orders Message -->
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:layout_marginTop="180dp"
         android:background="@color/background_dim"
         android:elevation="4dp"
         app:layout_constraintTop_toTopOf="parent"
         app:navigationIcon="@drawable/ic_arrow_back"
-        app:titleTextColor="@color/black"
-        tools:layout_editor_absoluteX="-42dp" />
+        app:titleTextColor="@color/black" />
 
+    <!-- No Orders Message -->
     <TextView
         android:id="@+id/tvNoOrders"
         android:layout_width="match_parent"

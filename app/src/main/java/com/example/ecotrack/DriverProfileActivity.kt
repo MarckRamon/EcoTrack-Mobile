@@ -8,6 +8,7 @@ import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.button.MaterialButton
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.RealTimeUpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,6 +20,9 @@ class DriverProfileActivity : BaseActivity() {
     private val TAG = "DriverProfileActivity"
     private lateinit var userNameText: TextView
     private lateinit var userEmailText: TextView
+    
+    // Real-time update manager
+    private lateinit var realTimeUpdateManager: RealTimeUpdateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,6 +36,13 @@ class DriverProfileActivity : BaseActivity() {
         
         initViews()
         setupClickListeners()
+        
+        // Initialize real-time update manager
+        realTimeUpdateManager = RealTimeUpdateManager(
+            activity = this,
+            updateCallback = { loadUserData() }
+        )
+        
         loadUserData()
     }
     
@@ -78,6 +89,11 @@ class DriverProfileActivity : BaseActivity() {
         findViewById<MaterialButton>(R.id.logoutButton).setOnClickListener {
             sessionManager.logout()
             navigateToLogin()
+        }
+        
+        // Remove the refresh button functionality if it exists
+        findViewById<ImageButton>(R.id.refreshButton)?.let { refreshButton ->
+            refreshButton.visibility = android.view.View.GONE
         }
     }
 
@@ -135,13 +151,17 @@ class DriverProfileActivity : BaseActivity() {
         }
     }
 
-    // Override onResume to refresh data when returning from DriverEditProfileActivity
+    // Override onResume to start real-time updates
     override fun onResume() {
         super.onResume()
-        // BaseActivity already handles session management
-        
-        // Always refresh profile data when returning to this activity
-        Log.d(TAG, "onResume - refreshing profile data")
-        loadUserData()
+        // Start real-time updates
+        realTimeUpdateManager.startRealTimeUpdates()
+    }
+    
+    // Override onPause to stop real-time updates
+    override fun onPause() {
+        super.onPause()
+        // Stop real-time updates
+        realTimeUpdateManager.stopRealTimeUpdates()
     }
 } 

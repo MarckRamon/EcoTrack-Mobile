@@ -251,7 +251,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Collection Points"
+                    android:text="Driver Map"
                     android:textSize="12sp"
                     android:gravity="center"
                     android:textColor="@color/white"/>

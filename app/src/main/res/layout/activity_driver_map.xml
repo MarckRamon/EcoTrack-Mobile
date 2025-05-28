@@ -67,6 +67,21 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/topBar" />
 
+    <!-- Location Toggle Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/locationToggleButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="Toggle location tracking"
+        android:src="@drawable/ic_location_on"
+        app:backgroundTint="@color/white"
+        app:fabSize="normal"
+        app:layout_constraintBottom_toTopOf="@id/infoCardView"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@color/secondary" />
+
     <androidx.cardview.widget.CardView
         android:id="@+id/infoCardView"
         android:layout_width="match_parent"
@@ -117,7 +132,7 @@
                 android:id="@+id/closeButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end"
+                android:layout_gravity="center"
                 android:layout_marginTop="8dp"
                 android:text="Close" />
         </LinearLayout>
@@ -211,7 +226,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Collection Points"
+                    android:text="Driver Map"
                     android:textSize="12sp"
                     android:gravity="center"
                     android:textColor="@color/white"/>

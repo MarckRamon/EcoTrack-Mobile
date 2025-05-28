@@ -11,6 +11,7 @@ import com.example.ecotrack.databinding.ActivityDriverEditProfileBinding
 import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.models.ProfileUpdateRequest
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.RealTimeUpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -38,6 +39,9 @@ class DriverEditProfileActivity : BaseActivity() {
     // Count email update attempts to avoid infinite loops
     private var emailUpdateAttempts = 0
     private val MAX_EMAIL_ATTEMPTS = 3
+    
+    // Real-time update manager
+    private lateinit var realTimeUpdateManager: RealTimeUpdateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +56,12 @@ class DriverEditProfileActivity : BaseActivity() {
         binding.backButton.setOnClickListener {
             finish()
         }
+        
+        // Initialize real-time update manager
+        realTimeUpdateManager = RealTimeUpdateManager(
+            activity = this,
+            updateCallback = { loadUserProfile() }
+        )
 
         // Load user profile and barangays
         loadUserProfile()
@@ -405,5 +415,19 @@ class DriverEditProfileActivity : BaseActivity() {
     private fun showLoading(isLoading: Boolean) {
         binding.saveButton.isEnabled = !isLoading
         binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
+
+    // Override onResume to start real-time updates
+    override fun onResume() {
+        super.onResume()
+        // Start real-time updates
+        realTimeUpdateManager.startRealTimeUpdates()
+    }
+    
+    // Override onPause to stop real-time updates
+    override fun onPause() {
+        super.onPause()
+        // Stop real-time updates
+        realTimeUpdateManager.stopRealTimeUpdates()
     }
 } 

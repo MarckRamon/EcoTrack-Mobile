@@ -21,7 +21,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.ecotrack.models.PrivateEntitiesResponse
 import com.example.ecotrack.models.PrivateEntity
+import com.example.ecotrack.models.UserProfile
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.RealTimeUpdateManager
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
@@ -31,14 +33,11 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
-import java.util.Timer
-import java.util.TimerTask
 
 class PrivateEntityMapActivity : BaseActivity() {
 
     private val TAG = "PrivateEntityMap"
     private val LOCATION_PERMISSION_REQUEST_CODE = 1001
-    private val UPDATE_INTERVAL = 30000L // 30 seconds
 
     // UI components
     private lateinit var mapView: MapView
@@ -56,6 +55,13 @@ class PrivateEntityMapActivity : BaseActivity() {
     private lateinit var prevEntityButton: ImageView
     private lateinit var nextEntityButton: ImageView
     private lateinit var locationToggleButton: FloatingActionButton
+    
+    // UI components for confirmation dialog
+    private lateinit var confirmationDialog: androidx.cardview.widget.CardView
+    private lateinit var dialogOverlay: View
+    private lateinit var confirmDialogButton: Button
+    private lateinit var cancelDialogButton: Button
+    private lateinit var confirmDialogMessage: TextView
 
     // Location data
     private lateinit var myLocationOverlay: MyLocationNewOverlay
@@ -69,10 +75,11 @@ class PrivateEntityMapActivity : BaseActivity() {
     // API Service
     private lateinit var apiService: ApiService
     
-    // Real-time update components
-    private var updateTimer: Timer? = null
-    private val handler = Handler(Looper.getMainLooper())
-    private var isUpdating = false
+    // Real-time update manager
+    private lateinit var realTimeUpdateManager: RealTimeUpdateManager
+    
+    // Cache for user profiles
+    private val userProfileCache = mutableMapOf<String, UserProfile>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,6 +100,12 @@ class PrivateEntityMapActivity : BaseActivity() {
         
         // Check location permission for map
         checkLocationPermission()
+        
+        // Initialize real-time update manager
+        realTimeUpdateManager = RealTimeUpdateManager(
+            activity = this,
+            updateCallback = { fetchUpdatedEntities() }
+        )
         
         // Load private entities data
         loadPrivateEntities()
@@ -115,6 +128,13 @@ class PrivateEntityMapActivity : BaseActivity() {
         nextEntityButton = findViewById(R.id.nextEntityButton)
         locationToggleButton = findViewById(R.id.locationToggleButton)
         
+        // Initialize confirmation dialog components
+        confirmationDialog = findViewById(R.id.confirmationDialog)
+        dialogOverlay = findViewById(R.id.dialogOverlay)
+        confirmDialogButton = findViewById(R.id.confirmDialogButton)
+        cancelDialogButton = findViewById(R.id.cancelDialogButton)
+        confirmDialogMessage = findViewById(R.id.confirmDialogMessage)
+        
         // Configure the map
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
@@ -129,7 +149,17 @@ class PrivateEntityMapActivity : BaseActivity() {
         
         // Set up confirm location button
         confirmLocationButton.setOnClickListener {
+            showConfirmationDialog()
+        }
+        
+        // Set up confirmation dialog buttons
+        confirmDialogButton.setOnClickListener {
+            hideConfirmationDialog()
             confirmSelectedLocation()
+        }
+        
+        cancelDialogButton.setOnClickListener {
+            hideConfirmationDialog()
         }
         
         // Set up previous entity button
@@ -281,6 +311,69 @@ class PrivateEntityMapActivity : BaseActivity() {
         confirmLocationButton.visibility = View.VISIBLE
     }
     
+    private fun showConfirmationDialog() {
+        selectedEntity?.let { entity ->
+            // Update dialog message with entity name
+            confirmDialogMessage.text = "Are you sure you want to select ${entity.entityName} for waste drop-off?"
+            
+            // Show the dialog and overlay
+            dialogOverlay.visibility = View.VISIBLE
+            confirmationDialog.visibility = View.VISIBLE
+            
+            // Dim UI elements (set alpha to 0.2)
+            val dimAlpha = 0.2f
+            findViewById<View>(R.id.toolbar).alpha = dimAlpha
+            findViewById<View>(R.id.bottomContainer).alpha = dimAlpha
+            findViewById<View>(R.id.mapContainer).alpha = dimAlpha
+            
+            // Disable interactions with UI elements
+            findViewById<View>(R.id.toolbar).isEnabled = false
+            findViewById<View>(R.id.bottomContainer).isEnabled = false
+            findViewById<View>(R.id.mapContainer).isEnabled = false
+            backButton.isClickable = false
+            prevEntityButton.isClickable = false
+            nextEntityButton.isClickable = false
+            locationToggleButton.isClickable = false
+            confirmLocationButton.isEnabled = false
+            
+            // Disable map interactions
+            mapView.isClickable = false
+            mapView.setMultiTouchControls(false)
+        } ?: run {
+            Toast.makeText(this, "No entity selected", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun hideConfirmationDialog() {
+        // Hide the dialog and overlay
+        dialogOverlay.visibility = View.GONE
+        confirmationDialog.visibility = View.GONE
+        
+        // Restore UI elements (set alpha back to 1.0)
+        val fullAlpha = 1.0f
+        findViewById<View>(R.id.toolbar).alpha = fullAlpha
+        findViewById<View>(R.id.bottomContainer).alpha = fullAlpha
+        findViewById<View>(R.id.mapContainer).alpha = fullAlpha
+        
+        // Re-enable interactions with UI elements
+        findViewById<View>(R.id.toolbar).isEnabled = true
+        findViewById<View>(R.id.bottomContainer).isEnabled = true
+        findViewById<View>(R.id.mapContainer).isEnabled = true
+        backButton.isClickable = true
+        prevEntityButton.isClickable = true
+        nextEntityButton.isClickable = true
+        locationToggleButton.isClickable = true
+        
+        // Re-enable confirm button based on entity status
+        selectedEntity?.let { entity ->
+            confirmLocationButton.isEnabled = entity.entityStatus.equals("OPEN", ignoreCase = true)
+        }
+        
+        // Re-enable map interactions
+        mapView.isClickable = true
+        mapView.setMultiTouchControls(true)
+    }
+    
     private fun confirmSelectedLocation() {
         selectedEntity?.let { entity ->
             // Create an intent to return the selected entity
@@ -315,7 +408,7 @@ class PrivateEntityMapActivity : BaseActivity() {
                         hideLoading()
                         
                         // Start real-time updates
-                        startRealTimeUpdates()
+                        realTimeUpdateManager.startRealTimeUpdates()
                     } else {
                         Log.e(TAG, "Error loading private entities: ${response.code()} - ${response.message()}")
                         Toast.makeText(this@PrivateEntityMapActivity, "Failed to load private entities", Toast.LENGTH_SHORT).show()
@@ -383,7 +476,7 @@ class PrivateEntityMapActivity : BaseActivity() {
         hideLoading()
         
         // Start real-time updates with dummy data
-        startRealTimeUpdates()
+        realTimeUpdateManager.startRealTimeUpdates()
     }
     
     private fun setupMap() {
@@ -495,8 +588,66 @@ class PrivateEntityMapActivity : BaseActivity() {
         // Update waste type
         entityWasteTypeTextView.text = entity.entityWasteType
         
-        // Set phone number (placeholder for now)
-        entityPhoneTextView.text = "+63 12121 21212"
+        // Fetch user profile for phone number
+        fetchUserProfile(entity.userId)
+    }
+    
+    private fun fetchUserProfile(userId: String) {
+        // Check if we already have this profile cached
+        if (userProfileCache.containsKey(userId)) {
+            updatePhoneNumber(userProfileCache[userId])
+            return
+        }
+        
+        // Show loading indicator for phone number
+        entityPhoneTextView.text = "Loading..."
+        
+        lifecycleScope.launch {
+            try {
+                val token = sessionManager.getToken()
+                if (token != null) {
+                    val response = apiService.getProfile(userId, "Bearer $token")
+                    
+                    if (response.isSuccessful && response.body() != null) {
+                        val userProfile = response.body()!!
+                        
+                        // Cache the profile
+                        userProfileCache[userId] = userProfile
+                        
+                        // Update UI with phone number
+                        updatePhoneNumber(userProfile)
+                    } else {
+                        Log.e(TAG, "Error fetching user profile: ${response.code()}")
+                        entityPhoneTextView.text = "Not available"
+                    }
+                } else {
+                    entityPhoneTextView.text = "Not available"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception fetching user profile: ${e.message}", e)
+                entityPhoneTextView.text = "Not available"
+            }
+        }
+    }
+    
+    private fun updatePhoneNumber() {
+        // Update phone number for the currently selected entity
+        selectedEntity?.let { entity ->
+            fetchUserProfile(entity.userId)
+        }
+    }
+    
+    private fun updatePhoneNumber(userProfile: UserProfile?) {
+        userProfile?.let { profile ->
+            // Display phone number if available without checking role
+            if (!profile.phoneNumber.isNullOrEmpty()) {
+                entityPhoneTextView.text = profile.phoneNumber
+            } else {
+                entityPhoneTextView.text = "No phone number provided"
+            }
+        } ?: run {
+            entityPhoneTextView.text = "Not available"
+        }
     }
     
     private fun showLoading(message: String) {
@@ -562,34 +713,7 @@ class PrivateEntityMapActivity : BaseActivity() {
         }
     }
     
-    // Real-time updates methods
-    private fun startRealTimeUpdates() {
-        // Cancel any existing timer
-        stopRealTimeUpdates()
-        
-        // Create a new timer for real-time updates
-        updateTimer = Timer()
-        updateTimer?.scheduleAtFixedRate(object : TimerTask() {
-            override fun run() {
-                fetchUpdatedEntities()
-            }
-        }, UPDATE_INTERVAL, UPDATE_INTERVAL)
-        
-        Log.d(TAG, "Real-time updates started with interval: $UPDATE_INTERVAL ms")
-    }
-    
-    private fun stopRealTimeUpdates() {
-        updateTimer?.cancel()
-        updateTimer = null
-        Log.d(TAG, "Real-time updates stopped")
-    }
-    
     private fun fetchUpdatedEntities() {
-        // Skip if already updating
-        if (isUpdating) return
-        
-        isUpdating = true
-        
         lifecycleScope.launch {
             try {
                 val token = sessionManager.getToken()
@@ -619,9 +743,16 @@ class PrivateEntityMapActivity : BaseActivity() {
                         }
                         
                         // Update UI on the main thread
-                        handler.post {
+                        runOnUiThread {
                             updateMapWithEntities()
-                            selectedEntity?.let { updateEntityInfoCard(it) }
+                            selectedEntity?.let { 
+                                updateEntityInfoCard(it)
+                                // Explicitly update phone number
+                                fetchUserProfile(it.userId)
+                            }
+                            
+                            // Clear cache to force refresh of phone numbers
+                            userProfileCache.clear()
                         }
                         
                         Log.d(TAG, "Entities updated in real-time: ${privateEntities.size} entities")
@@ -629,8 +760,6 @@ class PrivateEntityMapActivity : BaseActivity() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating entities: ${e.message}", e)
-            } finally {
-                isUpdating = false
             }
         }
     }
@@ -725,8 +854,9 @@ class PrivateEntityMapActivity : BaseActivity() {
         mapView.onResume()
         
         // Restart real-time updates if needed
-        if (updateTimer == null && privateEntities.isNotEmpty()) {
-            startRealTimeUpdates()
+        if (privateEntities.isNotEmpty()) {
+            realTimeUpdateManager.startRealTimeUpdates()
+            updatePhoneNumber()
         }
     }
     
@@ -737,7 +867,7 @@ class PrivateEntityMapActivity : BaseActivity() {
     
     override fun onDestroy() {
         // Stop real-time updates
-        stopRealTimeUpdates()
+        realTimeUpdateManager.stopRealTimeUpdates()
         
         super.onDestroy()
         mapView.onDetach()

@@ -14,8 +14,12 @@ import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.ecotrack.models.PickupSite
+import com.example.ecotrack.models.PrivateEntitiesResponse
+import com.example.ecotrack.models.PrivateEntity
+import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.RealTimeUpdateManager
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,21 +34,34 @@ import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
 class DriverMapActivity : BaseActivity() {
+    private val TAG = "DriverMapActivity"
+    private val LOCATION_PERMISSION_REQUEST_CODE = 1001
+    
     private lateinit var mapView: MapView
     private lateinit var progressBar: ProgressBar
     private lateinit var infoCardView: CardView
-    private lateinit var siteName: TextView
-    private lateinit var garbageType: TextView
+    private lateinit var titleTextView: TextView
+    private lateinit var addressTextView: TextView
+    private lateinit var wasteTypeTextView: TextView
     private lateinit var closeButton: Button
     private lateinit var profileImage: CircleImageView
     private lateinit var homeNav: View
     private lateinit var jobOrdersNav: View
     private lateinit var collectionPointsNav: View
+    private lateinit var locationToggleButton: FloatingActionButton
     
     private val apiService = ApiService.create()
-    private val pickupSites = mutableListOf<PickupSite>()
     
-    private val LOCATION_PERMISSION_REQUEST_CODE = 1001
+    // Data lists
+    private var jobOrders: List<Payment> = emptyList()
+    private var privateEntities: List<PrivateEntity> = emptyList()
+    
+    // Location data
+    private lateinit var myLocationOverlay: MyLocationNewOverlay
+    private var isLocationEnabled = false
+    
+    // Real-time update manager
+    private lateinit var realTimeUpdateManager: RealTimeUpdateManager
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,30 +78,42 @@ class DriverMapActivity : BaseActivity() {
         initializeViews()
         setupListeners()
         checkLocationPermission()
-        fetchPickupSites()
+        
+        // Initialize real-time update manager
+        realTimeUpdateManager = RealTimeUpdateManager(
+            activity = this,
+            updateCallback = { fetchLocationsData() }
+        )
+        
+        fetchLocationsData()
     }
     
     private fun initializeViews() {
         mapView = findViewById(R.id.mapView)
         progressBar = findViewById(R.id.progressBar)
         infoCardView = findViewById(R.id.infoCardView)
-        siteName = findViewById(R.id.siteName)
-        garbageType = findViewById(R.id.garbageType)
+        titleTextView = findViewById(R.id.siteName) // Reusing the existing TextView
+        addressTextView = findViewById(R.id.address)
+        wasteTypeTextView = findViewById(R.id.garbageType) // Reusing the existing TextView
         closeButton = findViewById(R.id.closeButton)
         profileImage = findViewById(R.id.profileImage)
         homeNav = findViewById(R.id.homeNav)
         jobOrdersNav = findViewById(R.id.jobOrdersNav)
         collectionPointsNav = findViewById(R.id.collectionPointsNav)
         
-        // Hide the old info card - we'll use the new InfoWindow instead
-        infoCardView.visibility = View.GONE
+        // Add the location toggle button
+        locationToggleButton = findViewById(R.id.locationToggleButton)
+        if (locationToggleButton == null) {
+            // If the button doesn't exist in the layout, let's log it - you'll need to add it to the layout
+            Log.e(TAG, "locationToggleButton not found in layout. Make sure to add it.")
+        }
         
         // Configure the map
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
         
-        // Initial zoom level - we'll center on pickup sites later
-        mapView.controller.setZoom(15.0)
+        // Initial zoom level
+        mapView.controller.setZoom(5.0)
     }
     
     private fun setupListeners() {
@@ -92,24 +121,20 @@ class DriverMapActivity : BaseActivity() {
             infoCardView.visibility = View.GONE
         }
         
-        findViewById<View>(R.id.refreshButton).setOnClickListener {
-            // Clear any open info windows
-            mapView.overlays.filterIsInstance<Marker>().forEach { 
-                if (it.isInfoWindowShown) {
-                    it.closeInfoWindow()
-                }
-            }
-            // Show loading progress
-            progressBar.visibility = View.VISIBLE
-            // Refresh pickup sites from server
-            fetchPickupSites()
-            // Show a small toast message
-            Toast.makeText(this, "Refreshing map data...", Toast.LENGTH_SHORT).show()
-        }
+        // Remove or hide the refresh button since we have real-time updates
+        findViewById<View>(R.id.refreshButton)?.visibility = View.GONE
 
         profileImage.setOnClickListener {
             startActivity(Intent(this, DriverProfileActivity::class.java))
         }
+        
+        // Set up location toggle button
+        locationToggleButton?.setOnClickListener {
+            toggleLocationTracking()
+        }
+        
+        // Update location toggle button UI
+        updateLocationToggleButton()
         
         // Set up bottom navigation
         homeNav.setOnClickListener {
@@ -123,6 +148,32 @@ class DriverMapActivity : BaseActivity() {
         }
         
         // collectionPointsNav is the current screen
+    }
+    
+    private fun toggleLocationTracking() {
+        isLocationEnabled = !isLocationEnabled
+        
+        if (isLocationEnabled) {
+            enableMyLocation()
+        } else {
+            disableMyLocation()
+        }
+        
+        updateLocationToggleButton()
+    }
+    
+    private fun updateLocationToggleButton() {
+        locationToggleButton?.let { button ->
+            if (isLocationEnabled) {
+                button.setImageResource(R.drawable.ic_location_on)
+                button.backgroundTintList = ContextCompat.getColorStateList(this, R.color.secondary)
+                button.imageTintList = ContextCompat.getColorStateList(this, R.color.white)
+            } else {
+                button.setImageResource(R.drawable.ic_location_on)
+                button.backgroundTintList = ContextCompat.getColorStateList(this, R.color.white)
+                button.imageTintList = ContextCompat.getColorStateList(this, R.color.secondary)
+            }
+        }
     }
     
     private fun checkLocationPermission() {
@@ -140,117 +191,279 @@ class DriverMapActivity : BaseActivity() {
                 LOCATION_PERMISSION_REQUEST_CODE
             )
         } else {
-            enableMyLocation()
+            setupLocationOverlay()
+        }
+    }
+    
+    private fun setupLocationOverlay() {
+        try {
+            // Create my location overlay but don't enable it yet
+            myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), mapView)
+            // Location is disabled by default
+            disableMyLocation()
+            Log.d(TAG, "Location overlay created but disabled by default")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up location overlay: ${e.message}")
         }
     }
     
     private fun enableMyLocation() {
-        // Add my location overlay
-        val locationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), mapView)
-        locationOverlay.enableMyLocation()
-        mapView.overlays.add(locationOverlay)
+        if (::myLocationOverlay.isInitialized) {
+            myLocationOverlay.enableMyLocation()
+            myLocationOverlay.enableFollowLocation()
+            
+            // Add overlay to map if not already added
+            if (!mapView.overlays.contains(myLocationOverlay)) {
+                mapView.overlays.add(myLocationOverlay)
+            }
+            
+            Log.d(TAG, "My location enabled")
+        }
     }
     
-    private fun fetchPickupSites() {
+    private fun disableMyLocation() {
+        if (::myLocationOverlay.isInitialized) {
+            myLocationOverlay.disableMyLocation()
+            myLocationOverlay.disableFollowLocation()
+            Log.d(TAG, "My location disabled")
+        }
+    }
+    
+    private fun fetchLocationsData() {
         progressBar.visibility = View.VISIBLE
         
+        // Get the driver ID from session manager
+        val driverId = sessionManager.getUserId()
+        val token = sessionManager.getToken()
+        
+        if (driverId == null || token == null) {
+            Log.e(TAG, "Missing credentials - token: $token, userId: $driverId")
+            Toast.makeText(this, "Authentication required", Toast.LENGTH_SHORT).show()
+            progressBar.visibility = View.GONE
+            return
+        }
+        
+        // Use coroutines to fetch both job orders and private entities
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = apiService.getPickupSites()
+                // Fetch job orders
+                val jobOrdersResponse = apiService.getPaymentsByDriverId(driverId, "Bearer $token")
+                
+                // Fetch private entities
+                val privateEntitiesResponse = apiService.getAllPrivateEntities("Bearer $token")
                 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     
-                    pickupSites.clear()
-                    if (response.isSuccessful && response.body() != null) {
-                        val result = response.body()!!
-                        if (result.success && result.pickupSites.isNotEmpty()) {
-                            pickupSites.addAll(result.pickupSites)
-                            addMarkersToMap(result.pickupSites)
-                        } else {
-                            Toast.makeText(
-                                this@DriverMapActivity,
-                                result.message ?: "No pickup sites found",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                    // Process job orders
+                    if (jobOrdersResponse.isSuccessful && jobOrdersResponse.body() != null) {
+                        jobOrders = jobOrdersResponse.body() ?: emptyList()
+                        Log.d(TAG, "Loaded ${jobOrders.size} job orders")
                     } else {
-                        Toast.makeText(
-                            this@DriverMapActivity,
-                            "Failed to load pickup sites: ${response.errorBody()?.string()}",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Log.e(TAG, "Failed to load job orders: ${jobOrdersResponse.code()}")
+                        jobOrders = emptyList()
                     }
+                    
+                    // Process private entities
+                    if (privateEntitiesResponse.isSuccessful && privateEntitiesResponse.body() != null) {
+                        privateEntities = privateEntitiesResponse.body()?.entities ?: emptyList()
+                        Log.d(TAG, "Loaded ${privateEntities.size} private entities")
+                    } else {
+                        Log.e(TAG, "Failed to load private entities: ${privateEntitiesResponse.code()}")
+                        privateEntities = emptyList()
+                    }
+                    
+                    // Now add all markers to the map
+                    addMarkersToMap()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     Toast.makeText(
                         this@DriverMapActivity,
-                        "Error loading pickup sites: ${e.message}",
+                        "Error loading map data: ${e.message}",
                         Toast.LENGTH_SHORT
                     ).show()
-                    Log.e("DriverMapActivity", "Error loading pickup sites", e)
+                    Log.e(TAG, "Error loading map data", e)
                 }
             }
         }
     }
     
-    private fun addMarkersToMap(sites: List<PickupSite>) {
-        mapView.overlays.removeAll { it is Marker }
+    private fun addMarkersToMap() {
+        // Clear existing markers but keep location overlay
+        val locationOverlay = mapView.overlays.find { it is MyLocationNewOverlay }
+        mapView.overlays.clear()
+        locationOverlay?.let { mapView.overlays.add(it) }
         
-        if (sites.isEmpty()) return
+        val allMarkerPoints = mutableListOf<GeoPoint>()
         
-        // For centering the map on all markers
-        val minLat = sites.minOf { it.latitude }
-        val maxLat = sites.maxOf { it.latitude }
-        val minLon = sites.minOf { it.longitude }
-        val maxLon = sites.maxOf { it.longitude }
-        
-        // Create the custom info window
-        val infoWindow = CustomInfoWindow(R.layout.marker_info_window, mapView)
-        
-        for (site in sites) {
+        // Add job order markers (green)
+        for (jobOrder in jobOrders) {
             val marker = Marker(mapView)
-            marker.position = GeoPoint(site.latitude, site.longitude)
-            marker.title = site.name
-            marker.snippet = "${site.garbageType}\n${site.address}"
+            val location = GeoPoint(jobOrder.latitude, jobOrder.longitude)
+            
+            marker.position = location
+            marker.title = jobOrder.customerName
+            marker.snippet = "${jobOrder.address}\n${jobOrder.wasteType}"
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            marker.icon = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)
             
-            // Set the custom info window
-            marker.infoWindow = infoWindow
+            // Set green color for job orders
+            val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
+            drawable?.setColorFilter(
+                ContextCompat.getColor(this, R.color.secondary),
+                android.graphics.PorterDuff.Mode.SRC_IN
+            )
+            marker.icon = drawable
             
-            // Use OSMDroid's built-in InfoWindow which positions directly under the pin
+            // Store the marker type and ID
+            marker.id = "job_${jobOrder.id}"
+            
+            // Disable the built-in info window
+            marker.infoWindow = null
+            
+            // Set click listener
             marker.setOnMarkerClickListener { clickedMarker, _ ->
-                // Close any other open info windows
-                mapView.overlays.filterIsInstance<Marker>().forEach { 
-                    if (it != clickedMarker && it.isInfoWindowShown) {
-                        it.closeInfoWindow()
-                    }
-                }
-                
-                // Center map on selected pin
-                val mapController = mapView.controller
-                // Offset slightly to account for info window display
-                val offsetPoint = GeoPoint(clickedMarker.position.latitude - 0.0001, clickedMarker.position.longitude)
-                mapController.animateTo(offsetPoint)
-                mapController.setZoom(17.0)
-                
-                // Show the info window
-                if (!clickedMarker.isInfoWindowShown) {
-                    clickedMarker.showInfoWindow()
-                } else {
-                    clickedMarker.closeInfoWindow()
-                }
-                
+                handleMarkerClick(clickedMarker)
                 true
             }
             
             mapView.overlays.add(marker)
+            allMarkerPoints.add(location)
         }
         
-        // Center map on markers
+        // Add private entity markers (red)
+        for (entity in privateEntities) {
+            val marker = Marker(mapView)
+            val location = GeoPoint(entity.latitude, entity.longitude)
+            
+            marker.position = location
+            marker.title = entity.entityName
+            marker.snippet = "${entity.address}\n${entity.entityWasteType}"
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            
+            // Set red color for private entities
+            val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
+            drawable?.setColorFilter(
+                ContextCompat.getColor(this, R.color.error),
+                android.graphics.PorterDuff.Mode.SRC_IN
+            )
+            marker.icon = drawable
+            
+            // Store the marker type and ID
+            marker.id = "entity_${entity.entityId}"
+            
+            // Disable the built-in info window
+            marker.infoWindow = null
+            
+            // Set click listener
+            marker.setOnMarkerClickListener { clickedMarker, _ ->
+                handleMarkerClick(clickedMarker)
+                true
+            }
+            
+            mapView.overlays.add(marker)
+            allMarkerPoints.add(location)
+        }
+        
+        // Center map on all markers
+        if (allMarkerPoints.isNotEmpty()) {
+            centerMapOnPoints(allMarkerPoints)
+        }
+        
+        mapView.invalidate()
+    }
+    
+    private fun handleMarkerClick(marker: Marker) {
+        // Store the previously selected marker to reset its appearance
+        val previouslySelectedMarker = mapView.overlays.filterIsInstance<Marker>()
+            .find { it.id != marker.id && it.id?.contains("selected_") == true }
+            
+        // Reset previously selected marker appearance
+        previouslySelectedMarker?.let {
+            val oldId = it.id?.replace("selected_", "") ?: ""
+            if (oldId.startsWith("job_")) {
+                val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
+                drawable?.setColorFilter(
+                    ContextCompat.getColor(this, R.color.secondary),
+                    android.graphics.PorterDuff.Mode.SRC_IN
+                )
+                it.icon = drawable
+            } else if (oldId.startsWith("entity_")) {
+                val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
+                drawable?.setColorFilter(
+                    ContextCompat.getColor(this, R.color.error),
+                    android.graphics.PorterDuff.Mode.SRC_IN
+                )
+                it.icon = drawable
+            }
+            it.id = oldId
+        }
+        
+        // Highlight the selected marker
+        val originalId = marker.id ?: ""
+        marker.id = "selected_$originalId"
+        
+        // Make the selected marker lighter
+        val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
+        if (originalId.startsWith("job_")) {
+            drawable?.setColorFilter(
+                ContextCompat.getColor(this, R.color.secondary_light),
+                android.graphics.PorterDuff.Mode.SRC_IN
+            )
+        } else if (originalId.startsWith("entity_")) {
+            drawable?.setColorFilter(
+                ContextCompat.getColor(this, R.color.error_light),
+                android.graphics.PorterDuff.Mode.SRC_IN
+            )
+        }
+        marker.icon = drawable
+        
+        // Center map on selected pin with slight offset for the info window
+        val mapController = mapView.controller
+        val offsetPoint = GeoPoint(marker.position.latitude - 0.0005, marker.position.longitude)
+        mapController.animateTo(offsetPoint)
+        mapController.setZoom(10.0)
+        
+        // Show the marker info in the card
+        val markerId = originalId
+        
+        if (markerId.startsWith("job_")) {
+            // Find the job order by ID
+            val jobId = markerId.substringAfter("job_")
+            val jobOrder = jobOrders.find { it.id == jobId } ?: return
+            
+            // Update the info card
+            titleTextView.text = jobOrder.customerName
+            addressTextView.text = jobOrder.address
+            wasteTypeTextView.text = "Waste Type: ${jobOrder.wasteType}\nType: Job Order"
+            
+            infoCardView.visibility = View.VISIBLE
+        } else if (markerId.startsWith("entity_")) {
+            // Find the private entity by ID
+            val entityId = markerId.substringAfter("entity_")
+            val entity = privateEntities.find { it.entityId == entityId } ?: return
+            
+            // Update the info card
+            titleTextView.text = entity.entityName
+            addressTextView.text = entity.address
+            wasteTypeTextView.text = "Waste Type: ${entity.entityWasteType}\nType: Private Entity"
+            
+            infoCardView.visibility = View.VISIBLE
+        }
+        
+        mapView.invalidate()
+    }
+    
+    private fun centerMapOnPoints(points: List<GeoPoint>) {
+        if (points.isEmpty()) return
+        
+        // Calculate the center and bounds
+        val minLat = points.minOf { it.latitude }
+        val maxLat = points.maxOf { it.latitude }
+        val minLon = points.minOf { it.longitude }
+        val maxLon = points.maxOf { it.longitude }
+        
         val centerLat = (minLat + maxLat) / 2
         val centerLon = (minLon + maxLon) / 2
         
@@ -267,37 +480,6 @@ class DriverMapActivity : BaseActivity() {
         val mapController = mapView.controller
         mapController.setCenter(GeoPoint(centerLat, centerLon))
         mapController.setZoom(zoomLevel)
-        
-        mapView.invalidate()
-    }
-    
-    private fun showSiteDetails(site: PickupSite) {
-        // Hide any previously showing info card
-        infoCardView.visibility = View.GONE
-        
-        // Animate to the marker position with slight offset to show popup below pin
-        val geoPoint = GeoPoint(site.latitude, site.longitude)
-        val mapController = mapView.controller
-        
-        // Offset the center point slightly upward so the pin is in the upper portion of the screen
-        // This leaves room for the popup below
-        val offsetPoint = GeoPoint(site.latitude - 0.0005, site.longitude)
-        mapController.animateTo(offsetPoint)
-        
-        // Zoom level to see the pin and surrounding area clearly
-        mapController.setZoom(17.0)
-        
-        // Small delay to allow animation to complete before showing the card
-        infoCardView.postDelayed({
-            // Set the details from the database
-            siteName.text = site.name
-            garbageType.text = site.garbageType
-            
-            // Show the address
-            findViewById<TextView>(R.id.address)?.text = site.address
-            
-            infoCardView.visibility = View.VISIBLE
-        }, 300) // 300ms delay for smooth animation
     }
     
     override fun onRequestPermissionsResult(
@@ -308,7 +490,12 @@ class DriverMapActivity : BaseActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                enableMyLocation()
+                setupLocationOverlay()
+                Toast.makeText(
+                    this,
+                    "Location permission granted. Click the location button to enable tracking.",
+                    Toast.LENGTH_SHORT
+                ).show()
             } else {
                 Toast.makeText(
                     this,
@@ -322,11 +509,15 @@ class DriverMapActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         mapView.onResume()
+        // Start real-time updates
+        realTimeUpdateManager.startRealTimeUpdates()
     }
     
     override fun onPause() {
         super.onPause()
         mapView.onPause()
+        // Stop real-time updates
+        realTimeUpdateManager.stopRealTimeUpdates()
     }
     
     override fun onDestroy() {

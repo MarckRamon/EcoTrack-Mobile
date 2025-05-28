@@ -49,7 +49,8 @@ data class UserProfile(
     val createdAt: TimestampResponse?,
     val preferences: Map<String, Any>?,
     val barangayId: String? = null,
-    val barangayName: String? = null
+    val barangayName: String? = null,
+    val role: String? = null
 )
 
 data class ProfileUpdateRequest(

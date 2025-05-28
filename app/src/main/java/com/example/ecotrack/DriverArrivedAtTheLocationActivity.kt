@@ -18,6 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.ecotrack.models.JobOrderStatusUpdate
 import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -35,12 +36,17 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
     // UI components
     private lateinit var mapView: MapView
     private lateinit var addressTextView: TextView
+    private lateinit var customerNameTextView: TextView
+    private lateinit var phoneTextView: TextView
+    private lateinit var wasteTypeTextView: TextView
+    private lateinit var orderTypeTextView: TextView
     private lateinit var arrivedButton: Button
     private lateinit var confirmationDialog: CardView
     private lateinit var confirmButton: Button
     private lateinit var cancelButton: Button
     private lateinit var dialogOverlay: View
     private lateinit var progressBar: ProgressBar
+    private lateinit var locationToggleButton: FloatingActionButton
 
     // Location data
     private var customerLatitude = 0.0 // Will be set from payment data
@@ -49,7 +55,9 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
     private var customerName: String = ""
     private var customerPhone: String = ""
     private var customerAddress: String = ""
+    private var wasteType: String = ""
     private lateinit var myLocationOverlay: MyLocationNewOverlay
+    private var isLocationEnabled = false
     
     // Payment data
     private var payment: Payment? = null
@@ -87,16 +95,24 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
     private fun initViews() {
         mapView = findViewById(R.id.mapView)
         addressTextView = findViewById(R.id.addressTextView)
+        customerNameTextView = findViewById(R.id.customerNameTextView)
+        phoneTextView = findViewById(R.id.phoneTextView)
+        wasteTypeTextView = findViewById(R.id.wasteTypeTextView)
+        orderTypeTextView = findViewById(R.id.orderTypeTextView)
         arrivedButton = findViewById(R.id.arrivedButton)
         confirmationDialog = findViewById(R.id.confirmationDialog)
         confirmButton = findViewById(R.id.confirmButton)
         cancelButton = findViewById(R.id.cancelButton)
         dialogOverlay = findViewById(R.id.dialogOverlay)
         progressBar = findViewById(R.id.progressBar)
+        locationToggleButton = findViewById(R.id.locationToggleButton)
         
         // Configure the map
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
+        
+        // Update location toggle button UI
+        updateLocationToggleButton()
     }
     
     private fun setupListeners() {
@@ -113,6 +129,35 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
         
         cancelButton.setOnClickListener {
             hideConfirmationDialog()
+        }
+        
+        // Set up location toggle button
+        locationToggleButton.setOnClickListener {
+            toggleLocationTracking()
+        }
+    }
+    
+    private fun toggleLocationTracking() {
+        isLocationEnabled = !isLocationEnabled
+        
+        if (isLocationEnabled) {
+            enableMyLocation()
+        } else {
+            disableMyLocation()
+        }
+        
+        updateLocationToggleButton()
+    }
+    
+    private fun updateLocationToggleButton() {
+        if (isLocationEnabled) {
+            locationToggleButton.setImageResource(R.drawable.ic_location_on)
+            locationToggleButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.secondary)
+            locationToggleButton.imageTintList = ContextCompat.getColorStateList(this, R.color.white)
+        } else {
+            locationToggleButton.setImageResource(R.drawable.ic_location_on)
+            locationToggleButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.white)
+            locationToggleButton.imageTintList = ContextCompat.getColorStateList(this, R.color.secondary)
         }
     }
     
@@ -307,11 +352,16 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
             customerName = payment?.customerName ?: ""
             customerPhone = payment?.phoneNumber ?: ""
             customerAddress = payment?.address ?: ""
+            wasteType = payment?.wasteType ?: ""
             
             Log.d(TAG, "Payment coordinates: Lat=$customerLatitude, Long=$customerLongitude")
             
             // Update UI
             addressTextView.text = customerAddress
+            customerNameTextView.text = customerName
+            phoneTextView.text = customerPhone
+            wasteTypeTextView.text = wasteType
+            orderTypeTextView.text = "Job Order"
         } else {
             // Fallback to demo data
             customerLatitude = 21.3069 // Honolulu latitude
@@ -319,11 +369,16 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
             customerName = "Miggy Chan"
             customerPhone = "+639127463218"
             customerAddress = "7953 Oakland St. Honolulu, HI 96815"
+            wasteType = "Biodegradable"
             
             Log.d(TAG, "Using fallback coordinates: Lat=$customerLatitude, Long=$customerLongitude")
             
             // Update UI
             addressTextView.text = customerAddress
+            customerNameTextView.text = customerName
+            phoneTextView.text = customerPhone
+            wasteTypeTextView.text = wasteType
+            orderTypeTextView.text = "Job Order"
         }
         
         // Create the GeoPoint with the coordinates
@@ -348,38 +403,22 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
             val marker = Marker(mapView)
             marker.position = location
             marker.title = customerName
-            marker.snippet = "$customerPhone\n$customerAddress"
+            marker.snippet = "Phone: $customerPhone\nAddress: $customerAddress\nWaste Type: $wasteType\nType: Job Order"
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            marker.icon = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)
             
-            // Create and use a custom info window
-            val infoWindow = CustomInfoWindow(R.layout.marker_info_window, mapView)
-            marker.infoWindow = infoWindow
+            // Set marker icon with green color for job order
+            val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
+            drawable?.setColorFilter(ContextCompat.getColor(this, R.color.secondary), android.graphics.PorterDuff.Mode.SRC_IN)
+            marker.icon = drawable
             
-            // Add click listener to the marker
-            marker.setOnMarkerClickListener { clickedMarker, _ ->
-                // Close any other open info windows
-                mapView.overlays.filterIsInstance<Marker>().forEach { 
-                    if (it != clickedMarker && it.isInfoWindowShown) {
-                        it.closeInfoWindow()
-                    }
-                }
-                
-                // Show the info window
-                if (!clickedMarker.isInfoWindowShown) {
-                    clickedMarker.showInfoWindow()
-                } else {
-                    clickedMarker.closeInfoWindow()
-                }
-                
-                true
-            }
+            // Store the job order ID in the marker
+            marker.id = payment?.id ?: "default"
+            
+            // Disable info window
+            marker.infoWindow = null
             
             // Add the marker to the map
             mapView.overlays.add(marker)
-            
-            // Show info window by default
-            marker.showInfoWindow()
             
             // Refresh the map
             mapView.invalidate()
@@ -405,20 +444,41 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
                 LOCATION_PERMISSION_REQUEST_CODE
             )
         } else {
-            enableMyLocation()
+            setupLocationOverlay()
+        }
+    }
+    
+    private fun setupLocationOverlay() {
+        try {
+            // Create my location overlay but don't enable it yet
+            myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), mapView)
+            // Location is disabled by default
+            disableMyLocation()
+            Log.d(TAG, "Location overlay created but disabled by default")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up location overlay: ${e.message}")
         }
     }
     
     private fun enableMyLocation() {
-        try {
-            // Add my location overlay to show current driver location
-            myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), mapView)
+        if (::myLocationOverlay.isInitialized) {
             myLocationOverlay.enableMyLocation()
             myLocationOverlay.enableFollowLocation()
-            mapView.overlays.add(myLocationOverlay)
-            Log.d(TAG, "My location overlay enabled")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error enabling location overlay: ${e.message}")
+            
+            // Add overlay to map if not already added
+            if (!mapView.overlays.contains(myLocationOverlay)) {
+                mapView.overlays.add(myLocationOverlay)
+            }
+            
+            Log.d(TAG, "My location enabled")
+        }
+    }
+    
+    private fun disableMyLocation() {
+        if (::myLocationOverlay.isInitialized) {
+            myLocationOverlay.disableMyLocation()
+            myLocationOverlay.disableFollowLocation()
+            Log.d(TAG, "My location disabled")
         }
     }
     
@@ -440,7 +500,12 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                enableMyLocation()
+                setupLocationOverlay()
+                Toast.makeText(
+                    this,
+                    "Location permission granted. Click the location button to enable tracking.",
+                    Toast.LENGTH_SHORT
+                ).show()
             } else {
                 Toast.makeText(
                     this,
@@ -454,11 +519,21 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         mapView.onResume()
+        
+        // If location was enabled before, re-enable it
+        if (isLocationEnabled && ::myLocationOverlay.isInitialized) {
+            enableMyLocation()
+        }
     }
     
     override fun onPause() {
         super.onPause()
         mapView.onPause()
+        
+        // Disable location when activity is paused to save battery
+        if (::myLocationOverlay.isInitialized) {
+            disableMyLocation()
+        }
     }
     
     override fun onDestroy() {

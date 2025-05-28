@@ -30,25 +30,115 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="12dp">
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_location"
-                app:tint="@color/secondary" />
-
             <TextView
-                android:id="@+id/addressTextView"
+                android:id="@+id/customerNameTextView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="7953 Oakland St. Honolulu, HI 96815"
+                android:text="Customer Name"
                 android:textColor="@color/text_primary"
-                android:textSize="14sp" />
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_location"
+                    app:tint="@color/secondary" />
+
+                <TextView
+                    android:id="@+id/addressTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Address"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_phone"
+                    app:tint="@color/secondary" />
+
+                <TextView
+                    android:id="@+id/phoneTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Phone Number"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_waste"
+                    app:tint="@color/secondary" />
+
+                <TextView
+                    android:id="@+id/wasteTypeTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Waste Type"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/orderTypeTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Job Order"
+                android:textColor="@color/secondary"
+                android:textSize="14sp"
+                android:textStyle="italic"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/tag_background"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp" />
         </LinearLayout>
+
     </androidx.cardview.widget.CardView>
+
+    <!-- Location Toggle Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/locationToggleButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="Toggle location tracking"
+        android:src="@drawable/ic_location_on"
+        app:backgroundTint="@color/white"
+        app:fabSize="normal"
+        app:layout_constraintBottom_toTopOf="@id/arrivedButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@color/secondary" />
 
     <!-- Arrived Button at the bottom -->
     <Button

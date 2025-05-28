@@ -2,8 +2,6 @@ package com.example.ecotrack
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -17,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.ecotrack.adapters.PaymentOrderAdapter
 import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.RealTimeUpdateManager
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -48,15 +47,12 @@ class DriverJobOrderActivity : BaseActivity() {
     private lateinit var confirmButton: Button
     private lateinit var cancelButton: Button
     private lateinit var dialogOverlay: View
-    
-    // For auto-refresh with reduced database impact
-    private val refreshHandler = Handler(Looper.getMainLooper())
-    private var refreshRunnable: Runnable? = null
-    private val REFRESH_INTERVAL = 30000L // 30 seconds
-    private var lastRefreshTime = 0L
-    
+
     private val apiService = ApiService.create()
     private val TAG = "DriverJobOrderActivity"
+    
+    // Real-time update manager
+    private lateinit var realTimeUpdateManager: RealTimeUpdateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,60 +64,16 @@ class DriverJobOrderActivity : BaseActivity() {
         // Setup navigation
         setupNavigation()
         
+        // Initialize real-time update manager
+        realTimeUpdateManager = RealTimeUpdateManager(
+            activity = this,
+            updateCallback = { loadPaymentOrders() }
+        )
+        
         // Load payment orders for the current driver
         loadPaymentOrders()
-        
-        // Start auto-refresh
-        startAutoRefresh()
     }
-    
-    override fun onResume() {
-        super.onResume()
-        // Refresh data when returning to the screen, but honor the minimum interval
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastRefreshTime > REFRESH_INTERVAL) {
-            loadPaymentOrders()
-        }
-        
-        // Start auto-refresh
-        startAutoRefresh()
-    }
-    
-    override fun onPause() {
-        super.onPause()
-        // Stop auto-refresh when activity is paused
-        stopAutoRefresh()
-    }
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        // Ensure auto-refresh is stopped
-        stopAutoRefresh()
-    }
-    
-    private fun startAutoRefresh() {
-        // Stop any existing refresh
-        stopAutoRefresh()
-        
-        refreshRunnable = object : Runnable {
-            override fun run() {
-                Log.d(TAG, "Auto-refreshing job orders")
-                loadPaymentOrders()
-                refreshHandler.postDelayed(this, REFRESH_INTERVAL)
-            }
-        }
-        
-        // Start with a delay to avoid immediate refresh
-        refreshHandler.postDelayed(refreshRunnable!!, REFRESH_INTERVAL)
-    }
-    
-    private fun stopAutoRefresh() {
-        refreshRunnable?.let {
-            refreshHandler.removeCallbacks(it)
-            refreshRunnable = null
-        }
-    }
-    
+
     private fun initViews() {
         inProgressRecyclerView = findViewById(R.id.recyclerViewInProgressJobOrders)
         availableRecyclerView = findViewById(R.id.recyclerViewAvailableJobOrders)
@@ -191,13 +143,64 @@ class DriverJobOrderActivity : BaseActivity() {
     }
     
     private fun showConfirmationDialog() {
+        // Show the dialog and overlay
         dialogOverlay.visibility = View.VISIBLE
         confirmationDialog.visibility = View.VISIBLE
+        
+        // Dim UI elements
+        findViewById<View>(R.id.header).alpha = 0.2f
+        findViewById<View>(R.id.appLogo).alpha = 0.1f
+        endCollectionButton.alpha = 0.8f
+        findViewById<View>(R.id.bottomNavigation).alpha = 0.15f
+
+        // Disable interactions with UI elements
+        findViewById<View>(R.id.btnView).isEnabled = false
+        findViewById<View>(R.id.header).isEnabled = false
+        endCollectionButton.isEnabled = false
+        findViewById<View>(R.id.bottomNavigation).isEnabled = false
+        findViewById<View>(R.id.homeNav).isClickable = false
+        findViewById<View>(R.id.jobOrdersNav).isClickable = false
+        findViewById<View>(R.id.collectionPointsNav).isClickable = false
+        findViewById<View>(R.id.profileImage).isClickable = false
+        findViewById<View>(R.id.iconLeft).isClickable = false
+        findViewById<View>(R.id.btnViewMoreAvailable).isClickable = false
+        findViewById<View>(R.id.btnViewHistory).isClickable = false
+        
+        // Disable scrolling in recycler views
+        inProgressRecyclerView.suppressLayout(true)
+        availableRecyclerView.suppressLayout(true)
+        completedRecyclerView.suppressLayout(true)
     }
     
     private fun hideConfirmationDialog() {
+        // Hide the dialog and overlay
         dialogOverlay.visibility = View.GONE
         confirmationDialog.visibility = View.GONE
+        
+        // Restore UI elements (set alpha back to 1.0)
+        val fullAlpha = 1.0f
+        findViewById<View>(R.id.header).alpha = fullAlpha
+        findViewById<View>(R.id.appLogo).alpha = fullAlpha
+        endCollectionButton.alpha = fullAlpha
+        findViewById<View>(R.id.bottomNavigation).alpha = fullAlpha
+        
+        // Re-enable interactions with UI elements
+        findViewById<View>(R.id.btnView).isEnabled = true
+        findViewById<View>(R.id.header).isEnabled = true
+        endCollectionButton.isEnabled = true
+        findViewById<View>(R.id.bottomNavigation).isEnabled = true
+        findViewById<View>(R.id.homeNav).isClickable = true
+        findViewById<View>(R.id.jobOrdersNav).isClickable = true
+        findViewById<View>(R.id.collectionPointsNav).isClickable = true
+        findViewById<View>(R.id.profileImage).isClickable = true
+        findViewById<View>(R.id.iconLeft).isClickable = true
+        findViewById<View>(R.id.btnViewMoreAvailable).isClickable = true
+        findViewById<View>(R.id.btnViewHistory).isClickable = true
+        
+        // Re-enable scrolling in recycler views
+        inProgressRecyclerView.suppressLayout(false)
+        availableRecyclerView.suppressLayout(false)
+        completedRecyclerView.suppressLayout(false)
     }
     
     private fun navigateToPrivateEntityMap() {
@@ -232,10 +235,6 @@ class DriverJobOrderActivity : BaseActivity() {
     }
     
     private fun loadPaymentOrders() {
-        // Update the last refresh time
-        lastRefreshTime = System.currentTimeMillis()
-        Log.d(TAG, "Loading payment orders at ${System.currentTimeMillis()}")
-        
         // Get the driver ID from session manager
         val driverId = sessionManager.getUserId()
         
@@ -441,5 +440,17 @@ class DriverJobOrderActivity : BaseActivity() {
         }
         
         completedRecyclerView.adapter = adapter
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Start real-time updates
+        realTimeUpdateManager.startRealTimeUpdates()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        // Stop real-time updates
+        realTimeUpdateManager.stopRealTimeUpdates()
     }
 } 
