@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -39,6 +40,12 @@ class DriverJobOrderActivity : BaseActivity() {
     private lateinit var endCollectionButton: Button
     private lateinit var profileImage: CircleImageView
     private lateinit var notificationIcon: ImageView
+    
+    // Confirmation dialog components
+    private lateinit var confirmationDialog: CardView
+    private lateinit var confirmButton: Button
+    private lateinit var cancelButton: Button
+    private lateinit var dialogOverlay: View
     
     private val apiService = ApiService.create()
     private val TAG = "DriverJobOrderActivity"
@@ -77,6 +84,12 @@ class DriverJobOrderActivity : BaseActivity() {
         profileImage = findViewById(R.id.profileImage)
         notificationIcon = findViewById(R.id.iconLeft)
         
+        // Confirmation dialog components
+        confirmationDialog = findViewById(R.id.confirmationDialog)
+        confirmButton = findViewById(R.id.confirmButton)
+        cancelButton = findViewById(R.id.cancelButton)
+        dialogOverlay = findViewById(R.id.dialogOverlay)
+        
         // Set up RecyclerViews
         inProgressRecyclerView.layoutManager = LinearLayoutManager(this)
         availableRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -84,8 +97,17 @@ class DriverJobOrderActivity : BaseActivity() {
         
         // Set up End Collection button
         endCollectionButton.setOnClickListener {
-            Toast.makeText(this, "End Collection clicked", Toast.LENGTH_SHORT).show()
-            // This is static for now as requested
+            showConfirmationDialog()
+        }
+        
+        // Set up confirmation dialog buttons
+        confirmButton.setOnClickListener {
+            hideConfirmationDialog()
+            navigateToPrivateEntityMap()
+        }
+        
+        cancelButton.setOnClickListener {
+            hideConfirmationDialog()
         }
         
         // Set up profile image click
@@ -107,6 +129,33 @@ class DriverJobOrderActivity : BaseActivity() {
         btnViewHistory.setOnClickListener {
             val intent = Intent(this, CompletedJobOrdersActivity::class.java)
             startActivity(intent)
+        }
+    }
+    
+    private fun showConfirmationDialog() {
+        dialogOverlay.visibility = View.VISIBLE
+        confirmationDialog.visibility = View.VISIBLE
+    }
+    
+    private fun hideConfirmationDialog() {
+        dialogOverlay.visibility = View.GONE
+        confirmationDialog.visibility = View.GONE
+    }
+    
+    private fun navigateToPrivateEntityMap() {
+        val intent = Intent(this, PrivateEntityMapActivity::class.java)
+        startActivityForResult(intent, PrivateEntityMapActivity.REQUEST_CODE_SELECT_ENTITY)
+    }
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        if (requestCode == PrivateEntityMapActivity.REQUEST_CODE_SELECT_ENTITY && resultCode == RESULT_OK) {
+            val selectedEntity = data?.getSerializableExtra("SELECTED_ENTITY")
+            if (selectedEntity != null) {
+                Toast.makeText(this, "Selected entity: ${selectedEntity}", Toast.LENGTH_SHORT).show()
+                // Here you would handle the selected entity, perhaps update the job order status
+            }
         }
     }
     

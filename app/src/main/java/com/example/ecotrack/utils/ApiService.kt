@@ -147,6 +147,18 @@ interface ApiService {
         @Path("userId") userId: String,
         @Header("Authorization") authToken: String
     ): Response<List<PaymentResponse>>
+    
+    // Private Entity Endpoints
+    @GET("api/private-entities")
+    suspend fun getAllPrivateEntities(
+        @Header("Authorization") authToken: String
+    ): Response<PrivateEntitiesResponse>
+    
+    @GET("api/private-entities/{userId}")
+    suspend fun getPrivateEntity(
+        @Path("userId") userId: String,
+        @Header("Authorization") authToken: String
+    ): Response<PrivateEntity>
 
     companion object {
         private const val TAG = "ApiService"
