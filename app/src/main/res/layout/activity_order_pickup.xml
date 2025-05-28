@@ -143,6 +143,43 @@
                 app:layout_constraintTop_toBottomOf="@+id/tv_label_waste_type" />
 
             <TextView
+                android:id="@+id/tv_label_number_of_sacks"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Number of Sacks"
+                android:textColor="@android:color/black"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/spinner_waste_type" />
+
+            <EditText
+                android:id="@+id/et_number_of_sacks"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/edit_text_background"
+                android:drawableStart="@drawable/ic_shopping_bag"
+                android:drawablePadding="8dp"
+                android:hint="Enter number of sacks"
+                android:inputType="number"
+                android:padding="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tv_label_number_of_sacks" />
+
+            <TextView
+                android:id="@+id/tv_truck_size_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Truck size will be automatically determined based on the number of sacks:\n• Small Truck (₱500): 1-20 sacks\n• Medium Truck (₱1000): 21-50 sacks\n• Large Truck (₱2000): 51+ sacks"
+                android:textColor="#888888"
+                android:textSize="12sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/et_number_of_sacks" />
+
+            <TextView
                 android:id="@+id/tv_title_payment_method"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -152,7 +189,7 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/spinner_waste_type" />
+                app:layout_constraintTop_toBottomOf="@+id/tv_truck_size_info" />
 
             <RadioGroup
                 android:id="@+id/radio_group_payment_method"

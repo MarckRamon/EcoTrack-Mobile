@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class SessionManager private constructor(context: Context) {
@@ -39,6 +40,7 @@ class SessionManager private constructor(context: Context) {
         private const val TOKEN_EXPIRY = "token_expiry"
         private const val KEY_LAST_ACTIVITY = "last_activity"
         private const val SESSION_TIMEOUT = 3500L // 5 seconds for testing
+        private const val FCM_TOKEN_KEY = "fcm_token"
         
         // Keep a single instance to avoid multiple timers
         @Volatile
@@ -404,5 +406,106 @@ class SessionManager private constructor(context: Context) {
     fun getUserEmail(): String? {
         val token = getToken() ?: return null
         return extractEmailFromToken(token)
+    }
+
+    fun registerFcmTokenWithServer(token: String) {
+        val authToken = getToken() ?: return
+        val bearerToken = if (authToken.startsWith("Bearer ")) authToken else "Bearer $authToken"
+        
+        Log.d(TAG, "Starting FCM token registration with server")
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val fcmTokenRequest = com.example.ecotrack.models.FcmTokenRequest(token)
+                val apiService = ApiService.create()
+                
+                try {
+                    Log.d(TAG, "Sending FCM token to server: $token")
+                    Log.d(TAG, "Using auth token: $bearerToken")
+                    
+                    val response = apiService.registerFcmToken(fcmTokenRequest, bearerToken)
+                    
+                    if (response.isSuccessful) {
+                        Log.d(TAG, "FCM token registered successfully with server")
+                    } else {
+                        // Handle specific error codes
+                        when (response.code()) {
+                            401 -> Log.e(TAG, "Unauthorized: JWT token may be invalid or expired")
+                            403 -> Log.e(TAG, "Forbidden: User doesn't have permission to register FCM token")
+                            404 -> Log.e(TAG, "Not Found: FCM registration endpoint not found")
+                            500 -> Log.e(TAG, "Server Error: Internal server error occurred")
+                            else -> Log.e(TAG, "Failed to register FCM token with server: ${response.code()} - ${response.message()}")
+                        }
+                        
+                        // Try to get error body for more details
+                        try {
+                            val errorBody = response.errorBody()?.string()
+                            Log.e(TAG, "Error response body: $errorBody")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Could not read error body", e)
+                        }
+                        
+                        // Save token locally anyway for retry later
+                        saveFcmTokenWithoutRegistration(token)
+                    }
+                } catch (e: IOException) {
+                    Log.e(TAG, "Network error while registering FCM token with server", e)
+                    // Save token locally for retry later
+                    saveFcmTokenWithoutRegistration(token)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Exception while registering FCM token with server", e)
+                    // Save token locally for retry later
+                    saveFcmTokenWithoutRegistration(token)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception while preparing FCM token registration", e)
+            }
+        }
+    }
+    
+    // Save token without triggering registration to prevent loops
+    fun saveFcmTokenWithoutRegistration(token: String) {
+        // Check if token is already saved to prevent unnecessary operations
+        val currentToken = getFcmToken()
+        if (currentToken == token) {
+            Log.d(TAG, "FCM token already saved, skipping")
+            return
+        }
+        
+        editor.putString(FCM_TOKEN_KEY, token)
+        editor.apply()
+        Log.d(TAG, "FCM token saved locally: $token")
+    }
+    
+    fun saveFcmToken(token: String) {
+        // Check if token is already saved to prevent unnecessary operations
+        val currentToken = getFcmToken()
+        if (currentToken == token) {
+            Log.d(TAG, "FCM token already saved, skipping")
+            return
+        }
+        
+        editor.putString(FCM_TOKEN_KEY, token)
+        editor.apply()
+        Log.d(TAG, "FCM token saved: $token")
+        
+        // If user is logged in, register the token with the server
+        // But only if this is not being called from the registerFcmTokenWithServer method
+        if (isLoggedIn()) {
+            // Use a flag to prevent infinite loops
+            val callerMethod = Thread.currentThread().stackTrace
+                .firstOrNull { it.methodName == "registerFcmTokenWithServer" }
+                
+            if (callerMethod == null) {
+                Log.d(TAG, "User is logged in, registering FCM token with server")
+                registerFcmTokenWithServer(token)
+            } else {
+                Log.d(TAG, "Called from registerFcmTokenWithServer, skipping registration to prevent loop")
+            }
+        }
+    }
+    
+    fun getFcmToken(): String? {
+        return prefs.getString(FCM_TOKEN_KEY, null)
     }
 } 

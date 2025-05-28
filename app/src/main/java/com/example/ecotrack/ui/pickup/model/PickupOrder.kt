@@ -5,15 +5,20 @@ import kotlinx.parcelize.Parcelize
 import java.text.SimpleDateFormat
 import java.util.*
 
-enum class WasteType {
-    PLASTIC,
-    PAPER,
-    METAL,
-    GLASS,
-    ELECTRONIC,
-    ORGANIC,
-    MIXED,
-    BIOHAZARD
+enum class WasteType(val pricePerSack: Double) {
+    PLASTIC(120.0),
+    PAPER(80.0),
+    METAL(150.0),
+    GLASS(150.0),
+    ELECTRONIC(200.0),
+    ORGANIC(100.0),
+    MIXED(200.0),
+    HAZARDOUS(500.0),
+    RECYCLABLE(100.0);
+    
+    fun getDisplayName(): String {
+        return name.lowercase().replaceFirstChar { it.uppercase() }
+    }
 }
 
 @Parcelize
@@ -29,6 +34,10 @@ data class PickupOrder(
     val total: Double,
     val paymentMethod: PaymentMethod,
     val wasteType: WasteType,
+    val numberOfSacks: Int = 0,
+    val truckSize: TruckSize = TruckSize.SMALL,
+    val sacksCost: Double = 0.0,
+    val truckCost: Double = 0.0,
     val barangayId: String? = null,
     val status: OrderStatus = OrderStatus.PROCESSING,
     val createdAt: Date = Date(),
@@ -74,4 +83,18 @@ enum class OrderStatus {
     ACCEPTED,   // Driver has accepted, on the way
     COMPLETED,  // Pickup completed
     CANCELLED   // Pickup cancelled
+}
+
+enum class TruckSize(val price: Double) {
+    SMALL(500.0),
+    MEDIUM(1000.0),
+    LARGE(2000.0);
+    
+    fun getDisplayName(): String {
+        return when (this) {
+            SMALL -> "Small Truck"
+            MEDIUM -> "Medium Truck"
+            LARGE -> "Large Truck"
+        }
+    }
 } 

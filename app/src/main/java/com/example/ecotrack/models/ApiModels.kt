@@ -119,3 +119,8 @@ data class PickupRequest(
     val scheduledTime: String,
     val notes: String?
 )
+
+data class FcmTokenRequest(
+    @SerializedName("fcmToken")
+    val fcmToken: String
+)

@@ -34,48 +34,55 @@ class NetworkUtils {
                 // Check for error responses first
                 if (!response.isSuccessful) {
                     Log.w(TAG, "Response not successful: ${response.code}")
+                    
+                    // For 500 errors, we need special handling to avoid EOFException
+                    if (response.code == 500) {
+                        val originalBody = response.body
+                        if (originalBody != null) {
+                            try {
+                                // Create a safe copy of the response body
+                                val contentType = originalBody.contentType()
+                                val emptyBody = ResponseBody.create(contentType, byteArrayOf())
+                                
+                                // Return a modified response with an empty but valid body
+                                return response.newBuilder()
+                                    .body(emptyBody)
+                                    .build()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error handling 500 response", e)
+                            }
+                        }
+                    }
                     return response
                 }
                 
                 // If the response body is chunked or has potential issues, handle it carefully
-                if (response.header("Transfer-Encoding") == "chunked" || response.code == 500) {
+                if (response.header("Transfer-Encoding") == "chunked") {
                     try {
                         val originalBody = response.body
                         if (originalBody != null) {
-                            val originalSource = originalBody.source()
-                            val buffer = Buffer()
+                            val contentType = originalBody.contentType()
+                            var bodyString: String? = null
                             
-                            // Read as much as we can safely
                             try {
-                                // Try to read a limited amount first to avoid blocking
-                                val bytesRead = originalSource.read(buffer, 8192) // 8KB buffer
-                                if (bytesRead > 0) {
-                                    // If we got some data, try to read more
-                                    try {
-                                        originalSource.request(Long.MAX_VALUE)
-                                        buffer.writeAll(originalSource)
-                                    } catch (e: IOException) {
-                                        Log.e(TAG, "Error reading full chunked response, using partial data", e)
-                                        // Continue with what we have
-                                    }
-                                }
+                                // Try to safely read the body as a string
+                                bodyString = originalBody.string()
                             } catch (e: IOException) {
-                                Log.e(TAG, "Error reading chunked response", e)
-                                // Just return what we've got so far, or the original response if nothing
-                                if (buffer.size == 0L) {
-                                    return response
-                                }
+                                Log.e(TAG, "Error reading chunked response body", e)
+                                // Return an empty but valid body
+                                val emptyBody = ResponseBody.create(contentType, "")
+                                return response.newBuilder()
+                                    .removeHeader("Transfer-Encoding")
+                                    .body(emptyBody)
+                                    .build()
                             }
                             
                             // Create a new response with a non-chunked body
-                            val contentType = originalBody.contentType()
-                            val contentLength = buffer.size
-                            val body = ResponseBody.create(contentType, contentLength, buffer)
-                            
+                            val newBody = ResponseBody.create(contentType, bodyString ?: "")
                             return response.newBuilder()
                                 .removeHeader("Transfer-Encoding")
-                                .header("Content-Length", contentLength.toString())
-                                .body(body)
+                                .header("Content-Length", newBody.contentLength().toString())
+                                .body(newBody)
                                 .build()
                         }
                     } catch (e: Exception) {

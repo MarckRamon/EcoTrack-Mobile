@@ -85,6 +85,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
     
     // CircleImageView
     implementation("de.hdodenhof:circleimageview:3.1.0")

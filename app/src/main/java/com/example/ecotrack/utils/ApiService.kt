@@ -9,7 +9,10 @@ import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.utils.NetworkUtils.Companion.ChunkedTransferFixInterceptor
 import com.google.gson.GsonBuilder
 import okhttp3.ConnectionSpec
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -43,6 +46,12 @@ interface ApiService {
         @Header("Authorization") authToken: String,
         @Body passwordUpdateRequest: PasswordUpdateRequest
     ): Response<Map<String, String>>
+
+    @POST("api/users/forgot-password/reset")
+    suspend fun resetPassword(@Body forgotPasswordRequest: ForgotPasswordRequest): Response<ResponseBody>
+
+    @POST("api/users/forgot-password/question")
+    suspend fun getSecurityQuestion(@Body requestBody: okhttp3.RequestBody): Response<ResponseBody>
 
     @GET("api/users/security-questions")
     suspend fun getSecurityQuestions(): Response<SecurityQuestionsResponse>
@@ -160,6 +169,18 @@ interface ApiService {
         @Header("Authorization") authToken: String
     ): Response<PrivateEntity>
 
+    @POST("api/notifications/register-token")
+    suspend fun registerFcmToken(
+        @Body fcmTokenRequest: FcmTokenRequest,
+        @Header("Authorization") authToken: String
+    ): Response<Map<String, Any>>
+
+    @POST("api/notifications/register-token")
+    suspend fun registerFcmTokenRaw(
+        @Body requestBody: Map<String, String>,
+        @Header("Authorization") authToken: String
+    ): Response<Map<String, Any>>
+
     companion object {
         private const val TAG = "ApiService"
         private const val BASE_URL = "http://10.0.2.2:8080/" // Android emulator localhost
@@ -175,6 +196,17 @@ interface ApiService {
                 .addInterceptor(loggingInterceptor)
                 // Add our custom interceptor to handle chunked transfer issues
                 .addInterceptor(ChunkedTransferFixInterceptor())
+                // Add debugging interceptor
+                .addInterceptor { chain ->
+                    val request = chain.request()
+                    Log.d(TAG, "Request URL: ${request.url}")
+                    Log.d(TAG, "Request Method: ${request.method}")
+                    Log.d(TAG, "Request Headers: ${request.headers}")
+                    if (request.body != null) {
+                        Log.d(TAG, "Request has body")
+                    }
+                    chain.proceed(request)
+                }
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)

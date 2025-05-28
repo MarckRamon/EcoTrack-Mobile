@@ -2,6 +2,8 @@ package com.example.ecotrack
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -47,6 +49,12 @@ class DriverJobOrderActivity : BaseActivity() {
     private lateinit var cancelButton: Button
     private lateinit var dialogOverlay: View
     
+    // For auto-refresh with reduced database impact
+    private val refreshHandler = Handler(Looper.getMainLooper())
+    private var refreshRunnable: Runnable? = null
+    private val REFRESH_INTERVAL = 30000L // 30 seconds
+    private var lastRefreshTime = 0L
+    
     private val apiService = ApiService.create()
     private val TAG = "DriverJobOrderActivity"
 
@@ -62,6 +70,56 @@ class DriverJobOrderActivity : BaseActivity() {
         
         // Load payment orders for the current driver
         loadPaymentOrders()
+        
+        // Start auto-refresh
+        startAutoRefresh()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Refresh data when returning to the screen, but honor the minimum interval
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastRefreshTime > REFRESH_INTERVAL) {
+            loadPaymentOrders()
+        }
+        
+        // Start auto-refresh
+        startAutoRefresh()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        // Stop auto-refresh when activity is paused
+        stopAutoRefresh()
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // Ensure auto-refresh is stopped
+        stopAutoRefresh()
+    }
+    
+    private fun startAutoRefresh() {
+        // Stop any existing refresh
+        stopAutoRefresh()
+        
+        refreshRunnable = object : Runnable {
+            override fun run() {
+                Log.d(TAG, "Auto-refreshing job orders")
+                loadPaymentOrders()
+                refreshHandler.postDelayed(this, REFRESH_INTERVAL)
+            }
+        }
+        
+        // Start with a delay to avoid immediate refresh
+        refreshHandler.postDelayed(refreshRunnable!!, REFRESH_INTERVAL)
+    }
+    
+    private fun stopAutoRefresh() {
+        refreshRunnable?.let {
+            refreshHandler.removeCallbacks(it)
+            refreshRunnable = null
+        }
     }
     
     private fun initViews() {
@@ -174,6 +232,10 @@ class DriverJobOrderActivity : BaseActivity() {
     }
     
     private fun loadPaymentOrders() {
+        // Update the last refresh time
+        lastRefreshTime = System.currentTimeMillis()
+        Log.d(TAG, "Loading payment orders at ${System.currentTimeMillis()}")
+        
         // Get the driver ID from session manager
         val driverId = sessionManager.getUserId()
         

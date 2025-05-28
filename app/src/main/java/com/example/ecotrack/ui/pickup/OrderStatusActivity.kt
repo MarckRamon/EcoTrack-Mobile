@@ -41,6 +41,9 @@ class OrderStatusActivity : AppCompatActivity() {
 
     private lateinit var tvStatusHeader: TextView
     private lateinit var tvStatusDescription: TextView
+    private lateinit var tvWasteType: TextView
+    private lateinit var tvSacks: TextView
+    private lateinit var tvTruckSize: TextView
     private lateinit var tvAmount: TextView
     private lateinit var tvPaymentMethod: TextView
     private lateinit var tvLocation: TextView
@@ -54,8 +57,12 @@ class OrderStatusActivity : AppCompatActivity() {
     // For status polling
     private val statusHandler = Handler(Looper.getMainLooper())
     private var statusRunnable: Runnable? = null
-    // Set polling interval to 2 seconds for more real-time updates
-    private val STATUS_POLL_INTERVAL = 2000L // 2 seconds
+    // Set polling interval to 30 seconds to significantly reduce server load
+    private val STATUS_POLL_INTERVAL = 30000L // 30 seconds
+    
+    // Add variables to track last request time and prevent redundant calls
+    private val lastRequestTimes = mutableMapOf<String, Long>()
+    private val MINIMUM_REQUEST_INTERVAL = 30000L // 30 seconds between requests for the same order
 
     // Status bar icons
     private lateinit var iconDriverAssigned: ImageView
@@ -103,6 +110,9 @@ class OrderStatusActivity : AppCompatActivity() {
         // Initialize views
         tvStatusHeader = findViewById(R.id.tv_status_header)
         tvStatusDescription = findViewById(R.id.tv_status_description)
+        tvWasteType = findViewById(R.id.tv_waste_type)
+        tvSacks = findViewById(R.id.tv_sacks)
+        tvTruckSize = findViewById(R.id.tv_truck_size)
         tvAmount = findViewById(R.id.tv_amount)
         tvPaymentMethod = findViewById(R.id.tv_payment_method)
         tvLocation = findViewById(R.id.tv_location)
@@ -146,6 +156,9 @@ class OrderStatusActivity : AppCompatActivity() {
         }
 
         // Set values
+        tvWasteType.text = order.wasteType.getDisplayName()
+        tvSacks.text = order.numberOfSacks.toString()
+        tvTruckSize.text = order.truckSize.getDisplayName()
         tvAmount.text = "₱${order.total.toInt()}"
         tvPaymentMethod.text = order.paymentMethod.getDisplayName()
         tvLocation.text = order.address
@@ -229,12 +242,16 @@ class OrderStatusActivity : AppCompatActivity() {
     }
     
     private fun startStatusPolling() {
+        // Stop any existing polling
+        stopStatusPolling()
+        
         statusRunnable = object : Runnable {
             override fun run() {
                 fetchLatestStatus()
                 statusHandler.postDelayed(this, STATUS_POLL_INTERVAL)
             }
         }
+        // Start polling with initial delay to avoid immediate duplicate request after onCreate/onResume fetch
         statusHandler.postDelayed(statusRunnable!!, STATUS_POLL_INTERVAL)
     }
     
@@ -249,6 +266,18 @@ class OrderStatusActivity : AppCompatActivity() {
         // Use the payment reference number to fetch the latest status
         val orderId = order.id // Assuming this is the orderId used in the backend
         val referenceNumber = order.referenceNumber // Try using the reference number as an alternative
+        
+        // Skip if we recently made a request for this order (avoid redundant calls)
+        val currentTime = System.currentTimeMillis()
+        val lastRequestTime = lastRequestTimes[orderId] ?: 0L
+        
+        if (currentTime - lastRequestTime < MINIMUM_REQUEST_INTERVAL) {
+            Log.d("OrderStatusActivity", "Skipping redundant request for orderId: $orderId (last request was ${currentTime - lastRequestTime}ms ago)")
+            return
+        }
+        
+        // Update the last request time
+        lastRequestTimes[orderId] = currentTime
         
         Log.d("OrderStatusActivity", "Fetching status for orderId: $orderId, referenceNumber: $referenceNumber")
         
@@ -324,12 +353,21 @@ class OrderStatusActivity : AppCompatActivity() {
             // Check if we should use jobOrderStatus or regular status
             val effectiveStatus = paymentResponse.jobOrderStatus.takeIf { status -> status.isNotBlank() } ?: paymentResponse.status
             
-            // Update UI with the latest status
-            updateOrderStatus(effectiveStatus, paymentResponse)
-            
-            // Hide cancel button if status is not Processing
-            if (effectiveStatus != "Processing") {
-                btnCancel.visibility = View.GONE
+            // Only update UI if status has changed
+            if (lastKnownStatus != effectiveStatus) {
+                Log.d("OrderStatusActivity", "Status change detected: $lastKnownStatus -> $effectiveStatus")
+                // Update UI with the latest status
+                updateOrderStatus(effectiveStatus, paymentResponse)
+                
+                // Update order details from API response
+                updateOrderDetails(paymentResponse)
+                
+                // Hide cancel button if status is not Processing
+                if (effectiveStatus != "Processing") {
+                    btnCancel.visibility = View.GONE
+                }
+            } else {
+                Log.d("OrderStatusActivity", "Status unchanged, skipping UI update: $effectiveStatus")
             }
         } else {
             Log.e("OrderStatusActivity", "Failed to fetch status: ${response.code()} - ${response.message()}")
@@ -656,6 +694,35 @@ class OrderStatusActivity : AppCompatActivity() {
                     btnCancel.isEnabled = true
                     btnCancel.text = "CANCEL ORDER"
                 }
+            }
+        }
+    }
+
+    // Add new method to update order details from API response
+    private fun updateOrderDetails(paymentResponse: PaymentResponse) {
+        Log.d("OrderStatusActivity", "Updating order details from API: numberOfSacks=${paymentResponse.numberOfSacks}, wasteType=${paymentResponse.wasteType}")
+        
+        // Update number of sacks if it's provided in the API response
+        if (paymentResponse.numberOfSacks > 0) {
+            runOnUiThread {
+                tvSacks.text = paymentResponse.numberOfSacks.toString()
+                Log.d("OrderStatusActivity", "Updated sacks display to: ${paymentResponse.numberOfSacks}")
+            }
+        }
+        
+        // Update waste type if it's provided in the API response
+        if (!paymentResponse.wasteType.isNullOrBlank()) {
+            runOnUiThread {
+                tvWasteType.text = paymentResponse.wasteType
+                Log.d("OrderStatusActivity", "Updated waste type display to: ${paymentResponse.wasteType}")
+            }
+        }
+        
+        // Update truck size if it's provided in the API response
+        if (!paymentResponse.truckSize.isNullOrBlank()) {
+            runOnUiThread {
+                tvTruckSize.text = paymentResponse.truckSize
+                Log.d("OrderStatusActivity", "Updated truck size display to: ${paymentResponse.truckSize}")
             }
         }
     }

@@ -23,6 +23,7 @@ import com.example.ecotrack.models.payment.PaymentRequest
 import com.example.ecotrack.ui.pickup.model.PaymentMethod
 import com.example.ecotrack.ui.pickup.model.PickupOrder
 import com.example.ecotrack.ui.pickup.model.WasteType
+import com.example.ecotrack.ui.pickup.model.TruckSize
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -40,6 +41,7 @@ class OrderPickupActivity : AppCompatActivity() {
     private lateinit var etFullName: EditText
     private lateinit var etEmail: EditText
     private lateinit var spinnerWasteType: Spinner
+    private lateinit var etNumberOfSacks: EditText
     private lateinit var btnProceedToPayment: Button
     private lateinit var btnEditLocation: View
     private lateinit var tvLocationAddress: TextView
@@ -47,6 +49,8 @@ class OrderPickupActivity : AppCompatActivity() {
     private var selectedLocation: GeoPoint? = null
     private var selectedAddress: String = ""
     private var selectedWasteType: WasteType = WasteType.MIXED
+    private var numberOfSacks: Int = 0
+    private var truckSize: TruckSize = TruckSize.SMALL
 
     // Session manager for user data
     private lateinit var sessionManager: SessionManager
@@ -80,10 +84,11 @@ class OrderPickupActivity : AppCompatActivity() {
             .create(XenditApiService::class.java)
     }
 
-    // Hard-coded values for demo
-    private val pickupOrderAmount = 500.0
+    // Pricing variables
+    private var sacksCost: Double = 0.0
+    private var truckCost: Double = 0.0
     private val taxAmount = 50.0
-    private val totalAmount = pickupOrderAmount + taxAmount
+    private var totalAmount: Double = 0.0
 
     // Tag for logging
     private val TAG = "OrderPickupActivity"
@@ -109,6 +114,7 @@ class OrderPickupActivity : AppCompatActivity() {
         etFullName = findViewById(R.id.et_full_name)
         etEmail = findViewById(R.id.et_email)
         spinnerWasteType = findViewById(R.id.spinner_waste_type)
+        etNumberOfSacks = findViewById(R.id.et_number_of_sacks)
         btnProceedToPayment = findViewById(R.id.btn_proceed_to_payment)
         btnEditLocation = findViewById(R.id.btn_edit_location)
         tvLocationAddress = findViewById(R.id.tv_location_address)
@@ -118,19 +124,37 @@ class OrderPickupActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_item,
-            wasteTypes.map { it.name.lowercase().replaceFirstChar { it.uppercase() } }
+            wasteTypes.map { it.getDisplayName() }
         )
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerWasteType.adapter = adapter
         spinnerWasteType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 selectedWasteType = wasteTypes[position]
+                calculateTotalAmount()
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {
                 selectedWasteType = WasteType.MIXED
             }
         }
+
+        // Setup number of sacks field with text change listener
+        etNumberOfSacks.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val input = s.toString()
+                numberOfSacks = if (input.isNotEmpty()) {
+                    input.toInt()
+                } else {
+                    0
+                }
+                calculateTotalAmount()
+            }
+        })
 
         // Initialize map
         mapView = findViewById(R.id.map_view)
@@ -226,6 +250,23 @@ class OrderPickupActivity : AppCompatActivity() {
     }
 
     private fun calculateTotalAmount(): Double {
+        // Calculate the sack cost based on the waste type and number of sacks
+        sacksCost = selectedWasteType.pricePerSack * numberOfSacks
+        
+        // Determine truck size based on number of sacks
+        truckSize = when {
+            numberOfSacks <= 0 -> TruckSize.SMALL
+            numberOfSacks <= 20 -> TruckSize.SMALL
+            numberOfSacks <= 50 -> TruckSize.MEDIUM
+            else -> TruckSize.LARGE
+        }
+        
+        // Get the truck cost based on the truck size
+        truckCost = truckSize.price
+        
+        // Calculate the total amount (sacks cost + truck cost + tax)
+        totalAmount = sacksCost + truckCost + taxAmount
+        
         return totalAmount
     }
 
@@ -254,7 +295,8 @@ class OrderPickupActivity : AppCompatActivity() {
                     paymentReference = "cash_${order.id}",
                     notes = "Cash on Hand payment",
                     wasteType = order.wasteType.name,
-                    barangayId = order.barangayId
+                    barangayId = order.barangayId,
+                    numberOfSacks = order.numberOfSacks
                 )
                 
                 // Make an API call to the backend to process the cash payment
@@ -302,7 +344,7 @@ class OrderPickupActivity : AppCompatActivity() {
 
                 val request = CreateInvoiceRequest(
                     externalId = order.id, // Use the order's unique ID as external_id
-                    amount = calculateTotalAmount(),
+                    amount = order.total,
                     description = "EcoTrack Trash Pickup Service for order ${order.id}",
                     customer = Customer(
                         givenNames = order.fullName,
@@ -315,7 +357,7 @@ class OrderPickupActivity : AppCompatActivity() {
                         Item(
                             name = "Trash Pickup Service",
                             quantity = 1,
-                            price = calculateTotalAmount()
+                            price = order.total
                         )
                     )
                 )
@@ -463,6 +505,7 @@ class OrderPickupActivity : AppCompatActivity() {
     private fun validateForm(): Boolean {
         val fullName = etFullName.text.toString().trim()
         val email = etEmail.text.toString().trim()
+        val numberOfSacksStr = etNumberOfSacks.text.toString().trim()
 
         if (fullName.isEmpty()) {
             etFullName.error = "Please enter your full name"
@@ -476,6 +519,22 @@ class OrderPickupActivity : AppCompatActivity() {
 
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             etEmail.error = "Please enter a valid email address"
+            return false
+        }
+        
+        if (numberOfSacksStr.isEmpty()) {
+            etNumberOfSacks.error = "Please enter the number of sacks"
+            return false
+        }
+        
+        try {
+            val sacks = numberOfSacksStr.toInt()
+            if (sacks <= 0) {
+                etNumberOfSacks.error = "Number of sacks must be greater than 0"
+                return false
+            }
+        } catch (e: NumberFormatException) {
+            etNumberOfSacks.error = "Please enter a valid number"
             return false
         }
 
@@ -527,11 +586,15 @@ class OrderPickupActivity : AppCompatActivity() {
             address = selectedAddress,
             latitude = selectedLocation?.latitude ?: 0.0,
             longitude = selectedLocation?.longitude ?: 0.0,
-            amount = pickupOrderAmount,
+            amount = sacksCost + truckCost,
             tax = taxAmount,
             total = totalAmount,
             paymentMethod = paymentMethod,
             wasteType = selectedWasteType,
+            numberOfSacks = numberOfSacks,
+            truckSize = truckSize,
+            sacksCost = sacksCost,
+            truckCost = truckCost,
             barangayId = userBarangayId
         )
     }

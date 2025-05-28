@@ -10,12 +10,13 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/btn_back_to_home"
+        app:layout_constraintBottom_toTopOf="@+id/linearLayout_buttons"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/receipt_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="24dp">
@@ -163,25 +164,109 @@
                 app:layout_constraintTop_toBottomOf="@+id/tv_email" />
 
             <TextView
-                android:id="@+id/tv_amount_label"
+                android:id="@+id/tv_waste_type_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:text="Amount"
+                android:text="Waste Type"
                 android:textColor="@android:color/black"
                 android:textSize="12sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/divider1" />
 
             <TextView
-                android:id="@+id/tv_amount"
+                android:id="@+id/tv_waste_type"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="₱950"
+                android:text="Mixed"
                 android:textColor="@android:color/black"
                 android:textSize="12sp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/tv_amount_label" />
+                app:layout_constraintTop_toTopOf="@+id/tv_waste_type_label" />
+
+            <TextView
+                android:id="@+id/tv_sacks_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Number of Sacks"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tv_waste_type_label" />
+
+            <TextView
+                android:id="@+id/tv_sacks"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="10"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/tv_sacks_label" />
+
+            <TextView
+                android:id="@+id/tv_truck_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Truck Size"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tv_sacks_label" />
+
+            <TextView
+                android:id="@+id/tv_truck"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Small Truck"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/tv_truck_label" />
+
+            <TextView
+                android:id="@+id/tv_sacks_price_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="Sacks Price"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tv_truck_label" />
+
+            <TextView
+                android:id="@+id/tv_sacks_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₱1000"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/tv_sacks_price_label" />
+
+            <TextView
+                android:id="@+id/tv_truck_price_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Truck Price"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tv_sacks_price_label" />
+
+            <TextView
+                android:id="@+id/tv_truck_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₱500"
+                android:textColor="@android:color/black"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/tv_truck_price_label" />
 
             <TextView
                 android:id="@+id/tv_tax_label"
@@ -192,7 +277,7 @@
                 android:textColor="@android:color/black"
                 android:textSize="12sp"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_amount_label" />
+                app:layout_constraintTop_toBottomOf="@+id/tv_truck_price_label" />
 
             <TextView
                 android:id="@+id/tv_tax"
@@ -218,10 +303,10 @@
                 android:id="@+id/tv_total_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="24dp"
                 android:text="Total"
                 android:textColor="@android:color/black"
-                android:textSize="14sp"
+                android:textSize="18sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/divider2" />
@@ -230,9 +315,9 @@
                 android:id="@+id/tv_total"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="₱1000"
+                android:text="₱1550"
                 android:textColor="@android:color/black"
-                android:textSize="14sp"
+                android:textSize="18sp"
                 android:textStyle="bold"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="@+id/tv_total_label" />
@@ -252,18 +337,56 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </ScrollView>
 
-    <Button
-        android:id="@+id/btn_back_to_home"
-        android:layout_width="0dp"
+    <LinearLayout
+        android:id="@+id/linearLayout_buttons"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:layout_margin="16dp"
-        android:background="@drawable/outline_button_background"
-        android:padding="16dp"
-        android:text="BACK TO HOME"
-        android:textColor="@android:color/black"
-        android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/outline_button_background"
+            android:id="@+id/btn_download">
+
+            <ImageView
+                android:id="@+id/download_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="16dp"
+                android:src="@android:drawable/ic_menu_save"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
+                android:text="DOWNLOAD RECEIPT"
+                android:textColor="@android:color/black"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <Button
+            android:id="@+id/btn_back_to_home"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/green_button_background"
+            android:padding="16dp"
+            android:text="DONE"
+            android:textColor="@android:color/white"
+            android:textStyle="bold" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout> 

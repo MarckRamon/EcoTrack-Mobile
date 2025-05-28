@@ -208,12 +208,14 @@ class PaymentCallbackActivity : AppCompatActivity() {
             paymentReference = paymentReference,
             notes = "Payment from mobile app",
             wasteType = order.wasteType.name, // Include the waste type here
-            barangayId = order.barangayId // Include the barangayId here
+            barangayId = order.barangayId, // Include the barangayId here
+            numberOfSacks = order.numberOfSacks // Add numberOfSacks field for online payments
         )
 
         // Log the payment method being sent to the backend
         Log.d(TAG, "Sending payment to backend with method: ${order.paymentMethod.getDisplayName()}")
         Log.d(TAG, "Full payment request: $paymentRequest")
+        Log.d(TAG, "Number of sacks being sent: ${paymentRequest.numberOfSacks}")
 
         // Send payment data to backend
         lifecycleScope.launch {

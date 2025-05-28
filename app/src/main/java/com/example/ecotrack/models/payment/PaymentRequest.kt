@@ -47,5 +47,8 @@ data class PaymentRequest(
     val wasteType: String,
 
     @SerializedName("barangayId")
-    val barangayId: String?
+    val barangayId: String?,
+    
+    @SerializedName("numberOfSacks")
+    val numberOfSacks: Int = 0
 )

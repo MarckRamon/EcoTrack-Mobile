@@ -63,10 +63,19 @@ data class PaymentResponse(
     val estimatedArrival: Date? = null,
     
     @SerializedName("estimated_arrival") // Alternative field name that might be used
-    val estimatedArrivalAlt: Date? = null
+    val estimatedArrivalAlt: Date? = null,
+    
+    @SerializedName("numberOfSacks")
+    val numberOfSacks: Int = 0,
+    
+    @SerializedName("wasteType")
+    val wasteType: String? = null,
+    
+    @SerializedName("truckSize")
+    val truckSize: String? = null
 ) {
     override fun toString(): String {
-        return "PaymentResponse(id=$id, orderId=$orderId, status=$status, jobOrderStatus=$jobOrderStatus, driverId=$driverId, estimatedArrival=$estimatedArrival)"
+        return "PaymentResponse(id=$id, orderId=$orderId, status=$status, jobOrderStatus=$jobOrderStatus, driverId=$driverId, estimatedArrival=$estimatedArrival, numberOfSacks=$numberOfSacks)"
     }
     
     // Get estimated arrival from either field

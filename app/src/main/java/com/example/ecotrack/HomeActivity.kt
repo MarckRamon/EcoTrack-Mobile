@@ -42,6 +42,11 @@ class HomeActivity : BaseActivity() {
     private var countDownTimer: CountDownTimer? = null
     private val TAG = "HomeActivity"
     private var activeOrderId: String? = null
+    
+    // Add variables for caching and rate limiting
+    private var lastOrderCheckTime = 0L
+    private val MIN_CHECK_INTERVAL = 60000L // 1 minute interval between API checks
+    private var cachedActiveOrders: List<PaymentResponse>? = null
 
     // This container will hold additional order cards
     private lateinit var additionalCardsContainer: LinearLayout
@@ -126,6 +131,23 @@ class HomeActivity : BaseActivity() {
             binding.swipeRefreshLayout.isRefreshing = false
             return
         }
+        
+        // Skip if we recently checked and this is not a manual refresh
+        val currentTime = System.currentTimeMillis()
+        if (!isManualRefresh && currentTime - lastOrderCheckTime < MIN_CHECK_INTERVAL && cachedActiveOrders != null) {
+            Log.d(TAG, "Using cached active orders - last check was ${currentTime - lastOrderCheckTime}ms ago")
+            // Use cached data
+            cachedActiveOrders?.let { orders ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    handleCachedOrders(orders)
+                }
+            }
+            binding.swipeRefreshLayout.isRefreshing = false
+            return
+        }
+        
+        // Update the last check time
+        lastOrderCheckTime = currentTime
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -137,6 +159,10 @@ class HomeActivity : BaseActivity() {
                 val response = apiService.getUserActiveOrders(userId, bearerToken)
                 
                 withContext(Dispatchers.Main) {
+                    if (response.isSuccessful && !response.body().isNullOrEmpty()) {
+                        // Cache the response
+                        cachedActiveOrders = response.body()
+                    }
                     handleActiveOrdersResponse(response)
                     binding.swipeRefreshLayout.isRefreshing = false
                 }
@@ -152,6 +178,10 @@ class HomeActivity : BaseActivity() {
                     )
                     
                     withContext(Dispatchers.Main) {
+                        if (fallbackResponse.isSuccessful && !fallbackResponse.body().isNullOrEmpty()) {
+                            // Cache the fallback response
+                            cachedActiveOrders = fallbackResponse.body()
+                        }
                         handleFallbackResponse(fallbackResponse)
                         binding.swipeRefreshLayout.isRefreshing = false
                     }
@@ -159,8 +189,16 @@ class HomeActivity : BaseActivity() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking for active orders", e)
                 withContext(Dispatchers.Main) {
-                    reminderCard.visibility = View.GONE
-                    clearAdditionalOrderCards()
+                    // Use cached data if available when there's an error
+                    if (cachedActiveOrders != null) {
+                        Log.d(TAG, "Using cached data due to network error")
+                        CoroutineScope(Dispatchers.Main).launch {
+                            handleCachedOrders(cachedActiveOrders!!)
+                        }
+                    } else {
+                        reminderCard.visibility = View.GONE
+                        clearAdditionalOrderCards()
+                    }
                     binding.swipeRefreshLayout.isRefreshing = false
                     
                     if (isManualRefresh) {
@@ -234,7 +272,9 @@ class HomeActivity : BaseActivity() {
                     withContext(Dispatchers.Main) {
                         // Show the main reminder card for the first active order
                         updateReminderCard(firstOrder)
-                        reminderCard.visibility = View.VISIBLE
+                        CoroutineScope(Dispatchers.Main).launch {
+                            reminderCard.visibility = View.VISIBLE
+                        }
                         
                         // If there are multiple active orders, create additional cards for each
                         if (activeOrders.size > 1) {
@@ -244,7 +284,9 @@ class HomeActivity : BaseActivity() {
                         } else {
                             Log.d(TAG, "No additional active orders, clearing any existing additional cards")
                             // If there's only one order, make sure any additional cards are removed
-                            clearAdditionalOrderCards()
+                            CoroutineScope(Dispatchers.Main).launch {
+                                clearAdditionalOrderCards()
+                            }
                         }
                     }
                     
@@ -255,15 +297,21 @@ class HomeActivity : BaseActivity() {
                             // Show estimated arrival time if available
                             val estimatedArrival = firstOrder.getEffectiveEstimatedArrival()
                             if (estimatedArrival != null) {
-                                startCountdownToTime(estimatedArrival.time)
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    startCountdownToTime(estimatedArrival.time)
+                                }
                             } else {
                                 // Default to 30 min countdown
-                                startCountdownTimer()
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    startCountdownTimer()
+                                }
                             }
                         }
                         else -> {
                             // Default countdown for other statuses
-                            startCountdownTimer()
+                            CoroutineScope(Dispatchers.Main).launch {
+                                startCountdownTimer()
+                            }
                         }
                     }
                 } else {
@@ -272,7 +320,9 @@ class HomeActivity : BaseActivity() {
                         reminderCard.visibility = View.GONE
                         clearAdditionalOrderCards()
                     }
-                    stopCountdownTimer()
+                    CoroutineScope(Dispatchers.Main).launch {
+                        stopCountdownTimer()
+                    }
                 }
             } else {
                 // No orders found
@@ -281,7 +331,9 @@ class HomeActivity : BaseActivity() {
                     reminderCard.visibility = View.GONE
                     clearAdditionalOrderCards()
                 }
-                stopCountdownTimer()
+                CoroutineScope(Dispatchers.Main).launch {
+                    stopCountdownTimer()
+                }
             }
         } else {
             // API call not successful
@@ -299,7 +351,9 @@ class HomeActivity : BaseActivity() {
                 reminderCard.visibility = View.GONE
                 clearAdditionalOrderCards()
             }
-            stopCountdownTimer()
+            CoroutineScope(Dispatchers.Main).launch {
+                stopCountdownTimer()
+            }
         }
     }
     
@@ -361,7 +415,9 @@ class HomeActivity : BaseActivity() {
                 withContext(Dispatchers.Main) {
                     // Update the main reminder card
                     updateReminderCard(firstOrder)
-                    reminderCard.visibility = View.VISIBLE
+                    CoroutineScope(Dispatchers.Main).launch {
+                        reminderCard.visibility = View.VISIBLE
+                    }
                     
                     // If there are multiple active orders, create additional cards
                     if (activeOrders.size > 1) {
@@ -385,7 +441,9 @@ class HomeActivity : BaseActivity() {
                     reminderCard.visibility = View.GONE
                     clearAdditionalOrderCards()
                 }
-                stopCountdownTimer()
+                CoroutineScope(Dispatchers.Main).launch {
+                    stopCountdownTimer()
+                }
             }
         } else {
             Log.d(TAG, "Fallback response unsuccessful: ${response.code()}")
@@ -715,22 +773,33 @@ class HomeActivity : BaseActivity() {
         super.onResume()
         // BaseActivity already handles setCurrentActivity and updateLastActivity
 
-        // Check for active orders when returning to this activity
-        checkForActiveOrders()
+        // Check for active orders when returning to this activity - use isManualRefresh=false
+        // to allow using cached data if available and recent
+        checkForActiveOrders(isManualRefresh = false)
         
-        // Always refresh profile data when returning to this activity
-        Log.d(TAG, "onResume - refreshing profile data")
-        loadUserData()
+        // Only refresh profile data if we've never loaded it or it's been a long time
+        if (!::welcomeText.isInitialized || welcomeText.text.isNullOrBlank() || 
+            System.currentTimeMillis() - lastOrderCheckTime > MIN_CHECK_INTERVAL * 10) {
+            Log.d(TAG, "onResume - refreshing profile data")
+            loadUserData()
+        } else {
+            Log.d(TAG, "onResume - skipping profile data refresh")
+        }
     }
 
     // This is called when the activity is brought back to the foreground
     override fun onRestart() {
         super.onRestart()
-        // Check for active orders
-        checkForActiveOrders()
+        // Check for active orders - use isManualRefresh=false to allow using cached data
+        checkForActiveOrders(isManualRefresh = false)
         
-        Log.d(TAG, "onRestart - refreshing profile data")
-        loadUserData()
+        // Only refresh profile data if it's been a long time
+        if (System.currentTimeMillis() - lastOrderCheckTime > MIN_CHECK_INTERVAL * 10) {
+            Log.d(TAG, "onRestart - refreshing profile data")
+            loadUserData()
+        } else {
+            Log.d(TAG, "onRestart - skipping profile data refresh")
+        }
     }
 
     override fun onDestroy() {
@@ -926,5 +995,90 @@ class HomeActivity : BaseActivity() {
     // Extension function to convert Float dp to pixels
     private fun Float.dpToPx(): Int {
         return (this * resources.displayMetrics.density).toInt()
+    }
+
+    private suspend fun handleCachedOrders(orders: List<PaymentResponse>) {
+        // Filter for active orders
+        val activeOrders = orders.filter { order -> 
+            val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
+            val regularStatus = order.status?.trim()?.lowercase() ?: ""
+            
+            // Check both status fields with different formats
+            val isActiveJobOrder = jobOrderStatus == "available" || 
+                                jobOrderStatus == "accepted" || 
+                                jobOrderStatus == "in-progress" ||
+                                jobOrderStatus == "in progress" ||
+                                jobOrderStatus.contains("avail") ||
+                                jobOrderStatus.contains("accept") ||
+                                jobOrderStatus.contains("progress")
+                                
+            val isActiveRegular = regularStatus == "available" || 
+                               regularStatus == "accepted" || 
+                               regularStatus == "in-progress" ||
+                               regularStatus == "in progress" ||
+                               regularStatus.contains("avail") ||
+                               regularStatus.contains("accept") ||
+                               regularStatus.contains("progress")
+            
+            isActiveJobOrder || isActiveRegular
+        }
+        
+        if (activeOrders.isNotEmpty()) {
+            // Get the first active order for the main card
+            val firstOrder = activeOrders.first()
+            activeOrderId = firstOrder.orderId
+            
+            // Show the main reminder card for the first active order
+            updateReminderCard(firstOrder)
+            CoroutineScope(Dispatchers.Main).launch {
+                reminderCard.visibility = View.VISIBLE
+            }
+            
+            // If there are multiple active orders, create additional cards for each
+            if (activeOrders.size > 1) {
+                // Create and display additional reminder cards for each active order
+                CoroutineScope(Dispatchers.Main).launch {
+                    displayAdditionalOrderCards(activeOrders.drop(1))
+                }
+            } else {
+                // If there's only one order, make sure any additional cards are removed
+                CoroutineScope(Dispatchers.Main).launch {
+                    clearAdditionalOrderCards()
+                }
+            }
+            
+            // Start countdown timer based on the first active order
+            val effectiveStatus = firstOrder.jobOrderStatus.takeIf { it.isNotBlank() } ?: firstOrder.status
+            when (effectiveStatus.trim().lowercase()) {
+                "accepted" -> {
+                    // Show estimated arrival time if available
+                    val estimatedArrival = firstOrder.getEffectiveEstimatedArrival()
+                    if (estimatedArrival != null) {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            startCountdownToTime(estimatedArrival.time)
+                        }
+                    } else {
+                        // Default to 30 min countdown
+                        CoroutineScope(Dispatchers.Main).launch {
+                            startCountdownTimer()
+                        }
+                    }
+                }
+                else -> {
+                    // Default countdown for other statuses
+                    CoroutineScope(Dispatchers.Main).launch {
+                        startCountdownTimer()
+                    }
+                }
+            }
+        } else {
+            CoroutineScope(Dispatchers.Main).launch {
+                reminderCard.visibility = View.GONE
+                clearAdditionalOrderCards()
+            }
+            CoroutineScope(Dispatchers.Main).launch {
+                stopCountdownTimer()
+            }
+        }
     }
 }
