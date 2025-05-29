@@ -13,7 +13,6 @@ class NotificationsActivity : BaseActivity() {
     private val TAG = "NotificationsActivity"
     
     // Track the state of notifications
-    private var inAppNotificationsEnabled = true
     private var pushNotificationsEnabled = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,7 +26,6 @@ class NotificationsActivity : BaseActivity() {
         }
 
         // Initialize toggle UI
-        updateInAppToggleUI()
         updatePushToggleUI()
 
         // Set up click listeners for toggle containers
@@ -40,36 +38,12 @@ class NotificationsActivity : BaseActivity() {
     }
 
     private fun setupToggleListeners() {
-        // In-app notifications toggle
-        binding.inAppSwitchContainer.setOnClickListener {
-            // Toggle the state
-            inAppNotificationsEnabled = !inAppNotificationsEnabled
-            updateInAppToggleUI()
-            Log.d(TAG, "In-app notifications toggled: $inAppNotificationsEnabled")
-        }
-
         // Push notifications toggle
         binding.pushSwitchContainer.setOnClickListener {
             // Toggle the state
             pushNotificationsEnabled = !pushNotificationsEnabled
             updatePushToggleUI()
             Log.d(TAG, "Push notifications toggled: $pushNotificationsEnabled")
-        }
-    }
-    
-    private fun updateInAppToggleUI() {
-        if (inAppNotificationsEnabled) {
-            // ON state
-            binding.inAppOnLabel.setBackgroundResource(R.color.green)
-            binding.inAppOnLabel.setTextColor(getColor(android.R.color.white))
-            binding.inAppOffLabel.setBackgroundResource(android.R.color.white)
-            binding.inAppOffLabel.setTextColor(getColor(android.R.color.black))
-        } else {
-            // OFF state
-            binding.inAppOnLabel.setBackgroundResource(android.R.color.white)
-            binding.inAppOnLabel.setTextColor(getColor(android.R.color.black))
-            binding.inAppOffLabel.setBackgroundResource(R.color.green)
-            binding.inAppOffLabel.setTextColor(getColor(android.R.color.white))
         }
     }
     
@@ -91,7 +65,7 @@ class NotificationsActivity : BaseActivity() {
 
     private fun saveNotificationPreferences() {
         // Log the values
-        Log.d(TAG, "Saving notification preferences - In-App: $inAppNotificationsEnabled, Push: $pushNotificationsEnabled")
+        Log.d(TAG, "Saving notification preferences - Push: $pushNotificationsEnabled")
         
         // In a real app, we would save these to shared preferences and/or backend
         // For now, just show a toast message
