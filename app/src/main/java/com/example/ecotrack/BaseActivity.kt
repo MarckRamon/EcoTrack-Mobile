@@ -22,8 +22,11 @@ abstract class BaseActivity : AppCompatActivity(), SessionTimeoutDialog.SessionT
         // Initialize session manager
         sessionManager = SessionManager.getInstance(this)
         
-        // Check if the activity requires authentication
-        if (requiresAuthentication() && !sessionManager.isLoggedIn()) {
+        // Check if the activity is part of forgot password flow
+        val isForgotPasswordFlow = intent?.hasExtra("questionId1") == true && intent?.hasExtra("answer1") == true
+        
+        // Check if the activity requires authentication and is not part of forgot password flow
+        if (requiresAuthentication() && !sessionManager.isLoggedIn() && !isForgotPasswordFlow) {
             Log.d(TAG, "User not logged in, redirecting to login")
             navigateToLogin()
             return
@@ -43,8 +46,11 @@ abstract class BaseActivity : AppCompatActivity(), SessionTimeoutDialog.SessionT
         // Set current activity in session manager
         sessionManager.setCurrentActivity(this)
         
+        // Check if the activity is part of forgot password flow
+        val isForgotPasswordFlow = intent?.hasExtra("questionId1") == true && intent?.hasExtra("answer1") == true
+        
         // Check login status again in case token was invalidated
-        if (requiresAuthentication() && !sessionManager.isLoggedIn()) {
+        if (requiresAuthentication() && !sessionManager.isLoggedIn() && !isForgotPasswordFlow) {
             Log.d(TAG, "User not logged in on resume, redirecting to login")
             navigateToLogin()
             return
