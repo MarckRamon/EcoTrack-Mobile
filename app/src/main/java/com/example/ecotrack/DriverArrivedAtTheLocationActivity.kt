@@ -467,7 +467,7 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
             
             // Add overlay to map if not already added
             if (!mapView.overlays.contains(myLocationOverlay)) {
-                mapView.overlays.add(myLocationOverlay)
+            mapView.overlays.add(myLocationOverlay)
             }
             
             Log.d(TAG, "My location enabled")

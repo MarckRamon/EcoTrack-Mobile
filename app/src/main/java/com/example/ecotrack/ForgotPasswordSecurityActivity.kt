@@ -223,25 +223,103 @@ class ForgotPasswordSecurityActivity : BaseActivity() {
         val questionId2 = securityQuestions[1].optString("questionId", "")
         val questionId3 = securityQuestions[2].optString("questionId", "")
         
-        Log.d(TAG, "Navigating to password change screen with email: $email")
+        Log.d(TAG, "Verifying security answers for email: $email")
         Log.d(TAG, "Question IDs: $questionId1, $questionId2, $questionId3")
-        Log.d(TAG, "Answers: $answer1, $answer2, $answer3")
         
-        // Proceed to password change screen
-        val intent = Intent(this, ChangePasswordActivity::class.java)
-        intent.putExtra("email", email)
-        intent.putExtra("questionId1", questionId1)
-        intent.putExtra("questionId2", questionId2)
-        intent.putExtra("questionId3", questionId3)
-        intent.putExtra("answer1", answer1)
-        intent.putExtra("answer2", answer2)
-        intent.putExtra("answer3", answer3)
+        showLoading(true)
         
-        // Add flag to clear the back stack up to this activity
-        intent.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT)
+        // Create verification request
+        val jsonObject = JSONObject()
+        jsonObject.put("identifier", email)
         
-        startActivity(intent)
-        finish() // Finish this activity to prevent going back to it
+        val answersArray = JSONArray()
+        
+        // Add first answer
+        val answerObj1 = JSONObject()
+        answerObj1.put("questionId", questionId1)
+        answerObj1.put("answer", answer1)
+        answersArray.put(answerObj1)
+        
+        // Add second answer
+        val answerObj2 = JSONObject()
+        answerObj2.put("questionId", questionId2)
+        answerObj2.put("answer", answer2)
+        answersArray.put(answerObj2)
+        
+        // Add third answer
+        val answerObj3 = JSONObject()
+        answerObj3.put("questionId", questionId3)
+        answerObj3.put("answer", answer3)
+        answersArray.put(answerObj3)
+        
+        jsonObject.put("answers", answersArray)
+        
+        val requestBody = jsonObject.toString()
+            .toRequestBody("application/json".toMediaTypeOrNull())
+        
+        // Verify answers with the API before proceeding
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Make API request to verify answers (using the same endpoint for simplicity)
+                // In a real app, you might have a dedicated endpoint for verification
+                val response = apiService.getSecurityQuestion(requestBody)
+                
+                withContext(Dispatchers.Main) {
+                    showLoading(false)
+                    
+                    if (response.isSuccessful) {
+                        // If verification is successful, proceed to password change screen
+                        Log.d(TAG, "Security answers verified successfully")
+                        Log.d(TAG, "Navigating to password change screen with email: $email")
+                        
+                        // Proceed to password change screen
+                        val intent = Intent(this@ForgotPasswordSecurityActivity, ChangePasswordActivity::class.java)
+                        intent.putExtra("email", email)
+                        intent.putExtra("questionId1", questionId1)
+                        intent.putExtra("questionId2", questionId2)
+                        intent.putExtra("questionId3", questionId3)
+                        intent.putExtra("answer1", answer1)
+                        intent.putExtra("answer2", answer2)
+                        intent.putExtra("answer3", answer3)
+                        
+                        // Add flag to clear the back stack up to this activity
+                        intent.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT)
+                        
+                        startActivity(intent)
+                        finish() // Finish this activity to prevent going back to it
+                    } else {
+                        val errorCode = response.code()
+                        val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                        Log.e(TAG, "Failed to verify security answers: $errorCode - $errorBody")
+                        
+                        val errorMessage = when (errorCode) {
+                            400 -> "Incorrect answers. Please try again."
+                            401 -> "Unauthorized. Please try again."
+                            404 -> "User not found. Please check your email."
+                            else -> "Failed to verify answers (Error $errorCode). Please try again later."
+                        }
+                        
+                        Toast.makeText(
+                            this@ForgotPasswordSecurityActivity,
+                            errorMessage,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception verifying security answers: ${e.message}")
+                e.printStackTrace()
+                
+                withContext(Dispatchers.Main) {
+                    showLoading(false)
+                    Toast.makeText(
+                        this@ForgotPasswordSecurityActivity,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
     
     private fun showLoading(isLoading: Boolean) {

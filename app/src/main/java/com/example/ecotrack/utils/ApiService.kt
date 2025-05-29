@@ -6,6 +6,7 @@ import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.models.payment.PaymentRequest
 import com.example.ecotrack.models.payment.PaymentResponse
 import com.example.ecotrack.models.Barangay
+import com.example.ecotrack.models.DeliveryStatusUpdate
 import com.example.ecotrack.utils.NetworkUtils.Companion.ChunkedTransferFixInterceptor
 import com.google.gson.GsonBuilder
 import okhttp3.ConnectionSpec
@@ -142,6 +143,14 @@ interface ApiService {
     suspend fun updateJobOrderStatus(
         @Path("paymentId") paymentId: String,
         @Body statusUpdate: JobOrderStatusUpdate,
+        @Header("Authorization") authToken: String
+    ): Response<Payment>
+
+    // Update Payment Delivery Status
+    @PUT("api/payments/{paymentId}/delivery-status")
+    suspend fun updateDeliveryStatus(
+        @Path("paymentId") paymentId: String,
+        @Body deliveryStatus: DeliveryStatusUpdate,
         @Header("Authorization") authToken: String
     ): Response<Payment>
 

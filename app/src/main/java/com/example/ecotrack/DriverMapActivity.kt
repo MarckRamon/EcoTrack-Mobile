@@ -43,7 +43,10 @@ class DriverMapActivity : BaseActivity() {
     private lateinit var titleTextView: TextView
     private lateinit var addressTextView: TextView
     private lateinit var wasteTypeTextView: TextView
+    private lateinit var jobOrderOrPrivateEntityTextView: TextView
     private lateinit var closeButton: Button
+    private lateinit var previousButton: Button
+    private lateinit var nextButton: Button
     private lateinit var profileImage: CircleImageView
     private lateinit var homeNav: View
     private lateinit var jobOrdersNav: View
@@ -62,6 +65,10 @@ class DriverMapActivity : BaseActivity() {
     
     // Real-time update manager
     private lateinit var realTimeUpdateManager: RealTimeUpdateManager
+    
+    // For navigation between markers
+    private var allMarkers = mutableListOf<Marker>()
+    private var currentMarkerIndex = -1
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,10 +99,13 @@ class DriverMapActivity : BaseActivity() {
         mapView = findViewById(R.id.mapView)
         progressBar = findViewById(R.id.progressBar)
         infoCardView = findViewById(R.id.infoCardView)
-        titleTextView = findViewById(R.id.siteName) // Reusing the existing TextView
+        titleTextView = findViewById(R.id.siteName)
         addressTextView = findViewById(R.id.address)
-        wasteTypeTextView = findViewById(R.id.garbageType) // Reusing the existing TextView
+        wasteTypeTextView = findViewById(R.id.garbageType)
+        jobOrderOrPrivateEntityTextView = findViewById(R.id.jobOrderOrPrivateEntity)
         closeButton = findViewById(R.id.closeButton)
+        previousButton = findViewById(R.id.previousButton)
+        nextButton = findViewById(R.id.nextButton)
         profileImage = findViewById(R.id.profileImage)
         homeNav = findViewById(R.id.homeNav)
         jobOrdersNav = findViewById(R.id.jobOrdersNav)
@@ -119,6 +129,15 @@ class DriverMapActivity : BaseActivity() {
     private fun setupListeners() {
         closeButton.setOnClickListener {
             infoCardView.visibility = View.GONE
+        }
+        
+        // Set up previous and next buttons
+        previousButton.setOnClickListener {
+            navigateToPreviousMarker()
+        }
+        
+        nextButton.setOnClickListener {
+            navigateToNextMarker()
         }
         
         // Remove or hide the refresh button since we have real-time updates
@@ -148,6 +167,24 @@ class DriverMapActivity : BaseActivity() {
         }
         
         // collectionPointsNav is the current screen
+    }
+    
+    private fun navigateToPreviousMarker() {
+        if (allMarkers.isEmpty() || currentMarkerIndex <= 0) return
+        
+        currentMarkerIndex--
+        if (currentMarkerIndex < 0) currentMarkerIndex = allMarkers.size - 1
+        
+        handleMarkerClick(allMarkers[currentMarkerIndex])
+    }
+    
+    private fun navigateToNextMarker() {
+        if (allMarkers.isEmpty()) return
+        
+        currentMarkerIndex++
+        if (currentMarkerIndex >= allMarkers.size) currentMarkerIndex = 0
+        
+        handleMarkerClick(allMarkers[currentMarkerIndex])
     }
     
     private fun toggleLocationTracking() {
@@ -296,6 +333,10 @@ class DriverMapActivity : BaseActivity() {
         mapView.overlays.clear()
         locationOverlay?.let { mapView.overlays.add(it) }
         
+        // Clear the markers list
+        allMarkers.clear()
+        currentMarkerIndex = -1
+        
         val allMarkerPoints = mutableListOf<GeoPoint>()
         
         // Add job order markers (green)
@@ -308,7 +349,7 @@ class DriverMapActivity : BaseActivity() {
             marker.snippet = "${jobOrder.address}\n${jobOrder.wasteType}"
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
             
-            // Set green color for job orders
+            // Set green color for job orders - using a lighter green for better visibility
             val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
             drawable?.setColorFilter(
                 ContextCompat.getColor(this, R.color.secondary),
@@ -329,6 +370,7 @@ class DriverMapActivity : BaseActivity() {
             }
             
             mapView.overlays.add(marker)
+            allMarkers.add(marker)
             allMarkerPoints.add(location)
         }
         
@@ -363,18 +405,28 @@ class DriverMapActivity : BaseActivity() {
             }
             
             mapView.overlays.add(marker)
+            allMarkers.add(marker)
             allMarkerPoints.add(location)
         }
         
-        // Center map on all markers
-        if (allMarkerPoints.isNotEmpty()) {
-            centerMapOnPoints(allMarkerPoints)
+        // Focus on the first marker if available
+        if (allMarkers.isNotEmpty()) {
+            // Select the first marker
+            handleMarkerClick(allMarkers[0])
+        } else {
+            // If no markers, just center the map on a default location (Philippines)
+            val defaultLocation = GeoPoint(14.5995, 120.9842)
+            mapView.controller.setCenter(defaultLocation)
+            mapView.controller.setZoom(10.0)
         }
         
         mapView.invalidate()
     }
     
     private fun handleMarkerClick(marker: Marker) {
+        // Update current marker index
+        currentMarkerIndex = allMarkers.indexOf(marker)
+        
         // Store the previously selected marker to reset its appearance
         val previouslySelectedMarker = mapView.overlays.filterIsInstance<Marker>()
             .find { it.id != marker.id && it.id?.contains("selected_") == true }
@@ -404,16 +456,17 @@ class DriverMapActivity : BaseActivity() {
         val originalId = marker.id ?: ""
         marker.id = "selected_$originalId"
         
-        // Make the selected marker lighter
+        // Make the selected marker lighter green
         val drawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
         if (originalId.startsWith("job_")) {
+            // Using a much lighter green color for selected job order pins
             drawable?.setColorFilter(
-                ContextCompat.getColor(this, R.color.secondary_light),
+                android.graphics.Color.rgb(0, 255, 0),
                 android.graphics.PorterDuff.Mode.SRC_IN
             )
         } else if (originalId.startsWith("entity_")) {
             drawable?.setColorFilter(
-                ContextCompat.getColor(this, R.color.error_light),
+                android.graphics.Color.rgb(255, 0, 0),
                 android.graphics.PorterDuff.Mode.SRC_IN
             )
         }
@@ -423,7 +476,7 @@ class DriverMapActivity : BaseActivity() {
         val mapController = mapView.controller
         val offsetPoint = GeoPoint(marker.position.latitude - 0.0005, marker.position.longitude)
         mapController.animateTo(offsetPoint)
-        mapController.setZoom(10.0)
+        mapController.setZoom(15.0)
         
         // Show the marker info in the card
         val markerId = originalId
@@ -435,9 +488,11 @@ class DriverMapActivity : BaseActivity() {
             
             // Update the info card
             titleTextView.text = jobOrder.customerName
-            addressTextView.text = jobOrder.address
-            wasteTypeTextView.text = "Waste Type: ${jobOrder.wasteType}\nType: Job Order"
+            addressTextView.text = "Address: ${jobOrder.address}"
+            wasteTypeTextView.text = "Waste Type: ${jobOrder.wasteType}"
+            jobOrderOrPrivateEntityTextView.text = "Job Order"
             
+            // Make sure the info card is visible
             infoCardView.visibility = View.VISIBLE
         } else if (markerId.startsWith("entity_")) {
             // Find the private entity by ID
@@ -446,17 +501,35 @@ class DriverMapActivity : BaseActivity() {
             
             // Update the info card
             titleTextView.text = entity.entityName
-            addressTextView.text = entity.address
-            wasteTypeTextView.text = "Waste Type: ${entity.entityWasteType}\nType: Private Entity"
+            addressTextView.text = "Address: ${entity.address}"
+            wasteTypeTextView.text = "Waste Type: ${entity.entityWasteType}"
+            jobOrderOrPrivateEntityTextView.text = "Private Entity"
             
+            // Make sure the info card is visible
             infoCardView.visibility = View.VISIBLE
         }
+        
+        // Update button states based on marker index
+        updateNavigationButtonStates()
         
         mapView.invalidate()
     }
     
+    private fun updateNavigationButtonStates() {
+        // Update previous/next button states based on current marker index
+        previousButton.isEnabled = allMarkers.size > 1
+        nextButton.isEnabled = allMarkers.size > 1
+    }
+    
     private fun centerMapOnPoints(points: List<GeoPoint>) {
         if (points.isEmpty()) return
+        
+        // For efficiency, if there's only one point, just center on it
+        if (points.size == 1) {
+            mapView.controller.setCenter(points[0])
+            mapView.controller.setZoom(15.0)
+            return
+        }
         
         // Calculate the center and bounds
         val minLat = points.minOf { it.latitude }

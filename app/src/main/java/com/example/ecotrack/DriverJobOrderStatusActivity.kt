@@ -692,43 +692,25 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             // Add a marker for the customer location
             val marker = Marker(mapView)
             marker.position = location
-            marker.title = "Customer Location"
-            marker.snippet = "Pickup Address\n${addressTextView.text}"
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            marker.icon = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)
             
-            // Create and use a custom info window
-            val infoWindow = CustomInfoWindow(R.layout.marker_info_window, mapView)
-            marker.infoWindow = infoWindow
+            // Get the drawable and apply green tint
+            val pinDrawable = ContextCompat.getDrawable(this, R.drawable.ic_location_pin)?.mutate()
+            pinDrawable?.setColorFilter(ContextCompat.getColor(this, R.color.green), android.graphics.PorterDuff.Mode.SRC_IN)
+            marker.icon = pinDrawable
             
             // Add click listener to the marker
             marker.setOnMarkerClickListener { clickedMarker, _ ->
-                // Close any other open info windows
-                mapView.overlays.filterIsInstance<Marker>().forEach { 
-                    if (it != clickedMarker && it.isInfoWindowShown) {
-                        it.closeInfoWindow()
-                    }
-                }
-                
+
                 // Center map on marker when clicked with an offset for the info window
                 val offsetPoint = GeoPoint(clickedMarker.position.latitude - 0.0001, clickedMarker.position.longitude)
                 mapView.controller.animateTo(offsetPoint)
-                
-                // Show the info window
-                if (!clickedMarker.isInfoWindowShown) {
-                    clickedMarker.showInfoWindow()
-                } else {
-                    clickedMarker.closeInfoWindow()
-                }
-                
+
                 true
             }
             
             // Add the marker to the map
             mapView.overlays.add(marker)
-            
-            // Show info window by default
-            marker.showInfoWindow()
             
             // Refresh the map
             mapView.invalidate()

@@ -85,6 +85,8 @@
                 android:visibility="gone" />
 
             <!-- In-Progress Job Order List -->
+
+            <!-- Available Section -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewInProgressJobOrders"
                 android:layout_width="match_parent"
@@ -92,7 +94,6 @@
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_job_order" />
 
-            <!-- Available Section -->
             <TextView
                 android:id="@+id/tvAvailableHeader"
                 android:layout_width="match_parent"
@@ -192,7 +193,7 @@
                 android:layout_marginEnd="16dp"
                 android:gravity="end"
                 android:padding="8dp"
-                android:text="View History →"
+                android:text="View More →"
                 android:textColor="@color/gray"
                 android:textSize="16sp"
                 android:visibility="gone" />
@@ -206,9 +207,9 @@
         android:layout_height="56dp"
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="8dp"
-        android:text="END COLLECTION"
+        android:text="WASTE DELIVER"
         android:textColor="@color/white"
-        android:backgroundTint="@color/error"
+        android:backgroundTint="@color/dark_gray"
         app:layout_constraintBottom_toTopOf="@id/bottomNavigation" />
 
     <!-- Bottom Navigation -->
@@ -321,7 +322,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="End Collection"
+                android:text="Waste Delivery Confirmation"
                 android:textAlignment="center"
                 android:textColor="@color/text_primary"
                 android:textSize="18sp"
@@ -331,7 +332,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Are you sure you want to end the collection? You'll need to select a private entity to drop off the waste."
+                android:text="Are you sure you want to deliver the waste to the Private Entity? Your truck must be full for efficient waste delivery."
                 android:textAlignment="center"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
@@ -341,8 +342,8 @@
                 android:id="@+id/confirmButton"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:backgroundTint="@color/error"
-                android:text="END COLLECTION"
+                android:backgroundTint="#34A752"
+                android:text="CONFIRM"
                 android:textColor="@color/white"
                 android:textStyle="bold" />
 

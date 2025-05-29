@@ -91,7 +91,7 @@ class ProfileActivity : BaseActivity() {
             startActivity(intent)
         }
 
-        findViewById<LinearLayout>(R.id.forgotPasswordButton).setOnClickListener {
+        findViewById<LinearLayout>(R.id.changePasswordButton).setOnClickListener {
             val intent = Intent(this, ChangePasswordSecurityActivity::class.java)
             startActivity(intent)
         }

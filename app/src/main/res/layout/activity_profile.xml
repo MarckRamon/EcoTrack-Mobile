@@ -143,9 +143,9 @@
                 android:tint="@color/grey"/>
         </LinearLayout>
 
-        <!-- Forgot Password -->
+        <!-- Change Password -->
         <LinearLayout
-            android:id="@+id/forgotPasswordButton"
+            android:id="@+id/changePasswordButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"

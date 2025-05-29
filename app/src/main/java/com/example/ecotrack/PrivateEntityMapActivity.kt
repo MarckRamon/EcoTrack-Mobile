@@ -314,7 +314,7 @@ class PrivateEntityMapActivity : BaseActivity() {
     private fun showConfirmationDialog() {
         selectedEntity?.let { entity ->
             // Update dialog message with entity name
-            confirmDialogMessage.text = "Are you sure you want to select ${entity.entityName} for waste drop-off?"
+            confirmDialogMessage.text = "Are you sure you want to select ${entity.entityName} for waste delivery?"
             
             // Show the dialog and overlay
             dialogOverlay.visibility = View.VISIBLE

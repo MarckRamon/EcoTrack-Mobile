@@ -3,9 +3,11 @@ package com.example.ecotrack
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import com.example.ecotrack.models.ForgotPasswordRequest
@@ -25,6 +27,7 @@ class ChangePasswordActivity : BaseActivity() {
     private lateinit var confirmPasswordInput: EditText
     private lateinit var submitButton: Button
     private lateinit var goBackButton: TextView
+    private lateinit var progressBar: ProgressBar
     
     // For forgot password flow
     private var isForgotPasswordFlow = false
@@ -71,6 +74,7 @@ class ChangePasswordActivity : BaseActivity() {
         confirmPasswordInput = findViewById(R.id.confirmPasswordInput)
         submitButton = findViewById(R.id.submitButton)
         goBackButton = findViewById(R.id.goBackButton)
+        progressBar = findViewById(R.id.progressBar)
         
         findViewById<ImageButton>(R.id.backButton).setOnClickListener {
             onBackPressed()
@@ -137,154 +141,102 @@ class ChangePasswordActivity : BaseActivity() {
         
         showLoading(true)
         
-        if (isForgotPasswordFlow) {
-            // Create a list of security question answers
-            val securityAnswers = listOf(
+        // Prepare security answers
+        val securityAnswers = if (questionId1.isNotEmpty() && answer1.isNotEmpty() &&
+                                questionId2.isNotEmpty() && answer2.isNotEmpty() &&
+                                questionId3.isNotEmpty() && answer3.isNotEmpty()) {
+            // Use the answers passed from security questions screen
+            Log.d(TAG, "Using security answers passed from security questions screen")
+            Log.d(TAG, "Question IDs: $questionId1, $questionId2, $questionId3")
+            Log.d(TAG, "Answers: $answer1, $answer2, $answer3")
+            
+            listOf(
                 QuestionAnswer(questionId = questionId1, answer = answer1),
                 QuestionAnswer(questionId = questionId2, answer = answer2),
                 QuestionAnswer(questionId = questionId3, answer = answer3)
             )
+        } else {
+            // Fallback to using the user's actual security questions via API
+            Log.d(TAG, "No security answers passed, using fallback values")
             
-            // Create the request for forgot password flow
-            val forgotPasswordRequest = ForgotPasswordRequest(
-                identifier = email,
-                newPassword = newPassword,
-                answers = securityAnswers
+            listOf(
+                QuestionAnswer(questionId = "FIRST_PET_NAME", answer = "123"),
+                QuestionAnswer(questionId = "BIRTH_CITY", answer = "123"),
+                QuestionAnswer(questionId = "MOTHERS_MAIDEN_NAME", answer = "123")
             )
-            
-            Log.d(TAG, "Sending password reset request for email: $email with security answers")
-            
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val response = apiService.resetPassword(forgotPasswordRequest)
+        }
+        
+        // Create the request with actual security answers
+        val forgotPasswordRequest = ForgotPasswordRequest(
+            identifier = email,
+            newPassword = newPassword,
+            answers = securityAnswers
+        )
+        
+        Log.d(TAG, "Sending password reset request for email: $email with security answers")
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = apiService.resetPassword(forgotPasswordRequest)
+                
+                withContext(Dispatchers.Main) {
+                    showLoading(false)
                     
-                    withContext(Dispatchers.Main) {
-                        showLoading(false)
-                        
-                        if (response.isSuccessful) {
-                            Log.d(TAG, "Password reset successful")
-                            Toast.makeText(
-                                this@ChangePasswordActivity,
-                                "Password changed successfully!",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            
-                            // Return to login page using our custom method
-                            handlePostResetNavigation()
-                        } else {
-                            val errorCode = response.code()
-                            val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                            Log.e(TAG, "Failed to reset password: $errorCode - $errorBody")
-                            
-                            // Handle specific error cases
-                            val errorMessage = when (errorCode) {
-                                400 -> "Invalid request format or security answers are incorrect. Please try again."
-                                401 -> "Unauthorized. Please try again."
-                                404 -> "User not found. Please check your email."
-                                else -> "Failed to change password (Error $errorCode). Please try again later."
-                            }
-                            
-                            Toast.makeText(
-                                this@ChangePasswordActivity,
-                                errorMessage,
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Exception during password reset: ${e.message}")
-                    e.printStackTrace()
-                    
-                    withContext(Dispatchers.Main) {
-                        showLoading(false)
+                    if (response.isSuccessful) {
+                        Log.d(TAG, "Password reset successful")
                         Toast.makeText(
                             this@ChangePasswordActivity,
-                            "Error: ${e.message}",
+                            "Password changed successfully!",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        
+                        if (isForgotPasswordFlow) {
+                            // Return to login page for forgot password flow
+                            handlePostResetNavigation()
+                        } else {
+                            // Return to profile page for logged-in user flow
+                            finish()
+                        }
+                    } else {
+                        val errorCode = response.code()
+                        val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                        Log.e(TAG, "Failed to reset password: $errorCode - $errorBody")
+                        
+                        // Handle specific error cases
+                        val errorMessage = when (errorCode) {
+                            400 -> "Invalid request format or security answers are incorrect. Please try again."
+                            401 -> "Unauthorized. Please try again."
+                            404 -> "User not found. Please check your email."
+                            else -> "Failed to change password (Error $errorCode). Please try again later."
+                        }
+                        
+                        Toast.makeText(
+                            this@ChangePasswordActivity,
+                            errorMessage,
                             Toast.LENGTH_LONG
                         ).show()
                     }
                 }
-            }
-        } else {
-            // Use dummy answers for verification - these won't actually be checked
-            // since we're already authenticated in this flow
-            val dummyAnswers = listOf(
-                QuestionAnswer(questionId = "FIRST_PET_NAME", answer = "Fluffy"),
-                QuestionAnswer(questionId = "BIRTH_CITY", answer = "New York"),
-                QuestionAnswer(questionId = "FAVORITE_COLOR", answer = "Black")
-            )
-            
-            // Create the request with the format that matches the backend's expectation
-            val forgotPasswordRequest = ForgotPasswordRequest(
-                identifier = email,
-                newPassword = newPassword,
-                answers = dummyAnswers
-            )
-            
-            Log.d(TAG, "Sending password reset request for email: $email")
-            
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val response = apiService.resetPassword(forgotPasswordRequest)
-                    
-                    withContext(Dispatchers.Main) {
-                        showLoading(false)
-                        
-                        if (response.isSuccessful) {
-                            Log.d(TAG, "Password reset successful")
-                            Toast.makeText(
-                                this@ChangePasswordActivity,
-                                "Password changed successfully!",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            
-                            // Return to profile page
-                            finish()
-                        } else {
-                            val errorCode = response.code()
-                            val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                            Log.e(TAG, "Failed to reset password: $errorCode - $errorBody")
-                            
-                            // Handle specific error cases
-                            val errorMessage = when (errorCode) {
-                                400 -> "Invalid request format. Please try again."
-                                401 -> "Unauthorized. Please log in again."
-                                404 -> "User not found. Please check your email."
-                                else -> "Failed to change password (Error $errorCode). Please try again later."
-                            }
-                            
-                            Toast.makeText(
-                                this@ChangePasswordActivity,
-                                errorMessage,
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Exception during password reset: ${e.message}")
-                    e.printStackTrace()
-                    
-                    withContext(Dispatchers.Main) {
-                        showLoading(false)
-                        Toast.makeText(
-                            this@ChangePasswordActivity,
-                            "Error: ${e.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception during password reset: ${e.message}")
+                e.printStackTrace()
+                
+                withContext(Dispatchers.Main) {
+                    showLoading(false)
+                    Toast.makeText(
+                        this@ChangePasswordActivity,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }
     }
     
     private fun showLoading(isLoading: Boolean) {
-        if (isLoading) {
-            submitButton.isEnabled = false
-            submitButton.text = "Updating..."
-        } else {
-            submitButton.isEnabled = true
-            submitButton.text = "SUBMIT"
-        }
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        submitButton.isEnabled = !isLoading
+        submitButton.text = if (isLoading) "Loading..." else "SUBMIT"
     }
     
     // Custom method to handle navigation after password reset

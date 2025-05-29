@@ -9,6 +9,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -53,6 +54,9 @@ class DriverJobOrderActivity : BaseActivity() {
     
     // Real-time update manager
     private lateinit var realTimeUpdateManager: RealTimeUpdateManager
+    
+    // Track if there are any completed orders
+    private var hasCompletedOrders = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,6 +98,9 @@ class DriverJobOrderActivity : BaseActivity() {
         profileImage = findViewById(R.id.profileImage)
         notificationIcon = findViewById(R.id.iconLeft)
         
+        // Set initial button state to disabled (dark gray)
+        updateEndCollectionButtonState(false)
+        
         // Confirmation dialog components
         confirmationDialog = findViewById(R.id.confirmationDialog)
         confirmButton = findViewById(R.id.confirmButton)
@@ -107,7 +114,11 @@ class DriverJobOrderActivity : BaseActivity() {
         
         // Set up End Collection button
         endCollectionButton.setOnClickListener {
-            showConfirmationDialog()
+            if (hasCompletedOrders) {
+                showConfirmationDialog()
+            } else {
+                Toast.makeText(this, "Complete at least one job order first", Toast.LENGTH_SHORT).show()
+            }
         }
         
         // Set up confirmation dialog buttons
@@ -142,29 +153,47 @@ class DriverJobOrderActivity : BaseActivity() {
         }
     }
     
+    /**
+     * Updates the End Collection button state based on whether there are completed orders
+     */
+    private fun updateEndCollectionButtonState(enabled: Boolean) {
+        hasCompletedOrders = enabled
+        
+        if (enabled) {
+            // Active state - green color
+            endCollectionButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.secondary)
+        } else {
+            // Inactive state - dark gray color
+            endCollectionButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.dark_gray)
+        }
+        
+        // Update button text
+        endCollectionButton.text = "WASTE DELIVER"
+    }
+    
     private fun showConfirmationDialog() {
         // Show the dialog and overlay
         dialogOverlay.visibility = View.VISIBLE
         confirmationDialog.visibility = View.VISIBLE
         
         // Dim UI elements
-        findViewById<View>(R.id.header).alpha = 0.2f
-        findViewById<View>(R.id.appLogo).alpha = 0.1f
+        findViewById<View>(R.id.header)?.alpha = 0.2f
+        findViewById<View>(R.id.appLogo)?.alpha = 0.1f
         endCollectionButton.alpha = 0.8f
-        findViewById<View>(R.id.bottomNavigation).alpha = 0.15f
+        findViewById<View>(R.id.bottomNavigation)?.alpha = 0.15f
 
         // Disable interactions with UI elements
-        findViewById<View>(R.id.btnView).isEnabled = false
-        findViewById<View>(R.id.header).isEnabled = false
+        findViewById<View>(R.id.btnView)?.let { it.isEnabled = false }
+        findViewById<View>(R.id.header)?.isEnabled = false
         endCollectionButton.isEnabled = false
-        findViewById<View>(R.id.bottomNavigation).isEnabled = false
-        findViewById<View>(R.id.homeNav).isClickable = false
-        findViewById<View>(R.id.jobOrdersNav).isClickable = false
-        findViewById<View>(R.id.collectionPointsNav).isClickable = false
-        findViewById<View>(R.id.profileImage).isClickable = false
-        findViewById<View>(R.id.iconLeft).isClickable = false
-        findViewById<View>(R.id.btnViewMoreAvailable).isClickable = false
-        findViewById<View>(R.id.btnViewHistory).isClickable = false
+        findViewById<View>(R.id.bottomNavigation)?.isEnabled = false
+        findViewById<View>(R.id.homeNav)?.isClickable = false
+        findViewById<View>(R.id.jobOrdersNav)?.isClickable = false
+        findViewById<View>(R.id.collectionPointsNav)?.isClickable = false
+        findViewById<View>(R.id.profileImage)?.isClickable = false
+        findViewById<View>(R.id.iconLeft)?.isClickable = false
+        findViewById<View>(R.id.btnViewMoreAvailable)?.isClickable = false
+        findViewById<View>(R.id.btnViewHistory)?.isClickable = false
         
         // Disable scrolling in recycler views
         inProgressRecyclerView.suppressLayout(true)
@@ -179,23 +208,23 @@ class DriverJobOrderActivity : BaseActivity() {
         
         // Restore UI elements (set alpha back to 1.0)
         val fullAlpha = 1.0f
-        findViewById<View>(R.id.header).alpha = fullAlpha
-        findViewById<View>(R.id.appLogo).alpha = fullAlpha
+        findViewById<View>(R.id.header)?.alpha = fullAlpha
+        findViewById<View>(R.id.appLogo)?.alpha = fullAlpha
         endCollectionButton.alpha = fullAlpha
-        findViewById<View>(R.id.bottomNavigation).alpha = fullAlpha
+        findViewById<View>(R.id.bottomNavigation)?.alpha = fullAlpha
         
         // Re-enable interactions with UI elements
-        findViewById<View>(R.id.btnView).isEnabled = true
-        findViewById<View>(R.id.header).isEnabled = true
+        findViewById<View>(R.id.btnView)?.let { it.isEnabled = true }
+        findViewById<View>(R.id.header)?.isEnabled = true
         endCollectionButton.isEnabled = true
-        findViewById<View>(R.id.bottomNavigation).isEnabled = true
-        findViewById<View>(R.id.homeNav).isClickable = true
-        findViewById<View>(R.id.jobOrdersNav).isClickable = true
-        findViewById<View>(R.id.collectionPointsNav).isClickable = true
-        findViewById<View>(R.id.profileImage).isClickable = true
-        findViewById<View>(R.id.iconLeft).isClickable = true
-        findViewById<View>(R.id.btnViewMoreAvailable).isClickable = true
-        findViewById<View>(R.id.btnViewHistory).isClickable = true
+        findViewById<View>(R.id.bottomNavigation)?.isEnabled = true
+        findViewById<View>(R.id.homeNav)?.isClickable = true
+        findViewById<View>(R.id.jobOrdersNav)?.isClickable = true
+        findViewById<View>(R.id.collectionPointsNav)?.isClickable = true
+        findViewById<View>(R.id.profileImage)?.isClickable = true
+        findViewById<View>(R.id.iconLeft)?.isClickable = true
+        findViewById<View>(R.id.btnViewMoreAvailable)?.isClickable = true
+        findViewById<View>(R.id.btnViewHistory)?.isClickable = true
         
         // Re-enable scrolling in recycler views
         inProgressRecyclerView.suppressLayout(false)
@@ -285,6 +314,9 @@ class DriverJobOrderActivity : BaseActivity() {
                         // Check if there's an active job (In-Progress or Accepted)
                         val hasActiveJob = inProgressPayments.isNotEmpty()
                         
+                        // Update End Collection button state based on completed payments
+                        updateEndCollectionButtonState(completedPayments.isNotEmpty())
+                        
                         // Handle in-progress payments - show all of them
                         if (inProgressPayments.isNotEmpty()) {
                             // Show all in-progress/accepted payments
@@ -360,6 +392,9 @@ class DriverJobOrderActivity : BaseActivity() {
                         tvCompletedHeader.visibility = View.VISIBLE
                         btnViewMoreAvailable.visibility = View.GONE
                         btnViewHistory.visibility = View.GONE
+                        
+                        // Disable End Collection button
+                        updateEndCollectionButtonState(false)
                     }
                 } else {
                     // Handle error response
@@ -369,6 +404,9 @@ class DriverJobOrderActivity : BaseActivity() {
                     tvNoInProgressOrders.visibility = View.VISIBLE
                     tvNoAvailableOrders.visibility = View.VISIBLE
                     tvNoCompletedOrders.visibility = View.VISIBLE
+                    
+                    // Disable End Collection button
+                    updateEndCollectionButtonState(false)
                 }
             } catch (e: IOException) {
                 // Handle network error
@@ -377,6 +415,9 @@ class DriverJobOrderActivity : BaseActivity() {
                 tvNoInProgressOrders.visibility = View.VISIBLE
                 tvNoAvailableOrders.visibility = View.VISIBLE
                 tvNoCompletedOrders.visibility = View.VISIBLE
+                
+                // Disable End Collection button
+                updateEndCollectionButtonState(false)
             } catch (e: HttpException) {
                 // Handle HTTP exception
                 Log.e(TAG, "HTTP error: ${e.message}")
@@ -384,6 +425,9 @@ class DriverJobOrderActivity : BaseActivity() {
                 tvNoInProgressOrders.visibility = View.VISIBLE
                 tvNoAvailableOrders.visibility = View.VISIBLE
                 tvNoCompletedOrders.visibility = View.VISIBLE
+                
+                // Disable End Collection button
+                updateEndCollectionButtonState(false)
             } catch (e: Exception) {
                 // Handle other exceptions
                 Log.e(TAG, "Error: ${e.message}")
@@ -391,6 +435,9 @@ class DriverJobOrderActivity : BaseActivity() {
                 tvNoInProgressOrders.visibility = View.VISIBLE
                 tvNoAvailableOrders.visibility = View.VISIBLE
                 tvNoCompletedOrders.visibility = View.VISIBLE
+                
+                // Disable End Collection button
+                updateEndCollectionButtonState(false)
             }
         }
     }

@@ -69,5 +69,8 @@ data class Payment(
     val jobOrderStatus: String = "Available",
     
     @SerializedName("wasteType")
-    val wasteType: String = "Recyclable"
+    val wasteType: String = "Recyclable",
+    
+    @SerializedName("isDelivered")
+    val isDelivered: Boolean = false
 ) : Serializable 

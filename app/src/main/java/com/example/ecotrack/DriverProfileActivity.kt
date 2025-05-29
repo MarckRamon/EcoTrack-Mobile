@@ -8,7 +8,6 @@ import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.button.MaterialButton
 import com.example.ecotrack.utils.ApiService
-import com.example.ecotrack.utils.RealTimeUpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,9 +19,7 @@ class DriverProfileActivity : BaseActivity() {
     private val TAG = "DriverProfileActivity"
     private lateinit var userNameText: TextView
     private lateinit var userEmailText: TextView
-    
-    // Real-time update manager
-    private lateinit var realTimeUpdateManager: RealTimeUpdateManager
+    private lateinit var userBarangayText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,13 +33,6 @@ class DriverProfileActivity : BaseActivity() {
         
         initViews()
         setupClickListeners()
-        
-        // Initialize real-time update manager
-        realTimeUpdateManager = RealTimeUpdateManager(
-            activity = this,
-            updateCallback = { loadUserData() }
-        )
-        
         loadUserData()
     }
     
@@ -59,6 +49,7 @@ class DriverProfileActivity : BaseActivity() {
     private fun initViews() {
         userNameText = findViewById(R.id.userName)
         userEmailText = findViewById(R.id.userEmail)
+        userBarangayText = findViewById(R.id.userBarangay)
     }
 
     private fun setupClickListeners() {
@@ -67,13 +58,56 @@ class DriverProfileActivity : BaseActivity() {
             onBackPressed()
         }
 
+        // Refresh button
+        findViewById<ImageButton>(R.id.refreshButton).setOnClickListener {
+            Toast.makeText(this, "Refreshing profile data...", Toast.LENGTH_SHORT).show()
+            loadUserData()
+        }
+
+        // Add debug feature - long press on profile info to show raw data
+        findViewById<LinearLayout>(R.id.profileInfo).setOnLongClickListener {
+            val userId = sessionManager.getUserId()
+            val token = sessionManager.getToken()
+
+            if (userId != null && token != null) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val response = apiService.getProfile(userId, "Bearer $token")
+                        withContext(Dispatchers.Main) {
+                            if (response.isSuccessful && response.body() != null) {
+                                val profile = response.body()!!
+                                val rawData = "User ID: $userId\n" +
+                                        "First Name: ${profile.firstName}\n" +
+                                        "Last Name: ${profile.lastName}\n" +
+                                        "Email: ${profile.email}\n" +
+                                        "Barangay ID: ${profile.barangayId}\n" +
+                                        "Barangay Name: ${profile.barangayName}\n" +
+                                        "Phone: ${profile.phoneNumber}\n" +
+                                        "Username: ${profile.username}"
+
+                                android.app.AlertDialog.Builder(this@DriverProfileActivity)
+                                    .setTitle("Raw Profile Data")
+                                    .setMessage(rawData)
+                                    .setPositiveButton("OK", null)
+                                    .show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error fetching raw profile data", e)
+                    }
+                }
+            }
+            true
+        }
+
         findViewById<LinearLayout>(R.id.editInfoButton).setOnClickListener {
             val intent = Intent(this, DriverEditProfileActivity::class.java)
             startActivity(intent)
         }
 
-        findViewById<LinearLayout>(R.id.forgotPasswordButton).setOnClickListener {
-            // TODO: Handle forgot password
+        findViewById<LinearLayout>(R.id.changePasswordButton).setOnClickListener {
+            val intent = Intent(this, ChangePasswordSecurityActivity::class.java)
+            startActivity(intent)
         }
 
         findViewById<LinearLayout>(R.id.configureNotificationsButton).setOnClickListener {
@@ -100,15 +134,15 @@ class DriverProfileActivity : BaseActivity() {
     private fun loadUserData() {
         val token = sessionManager.getToken()
         val userId = sessionManager.getUserId()
-        
+
         if (token == null || userId == null) {
             Log.e(TAG, "loadUserData - Missing credentials - token: $token, userId: $userId")
             // BaseActivity will handle the navigation to login
             return
         }
-        
+
         Log.d(TAG, "Loading profile data for user ID: $userId")
-        
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = apiService.getProfile(userId, "Bearer $token")
@@ -117,28 +151,53 @@ class DriverProfileActivity : BaseActivity() {
                         val profile = response.body()
                         profile?.let {
                             Log.d(TAG, "Profile loaded successfully: ${it.firstName} ${it.lastName}, email: ${it.email}")
+                            Log.d(TAG, "Barangay info: ID=${it.barangayId}, Name=${it.barangayName}")
                             userNameText.text = "${it.firstName} ${it.lastName}"
                             userEmailText.text = it.email
+
+                            // Set barangay text or hide it if not available
+                            if (it.barangayName != null) {
+                                userBarangayText.text = "Barangay: ${it.barangayName}"
+                                userBarangayText.visibility = android.view.View.VISIBLE
+                            } else {
+                                userBarangayText.visibility = android.view.View.GONE
+                            }
                         }
                     } else {
                         val errorCode = response.code()
                         val errorMessage = response.message()
                         Log.e(TAG, "Failed to load profile: $errorCode - $errorMessage")
-                        
-                        Toast.makeText(
-                            this@DriverProfileActivity,
-                            "Failed to load profile data",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        
-                        val shouldLogout = if (errorCode == 401) {
-                            // Session expired
-                            sessionManager.logout()
-                            startActivity(Intent(this@DriverProfileActivity, LoginActivity::class.java))
-                            finish()
-                            true
-                        } else {
-                            false
+
+                        try {
+                            val errorBody = response.errorBody()?.string()
+                            Log.e(TAG, "Error body: $errorBody")
+
+                            // Handle 403 error specially - this usually means the token is invalid
+                            // after changing email, the token might no longer be valid
+                            if (errorCode == 403) {
+                                Log.e(TAG, "403 Forbidden error - token likely invalid after email change")
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        this@DriverProfileActivity,
+                                        "Your session has expired after profile update. Please login again.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+
+                                    // Force logout and redirect to login
+                                    sessionManager.logout()
+                                    navigateToLogin()
+                                }
+                                return@withContext
+                            }
+
+                            Toast.makeText(
+                                this@DriverProfileActivity,
+                                "Failed to load profile data: $errorMessage",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing error response", e)
+                            Toast.makeText(this@DriverProfileActivity, "Failed to load profile data", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -150,18 +209,12 @@ class DriverProfileActivity : BaseActivity() {
             }
         }
     }
-
-    // Override onResume to start real-time updates
+    
+    // Override onResume to refresh data when returning to this activity
     override fun onResume() {
         super.onResume()
-        // Start real-time updates
-        realTimeUpdateManager.startRealTimeUpdates()
-    }
-    
-    // Override onPause to stop real-time updates
-    override fun onPause() {
-        super.onPause()
-        // Stop real-time updates
-        realTimeUpdateManager.stopRealTimeUpdates()
+        // Always refresh profile data when returning to this activity
+        Log.d(TAG, "onResume - refreshing profile data")
+        loadUserData()
     }
 } 

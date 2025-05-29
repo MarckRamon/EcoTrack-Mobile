@@ -211,6 +211,17 @@ class ChangePasswordSecurityActivity : BaseActivity() {
             Log.d(TAG, "All answers are correct, navigating to password change screen")
             val intent = Intent(this, ChangePasswordActivity::class.java)
             intent.putExtra("email", sessionManager.getUserEmail())
+            
+            // Pass the security question IDs and answers
+            intent.putExtra("questionId1", securityQuestions[0].questionId)
+            intent.putExtra("questionId2", securityQuestions[1].questionId)
+            intent.putExtra("questionId3", securityQuestions[2].questionId)
+            
+            // Pass the actual correct answers, not user input (since we've verified they match)
+            intent.putExtra("answer1", securityQuestions[0].answer)
+            intent.putExtra("answer2", securityQuestions[1].answer)
+            intent.putExtra("answer3", securityQuestions[2].answer)
+            
             startActivity(intent)
             finish()
         } else {
