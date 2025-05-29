@@ -189,7 +189,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Number of Sacks"
+                android:text="Truck Plate Number"
                 android:textColor="@android:color/black"
                 android:textSize="12sp"
                 app:layout_constraintStart_toStartOf="parent"
@@ -210,7 +210,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Truck Size"
+                android:text="Truck Make &amp; Model"
                 android:textColor="@android:color/black"
                 android:textSize="12sp"
                 app:layout_constraintStart_toStartOf="parent"
@@ -227,36 +227,15 @@
                 app:layout_constraintTop_toTopOf="@+id/tv_truck_label" />
 
             <TextView
-                android:id="@+id/tv_sacks_price_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="Sacks Price"
-                android:textColor="@android:color/black"
-                android:textSize="12sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_truck_label" />
-
-            <TextView
-                android:id="@+id/tv_sacks_price"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="₱1000"
-                android:textColor="@android:color/black"
-                android:textSize="12sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/tv_sacks_price_label" />
-
-            <TextView
                 android:id="@+id/tv_truck_price_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="24dp"
                 android:text="Truck Price"
                 android:textColor="@android:color/black"
                 android:textSize="12sp"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_sacks_price_label" />
+                app:layout_constraintTop_toBottomOf="@+id/tv_truck_label" />
 
             <TextView
                 android:id="@+id/tv_truck_price"
@@ -268,27 +247,6 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="@+id/tv_truck_price_label" />
 
-            <TextView
-                android:id="@+id/tv_tax_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="Tax"
-                android:textColor="@android:color/black"
-                android:textSize="12sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_truck_price_label" />
-
-            <TextView
-                android:id="@+id/tv_tax"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="₱50"
-                android:textColor="@android:color/black"
-                android:textSize="12sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/tv_tax_label" />
-
             <View
                 android:id="@+id/divider2"
                 android:layout_width="match_parent"
@@ -297,7 +255,7 @@
                 android:background="#E0E0E0"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_tax_label" />
+                app:layout_constraintTop_toBottomOf="@+id/tv_truck_price_label" />
 
             <TextView
                 android:id="@+id/tv_total_label"

@@ -176,6 +176,9 @@ class PaymentCallbackActivity : AppCompatActivity() {
             return
         }
 
+        // Log truck information from the order
+        Log.d(TAG, "Sending payment to backend for order ${order.id} with truck: ID=${order.selectedTruck?.truckId}, make=${order.selectedTruck?.make}, model=${order.selectedTruck?.model}")
+
         // Get payment reference from Xendit callback or generate one
         val paymentReference = if (data != null) {
             // Try to get the Xendit invoice ID or payment ID
@@ -209,16 +212,23 @@ class PaymentCallbackActivity : AppCompatActivity() {
             notes = "Payment from mobile app",
             wasteType = order.wasteType.name, // Include the waste type here
             barangayId = order.barangayId, // Include the barangayId here
-            numberOfSacks = order.numberOfSacks // Add numberOfSacks field for online payments
+            selectedTruckId = order.selectedTruck?.truckId, // Use the truck ID instead of number of sacks
+            truckId = order.selectedTruck?.truckId, // Add truckId field with the same value as selectedTruckId
+            truckMake = order.selectedTruck?.make, // Add truck make
+            truckModel = order.selectedTruck?.model, // Add truck model
+            plateNumber = order.selectedTruck?.plateNumber // Add plate number
         )
 
         // Log the payment method being sent to the backend
         Log.d(TAG, "Sending payment to backend with method: ${order.paymentMethod.getDisplayName()}")
         Log.d(TAG, "Full payment request: $paymentRequest")
-        Log.d(TAG, "Number of sacks being sent: ${paymentRequest.numberOfSacks}")
+        Log.d(TAG, "Selected truck ID being sent: ${paymentRequest.selectedTruckId}, truckId: ${paymentRequest.truckId}, make: ${paymentRequest.truckMake}, model: ${paymentRequest.truckModel}, plateNumber: ${paymentRequest.plateNumber}")
 
         // Send payment data to backend
         lifecycleScope.launch {
+            // Create a variable for the order we'll use (either original or updated)
+            var orderToUse = order
+            
             try {
                 val response = apiService.processPayment(paymentRequest, "Bearer $token")
 
@@ -228,9 +238,109 @@ class PaymentCallbackActivity : AppCompatActivity() {
                     // Remove order from temp storage
                     TempOrderHolder.removeOrder(order.id)
 
+                    // Check if the response contains updated truck information
+                    val paymentResponse = response.body()
+                    
+                    if (paymentResponse != null) {
+                        Log.d(TAG, "Got payment response from backend: ${paymentResponse}")
+                        
+                        // Check if we have a truckId but missing truck details
+                        if (paymentResponse.truckId != null && 
+                            (paymentResponse.truckMake.isNullOrBlank() || 
+                             paymentResponse.truckModel.isNullOrBlank() || 
+                             paymentResponse.plateNumber.isNullOrBlank())) {
+                            
+                            // Try to fetch complete truck details
+                            try {
+                                Log.d(TAG, "Fetching detailed truck information for truckId: ${paymentResponse.truckId}")
+                                val trucksResponse = apiService.getTrucks("Bearer $token")
+                                
+                                if (trucksResponse.isSuccessful && trucksResponse.body() != null) {
+                                    val trucks = trucksResponse.body()!!
+                                    Log.d(TAG, "Fetched ${trucks.size} trucks from API")
+                                    
+                                    // Find the truck with matching ID (try case-insensitive matching if exact match fails)
+                                    var matchingTruck = trucks.find { it.truckId == paymentResponse.truckId }
+                                    
+                                    // If no exact match, try case-insensitive comparison
+                                    if (matchingTruck == null) {
+                                        Log.d(TAG, "No exact match found for truck ID: ${paymentResponse.truckId}, trying case-insensitive match")
+                                        matchingTruck = trucks.find { it.truckId.equals(paymentResponse.truckId, ignoreCase = true) }
+                                        if (matchingTruck != null) {
+                                            Log.d(TAG, "Found truck with case-insensitive match: ${matchingTruck.truckId} for requested ID: ${paymentResponse.truckId}")
+                                        } else {
+                                            Log.d(TAG, "No matching truck found among ${trucks.size} trucks. Available IDs: ${trucks.map { it.truckId }.take(5).joinToString()}")
+                                        }
+                                    }
+                                    
+                                    if (matchingTruck != null) {
+                                        Log.d(TAG, "Found matching truck: ${matchingTruck.make} ${matchingTruck.model}, plate: ${matchingTruck.plateNumber}")
+                                        
+                                        // Create an updated truck with complete info
+                                        val updatedTruck = com.example.ecotrack.models.Truck(
+                                            truckId = matchingTruck.truckId,
+                                            size = matchingTruck.size,
+                                            wasteType = paymentResponse.wasteType ?: matchingTruck.wasteType,
+                                            status = matchingTruck.status,
+                                            make = matchingTruck.make,
+                                            model = matchingTruck.model,
+                                            plateNumber = matchingTruck.plateNumber,
+                                            truckPrice = matchingTruck.truckPrice,
+                                            createdAt = matchingTruck.createdAt
+                                        )
+                                        
+                                        // Update our order with the complete truck information
+                                        orderToUse = order.copy(selectedTruck = updatedTruck)
+                                        Log.d(TAG, "Updated order with complete truck information from trucks API: ${updatedTruck}")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error fetching complete truck details", e)
+                                // Continue with original paymentResponse data
+                            }
+                        }
+                        
+                        // Check for truck info in payment response (if we didn't already update via trucks API)
+                        if (orderToUse == order && 
+                            (paymentResponse.truckId != null || 
+                            !paymentResponse.truckMake.isNullOrBlank() ||
+                            !paymentResponse.truckModel.isNullOrBlank() ||
+                            !paymentResponse.plateNumber.isNullOrBlank())) {
+                            
+                            // Get the current truck
+                            val currentTruck = order.selectedTruck
+                            
+                            // Create updated truck
+                            val updatedTruck = if (currentTruck != null) {
+                                currentTruck.copy(
+                                    truckId = paymentResponse.truckId ?: currentTruck.truckId,
+                                    make = paymentResponse.truckMake ?: currentTruck.make,
+                                    model = paymentResponse.truckModel ?: currentTruck.model,
+                                    plateNumber = paymentResponse.plateNumber ?: currentTruck.plateNumber
+                                )
+                            } else {
+                                com.example.ecotrack.models.Truck(
+                                    truckId = paymentResponse.truckId ?: "truck_${paymentResponse.orderId}",
+                                    size = paymentResponse.truckSize ?: "MEDIUM",
+                                    wasteType = paymentResponse.wasteType ?: "MIXED",
+                                    status = "ACTIVE",
+                                    make = paymentResponse.truckMake ?: "EcoTrack",
+                                    model = paymentResponse.truckModel ?: "Standard",
+                                    plateNumber = paymentResponse.plateNumber ?: "ECO-${paymentResponse.orderId.takeLast(4)}",
+                                    truckPrice = paymentResponse.amount ?: 0.0,
+                                    createdAt = paymentResponse.createdAt.toString()
+                                )
+                            }
+                            
+                            // Update our order with the new truck information
+                            orderToUse = order.copy(selectedTruck = updatedTruck)
+                            Log.d(TAG, "Updated order with truck information from API response: ${updatedTruck}")
+                        }
+                    }
+
                     // Navigate to success screen
                     val intent = Intent(this@PaymentCallbackActivity, OrderSuccessActivity::class.java)
-                    intent.putExtra("ORDER_DATA", order)
+                    intent.putExtra("ORDER_DATA", orderToUse)
                     intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                     startActivity(intent)
                     finish() // Important: Finish PaymentCallbackActivity so user can't go back to it
@@ -245,7 +355,7 @@ class PaymentCallbackActivity : AppCompatActivity() {
 
                     // Navigate to success screen anyway since payment was successful with Xendit
                     val intent = Intent(this@PaymentCallbackActivity, OrderSuccessActivity::class.java)
-                    intent.putExtra("ORDER_DATA", order)
+                    intent.putExtra("ORDER_DATA", orderToUse)
                     intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                     startActivity(intent)
                     finish()
@@ -269,7 +379,7 @@ class PaymentCallbackActivity : AppCompatActivity() {
 
                 // Navigate to success screen anyway since payment was successful with Xendit
                 val intent = Intent(this@PaymentCallbackActivity, OrderSuccessActivity::class.java)
-                intent.putExtra("ORDER_DATA", order)
+                intent.putExtra("ORDER_DATA", orderToUse)
                 intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
                 finish()
@@ -296,111 +406,8 @@ class PaymentCallbackActivity : AppCompatActivity() {
             Log.d(TAG, "  $param = $value")
         }
 
-        // Check multiple possible parameter names that Xendit might use
-        val paymentSource = data.getQueryParameter("payment_source") ?:
-                           data.getQueryParameter("source") ?:
-                           data.getQueryParameter("payment_channel") ?:
-                           data.getQueryParameter("payment_method") ?:
-                           data.getQueryParameter("payment_method_id") ?:
-                           data.getQueryParameter("channel_code") ?:
-                           data.getQueryParameter("payment_type") ?:
-                           data.getQueryParameter("channel") ?:
-                           data.getQueryParameter("method")
-
-        // Also check for payment_method_type which might be more specific
-        val paymentMethodType = data.getQueryParameter("payment_method_type") ?:
-                               data.getQueryParameter("method_type") ?:
-                               data.getQueryParameter("type")
-
-        // Check for payment_status which might contain additional info
-        val paymentStatus = data.getQueryParameter("payment_status") ?:
-                           data.getQueryParameter("status")
-
-        // Check for Xendit's invoice_id which might be useful for reference
-        val invoiceId = data.getQueryParameter("invoice_id") ?:
-                       data.getQueryParameter("id")
-
-        // Check for additional parameters that might contain payment method info
-        val paymentName = data.getQueryParameter("payment_name") ?:
-                         data.getQueryParameter("method_name") ?:
-                         data.getQueryParameter("name")
-
-        val paymentDescription = data.getQueryParameter("payment_description") ?:
-                                data.getQueryParameter("description")
-
-        Log.d(TAG, "Payment details - source: $paymentSource, type: $paymentMethodType, status: $paymentStatus, invoice: $invoiceId")
-        Log.d(TAG, "Additional payment details - name: $paymentName, description: $paymentDescription")
-
-        // Combine all payment method indicators for better detection
-        val combinedPaymentInfo = listOfNotNull(
-            paymentSource,
-            paymentMethodType,
-            paymentName,
-            paymentDescription
-        ).joinToString(" ").lowercase()
-
-        Log.d(TAG, "Combined payment info: $combinedPaymentInfo")
-
-        return when {
-            combinedPaymentInfo.isEmpty() -> null // No payment source information
-
-            // GCash
-            combinedPaymentInfo.contains("gcash") ->
-                com.example.ecotrack.ui.pickup.model.PaymentMethod.GCASH
-
-            // PayMaya/Maya
-            combinedPaymentInfo.contains("paymaya") ||
-            combinedPaymentInfo.contains("maya") ->
-                com.example.ecotrack.ui.pickup.model.PaymentMethod.PAYMAYA
-
-            // GrabPay
-            combinedPaymentInfo.contains("grab") ->
-                com.example.ecotrack.ui.pickup.model.PaymentMethod.GRABPAY
-
-            // Credit/Debit Card
-            combinedPaymentInfo.contains("cc") ||
-            combinedPaymentInfo.contains("credit") ||
-            combinedPaymentInfo.contains("card") ||
-            combinedPaymentInfo.contains("visa") ||
-            combinedPaymentInfo.contains("mastercard") ||
-            combinedPaymentInfo.contains("amex") ||
-            combinedPaymentInfo.contains("jcb") ->
-                com.example.ecotrack.ui.pickup.model.PaymentMethod.CREDIT_CARD
-
-            // Bank Transfer
-            combinedPaymentInfo.contains("bank") ||
-            combinedPaymentInfo.contains("transfer") ||
-            combinedPaymentInfo.contains("bpi") ||
-            combinedPaymentInfo.contains("bdo") ||
-            combinedPaymentInfo.contains("unionbank") ||
-            combinedPaymentInfo.contains("instapay") ||
-            combinedPaymentInfo.contains("pesonet") ->
-                com.example.ecotrack.ui.pickup.model.PaymentMethod.BANK_TRANSFER
-
-            // Over the Counter
-            combinedPaymentInfo.contains("otc") ||
-            combinedPaymentInfo.contains("counter") ||
-            combinedPaymentInfo.contains("7eleven") ||
-            combinedPaymentInfo.contains("7-eleven") ||
-            combinedPaymentInfo.contains("cebuana") ||
-            combinedPaymentInfo.contains("ecpay") ||
-            combinedPaymentInfo.contains("palawan") ||
-            combinedPaymentInfo.contains("mlhuillier") ||
-            combinedPaymentInfo.contains("shopee") ||  // ShopeePay - map to OTC
-            combinedPaymentInfo.contains("coin") ||    // Coins.ph - map to OTC
-            combinedPaymentInfo.contains("qr") ||      // QR Ph - map to OTC
-            combinedPaymentInfo.contains("online") ->  // Online Banking - map to OTC
-                com.example.ecotrack.ui.pickup.model.PaymentMethod.OTC
-
-            // Cash
-            combinedPaymentInfo.contains("cash") ||
-            combinedPaymentInfo.contains("cod") ->
-                com.example.ecotrack.ui.pickup.model.PaymentMethod.CASH_ON_HAND
-
-            else -> {
-                Log.w(TAG, "Unknown payment source: $combinedPaymentInfo")
-                null // Keep the original payment method if unknown
-            }
-        }
+        // Always return XENDIT_PAYMENT_GATEWAY for payments made through Xendit
+        Log.d(TAG, "Setting payment method to XENDIT_PAYMENT_GATEWAY")
+        return com.example.ecotrack.ui.pickup.model.PaymentMethod.XENDIT_PAYMENT_GATEWAY
     }
 }

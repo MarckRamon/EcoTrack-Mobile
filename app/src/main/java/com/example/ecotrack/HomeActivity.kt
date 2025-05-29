@@ -491,6 +491,46 @@ class HomeActivity : BaseActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val paymentResponse = response.body()!!
                     
+                    // Map the payment method string to the appropriate enum value
+                    val paymentMethod = when (paymentResponse.paymentMethod.uppercase()) {
+                        "GCASH" -> com.example.ecotrack.ui.pickup.model.PaymentMethod.GCASH
+                        "CASH ON HAND" -> com.example.ecotrack.ui.pickup.model.PaymentMethod.CASH_ON_HAND
+                        "CREDIT CARD" -> com.example.ecotrack.ui.pickup.model.PaymentMethod.CREDIT_CARD
+                        "PAYMAYA" -> com.example.ecotrack.ui.pickup.model.PaymentMethod.PAYMAYA
+                        "GRABPAY" -> com.example.ecotrack.ui.pickup.model.PaymentMethod.GRABPAY
+                        "BANK TRANSFER" -> com.example.ecotrack.ui.pickup.model.PaymentMethod.BANK_TRANSFER
+                        "OVER THE COUNTER" -> com.example.ecotrack.ui.pickup.model.PaymentMethod.OTC
+                        "XENDIT PAYMENT GATEWAY" -> com.example.ecotrack.ui.pickup.model.PaymentMethod.XENDIT_PAYMENT_GATEWAY
+                        else -> com.example.ecotrack.ui.pickup.model.PaymentMethod.CASH_ON_HAND // Default fallback
+                    }
+                    
+                    Log.d(TAG, "Payment method from API: ${paymentResponse.paymentMethod}, mapped to enum: ${paymentMethod.name}")
+
+                    // Map the waste type string to the appropriate enum value
+                    val wasteType = try {
+                        com.example.ecotrack.ui.pickup.model.WasteType.valueOf(paymentResponse.wasteType?.uppercase() ?: "MIXED")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing waste type: ${paymentResponse.wasteType}", e)
+                        com.example.ecotrack.ui.pickup.model.WasteType.MIXED
+                    }
+                    
+                    // Create truck information if available
+                    val truck = if (!paymentResponse.truckId.isNullOrBlank() || !paymentResponse.truckSize.isNullOrBlank()) {
+                        com.example.ecotrack.models.Truck(
+                            truckId = paymentResponse.truckId ?: "truck_${paymentResponse.orderId}", // Use actual truckId if available
+                            size = paymentResponse.truckSize ?: "MEDIUM",
+                            wasteType = paymentResponse.wasteType ?: "MIXED",
+                            status = "ACTIVE",
+                            make = paymentResponse.truckMake ?: paymentResponse.truckSize ?: "EcoTrack",
+                            model = paymentResponse.truckModel ?: "Standard",
+                            plateNumber = paymentResponse.plateNumber ?: "ECO-${paymentResponse.orderId.takeLast(4)}",
+                            truckPrice = paymentResponse.amount ?: 0.0,
+                            createdAt = paymentResponse.createdAt.toString()
+                        )
+                    } else {
+                        null
+                    }
+                    
                     // Create a PickupOrder object from the PaymentResponse
                     val pickupOrder = PickupOrder(
                         id = paymentResponse.orderId,
@@ -503,9 +543,10 @@ class HomeActivity : BaseActivity() {
                         amount = paymentResponse.amount ?: 0.0,
                         tax = 0.0, // Not available in response, defaulting to 0
                         total = paymentResponse.totalAmount ?: 0.0,
-                        paymentMethod = com.example.ecotrack.ui.pickup.model.PaymentMethod.CASH_ON_HAND, // Default
-                        wasteType = com.example.ecotrack.ui.pickup.model.WasteType.MIXED, // Default
-                        barangayId = paymentResponse.barangayId ?: ""
+                        paymentMethod = paymentMethod,
+                        wasteType = wasteType,
+                        barangayId = paymentResponse.barangayId ?: "",
+                        selectedTruck = truck
                     )
                     
                     withContext(Dispatchers.Main) {

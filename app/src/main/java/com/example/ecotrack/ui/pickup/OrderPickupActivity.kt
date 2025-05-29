@@ -7,6 +7,7 @@ import android.preference.PreferenceManager
 import android.util.Log
 import android.view.View
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
@@ -23,7 +24,8 @@ import com.example.ecotrack.models.payment.PaymentRequest
 import com.example.ecotrack.ui.pickup.model.PaymentMethod
 import com.example.ecotrack.ui.pickup.model.PickupOrder
 import com.example.ecotrack.ui.pickup.model.WasteType
-import com.example.ecotrack.ui.pickup.model.TruckSize
+import com.example.ecotrack.models.Truck
+import com.example.ecotrack.ui.pickup.dialogs.TruckSelectionDialog
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -41,16 +43,18 @@ class OrderPickupActivity : AppCompatActivity() {
     private lateinit var etFullName: EditText
     private lateinit var etEmail: EditText
     private lateinit var spinnerWasteType: Spinner
-    private lateinit var etNumberOfSacks: EditText
     private lateinit var btnProceedToPayment: Button
     private lateinit var btnEditLocation: View
     private lateinit var tvLocationAddress: TextView
     private lateinit var mapView: MapView
+    private lateinit var btnSelectTruck: Button
+    private lateinit var tvSelectedTruck: TextView
+    
     private var selectedLocation: GeoPoint? = null
     private var selectedAddress: String = ""
     private var selectedWasteType: WasteType = WasteType.MIXED
-    private var numberOfSacks: Int = 0
-    private var truckSize: TruckSize = TruckSize.SMALL
+    private var selectedTruck: Truck? = null
+    private var availableTrucks: List<Truck> = emptyList()
 
     // Session manager for user data
     private lateinit var sessionManager: SessionManager
@@ -85,13 +89,33 @@ class OrderPickupActivity : AppCompatActivity() {
     }
 
     // Pricing variables
-    private var sacksCost: Double = 0.0
-    private var truckCost: Double = 0.0
-    private val taxAmount = 50.0
     private var totalAmount: Double = 0.0
 
     // Tag for logging
     private val TAG = "OrderPickupActivity"
+
+    // Replace startActivityForResult with ActivityResultLauncher
+    private val locationPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data = result.data
+            if (data != null) {
+                // Get selected location from the map picker
+                val latitude = data.getDoubleExtra("LATITUDE", 0.0)
+                val longitude = data.getDoubleExtra("LONGITUDE", 0.0)
+                selectedLocation = GeoPoint(latitude, longitude)
+                selectedAddress = data.getStringExtra("ADDRESS") ?: ""
+
+                // Update the map
+                mapView.controller.setCenter(selectedLocation)
+                addMarkerToMap(selectedLocation!!)
+
+                // Update the location text
+                tvLocationAddress.setText(selectedAddress)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,10 +138,11 @@ class OrderPickupActivity : AppCompatActivity() {
         etFullName = findViewById(R.id.et_full_name)
         etEmail = findViewById(R.id.et_email)
         spinnerWasteType = findViewById(R.id.spinner_waste_type)
-        etNumberOfSacks = findViewById(R.id.et_number_of_sacks)
         btnProceedToPayment = findViewById(R.id.btn_proceed_to_payment)
         btnEditLocation = findViewById(R.id.btn_edit_location)
         tvLocationAddress = findViewById(R.id.tv_location_address)
+        btnSelectTruck = findViewById(R.id.btn_select_truck)
+        tvSelectedTruck = findViewById(R.id.tv_selected_truck)
 
         // Setup waste type spinner
         val wasteTypes = WasteType.values()
@@ -131,7 +156,6 @@ class OrderPickupActivity : AppCompatActivity() {
         spinnerWasteType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 selectedWasteType = wasteTypes[position]
-                calculateTotalAmount()
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {
@@ -139,22 +163,15 @@ class OrderPickupActivity : AppCompatActivity() {
             }
         }
 
-        // Setup number of sacks field with text change listener
-        etNumberOfSacks.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            
-            override fun afterTextChanged(s: android.text.Editable?) {
-                val input = s.toString()
-                numberOfSacks = if (input.isNotEmpty()) {
-                    input.toInt()
-                } else {
-                    0
-                }
-                calculateTotalAmount()
+        // Setup truck selection button
+        btnSelectTruck.setOnClickListener {
+            if (availableTrucks.isEmpty()) {
+                Toast.makeText(this, "Loading trucks, please wait...", Toast.LENGTH_SHORT).show()
+                loadTrucks()
+            } else {
+                showTruckSelectionDialog()
             }
-        })
+        }
 
         // Initialize map
         mapView = findViewById(R.id.map_view)
@@ -164,6 +181,9 @@ class OrderPickupActivity : AppCompatActivity() {
         // Initialize session manager
         sessionManager = SessionManager.getInstance(this)
 
+        // Load trucks from API
+        loadTrucks()
+        
         // Load user profile to get barangay information
         loadUserProfile()
 
@@ -198,19 +218,12 @@ class OrderPickupActivity : AppCompatActivity() {
 
         // Initialize radio buttons for payment methods
         val radioCashOnHand = findViewById<RadioButton>(R.id.radio_cash_on_hand)
-        val radioOnlinePayment = findViewById<RadioButton>(R.id.radio_online_payment)
         
         // Handle proceed to payment button click
         btnProceedToPayment.setOnClickListener {
             if (validateForm()) {
                 btnProceedToPayment.isEnabled = false
                 btnProceedToPayment.text = "Processing..."
-
-                val fullName = etFullName.text.toString()
-                val email = etEmail.text.toString()
-
-                // Ensure PickupOrder has a unique ID, matching Xendit's external_id
-                val uniqueOrderId = "order_${System.currentTimeMillis()}_${UUID.randomUUID()}"
 
                 // Determine payment method based on radio button selection
                 val selectedPaymentMethod = if (radioCashOnHand.isChecked) {
@@ -219,10 +232,12 @@ class OrderPickupActivity : AppCompatActivity() {
                     PaymentMethod.GCASH // Default online payment method
                 }
 
+                calculateTotalAmount()
                 val order = createPickupOrder(selectedPaymentMethod)
 
-                // Log the selected payment method
+                // Log the selected payment method and truck information
                 Log.d(TAG, "Selected payment method: ${selectedPaymentMethod.name}, display name: ${selectedPaymentMethod.getDisplayName()}")
+                Log.d(TAG, "Selected truck: ${selectedTruck?.truckId}, make: ${selectedTruck?.make}, model: ${selectedTruck?.model}")
 
                 // Save the order temporarily
                 TempOrderHolder.saveOrder(order)
@@ -245,27 +260,89 @@ class OrderPickupActivity : AppCompatActivity() {
                 intent.putExtra("CURRENT_LAT", selectedLocation!!.latitude)
                 intent.putExtra("CURRENT_LNG", selectedLocation!!.longitude)
             }
-            startActivityForResult(intent, LOCATION_PICKER_REQUEST)
+            locationPickerLauncher.launch(intent)
+        }
+    }
+
+    private fun loadTrucks() {
+        lifecycleScope.launch {
+            try {
+                // Get auth token
+                val token = sessionManager.getToken()
+                if (token == null) {
+                    Log.e(TAG, "Authentication token not available")
+                    Toast.makeText(
+                        this@OrderPickupActivity,
+                        "Authentication error, please log in again",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@launch
+                }
+                
+                // Add bearer token to the request
+                val response = apiService.getTrucks("Bearer $token")
+                
+                if (response.isSuccessful && response.body() != null) {
+                    availableTrucks = response.body()!!
+                    Log.d(TAG, "Loaded ${availableTrucks.size} trucks")
+                    
+                    if (availableTrucks.isNotEmpty()) {
+                        // Show the first available truck by default
+                        val availableTruck = availableTrucks.firstOrNull { it.status.equals("AVAILABLE", ignoreCase = true) }
+                        if (availableTruck != null) {
+                            selectedTruck = availableTruck
+                            updateSelectedTruckDisplay()
+                        }
+                    }
+                } else {
+                    Log.e(TAG, "Failed to load trucks: ${response.code()} - ${response.message()}")
+                    Toast.makeText(
+                        this@OrderPickupActivity,
+                        "Failed to load trucks. Please try again.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading trucks", e)
+                Toast.makeText(
+                    this@OrderPickupActivity,
+                    "Error loading trucks: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private fun showTruckSelectionDialog() {
+        val availableTrucksFiltered = availableTrucks.filter { it.status.equals("AVAILABLE", ignoreCase = true) }
+        
+        if (availableTrucksFiltered.isEmpty()) {
+            Toast.makeText(this, "No available trucks found", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val dialog = TruckSelectionDialog(this, availableTrucksFiltered) { truck ->
+            selectedTruck = truck
+            updateSelectedTruckDisplay()
+            calculateTotalAmount()
+        }
+        
+        dialog.show()
+    }
+    
+    private fun updateSelectedTruckDisplay() {
+        selectedTruck?.let {
+            tvSelectedTruck.text = "${it.make} ${it.model} (₱${it.truckPrice})"
+            tvSelectedTruck.setTextColor(ContextCompat.getColor(this, android.R.color.black))
+        } ?: run {
+            tvSelectedTruck.text = "No truck selected"
+            tvSelectedTruck.setTextColor(ContextCompat.getColor(this, R.color.gray))
         }
     }
 
     private fun calculateTotalAmount(): Double {
-        // Calculate the sack cost based on the waste type and number of sacks
-        sacksCost = selectedWasteType.pricePerSack * numberOfSacks
-        
-        // Determine truck size based on number of sacks
-        truckSize = when {
-            numberOfSacks <= 0 -> TruckSize.SMALL
-            numberOfSacks <= 20 -> TruckSize.SMALL
-            numberOfSacks <= 50 -> TruckSize.MEDIUM
-            else -> TruckSize.LARGE
-        }
-        
-        // Get the truck cost based on the truck size
-        truckCost = truckSize.price
-        
-        // Calculate the total amount (sacks cost + truck cost + tax)
-        totalAmount = sacksCost + truckCost + taxAmount
+        // Calculate the total amount (truck cost only, no tax)
+        totalAmount = selectedTruck?.truckPrice ?: 0.0
         
         return totalAmount
     }
@@ -280,6 +357,9 @@ class OrderPickupActivity : AppCompatActivity() {
                     throw Exception("Authentication token not available")
                 }
                 
+                // Log truck information from the order
+                Log.d(TAG, "Processing cash payment with truck: ID=${order.selectedTruck?.truckId}, make=${order.selectedTruck?.make}, model=${order.selectedTruck?.model}")
+                
                 // Create a payment request for the backend
                 val paymentRequest = PaymentRequest(
                     orderId = order.id,
@@ -289,15 +369,22 @@ class OrderPickupActivity : AppCompatActivity() {
                     latitude = order.latitude,
                     longitude = order.longitude,
                     amount = order.amount,
-                    tax = order.tax,
+                    tax = 0.0,
                     totalAmount = order.total,
                     paymentMethod = order.paymentMethod.getDisplayName(),
                     paymentReference = "cash_${order.id}",
                     notes = "Cash on Hand payment",
                     wasteType = order.wasteType.name,
                     barangayId = order.barangayId,
-                    numberOfSacks = order.numberOfSacks
+                    selectedTruckId = order.selectedTruck?.truckId,
+                    truckId = order.selectedTruck?.truckId, // Add truckId field with the same value as selectedTruckId
+                    truckMake = order.selectedTruck?.make, // Add truck make
+                    truckModel = order.selectedTruck?.model, // Add truck model
+                    plateNumber = order.selectedTruck?.plateNumber // Add plate number
                 )
+                
+                // Log the payment request details
+                Log.d(TAG, "Payment request details: selectedTruckId=${paymentRequest.selectedTruckId}, truckId=${paymentRequest.truckId}, make=${paymentRequest.truckMake}, model=${paymentRequest.truckModel}, plateNumber=${paymentRequest.plateNumber}, paymentMethod=${paymentRequest.paymentMethod}")
                 
                 // Make an API call to the backend to process the cash payment
                 // This uses the same API endpoint that processes orders after Xendit payment
@@ -338,17 +425,28 @@ class OrderPickupActivity : AppCompatActivity() {
     private fun createXenditInvoice(order: PickupOrder) {
         lifecycleScope.launch {
             try {
+                // Log truck information from the original order
+                Log.d(TAG, "Creating Xendit invoice with original truck: ID=${order.selectedTruck?.truckId}, make=${order.selectedTruck?.make}, model=${order.selectedTruck?.model}")
+                
                 // Use a clear query parameter for status, as path segments might be handled differently by gateways/browsers
                 val successRedirectUrl = "ecotrack://payment-callback?redirect_status=success&order_id=${order.id}"
                 val failureRedirectUrl = "ecotrack://payment-callback?redirect_status=failure&order_id=${order.id}" // also handle cancelled here
 
+                // Update the order with XENDIT_PAYMENT_GATEWAY payment method
+                val updatedOrder = order.copy(paymentMethod = PaymentMethod.XENDIT_PAYMENT_GATEWAY)
+                // Update the order in TempOrderHolder
+                TempOrderHolder.updateOrder(updatedOrder)
+                
+                // Log truck information from the updated order
+                Log.d(TAG, "Updated order with Xendit payment method. Truck: ID=${updatedOrder.selectedTruck?.truckId}, make=${updatedOrder.selectedTruck?.make}, model=${updatedOrder.selectedTruck?.model}")
+                
                 val request = CreateInvoiceRequest(
-                    externalId = order.id, // Use the order's unique ID as external_id
-                    amount = order.total,
-                    description = "EcoTrack Trash Pickup Service for order ${order.id}",
+                    externalId = updatedOrder.id, // Use the order's unique ID as external_id
+                    amount = updatedOrder.total,
+                    description = "EcoTrack Trash Pickup Service for order ${updatedOrder.id}",
                     customer = Customer(
-                        givenNames = order.fullName,
-                        email = order.email,
+                        givenNames = updatedOrder.fullName,
+                        email = updatedOrder.email,
                         mobileNumber = "09123456789" // Placeholder, ideally get from user profile
                     ),
                     successRedirectUrl = successRedirectUrl,
@@ -357,7 +455,7 @@ class OrderPickupActivity : AppCompatActivity() {
                         Item(
                             name = "Trash Pickup Service",
                             quantity = 1,
-                            price = order.total
+                            price = updatedOrder.total
                         )
                     )
                 )
@@ -369,6 +467,7 @@ class OrderPickupActivity : AppCompatActivity() {
 
                 if (response.isSuccessful) {
                     response.body()?.let {
+                        Log.d(TAG, "Successfully created Xendit invoice, URL: ${it.invoiceUrl}, invoice ID: ${it.id}")
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it.invoiceUrl))
                         startActivity(intent)
                         // Keep button disabled until user returns or cancels
@@ -505,7 +604,6 @@ class OrderPickupActivity : AppCompatActivity() {
     private fun validateForm(): Boolean {
         val fullName = etFullName.text.toString().trim()
         val email = etEmail.text.toString().trim()
-        val numberOfSacksStr = etNumberOfSacks.text.toString().trim()
 
         if (fullName.isEmpty()) {
             etFullName.error = "Please enter your full name"
@@ -522,19 +620,8 @@ class OrderPickupActivity : AppCompatActivity() {
             return false
         }
         
-        if (numberOfSacksStr.isEmpty()) {
-            etNumberOfSacks.error = "Please enter the number of sacks"
-            return false
-        }
-        
-        try {
-            val sacks = numberOfSacksStr.toInt()
-            if (sacks <= 0) {
-                etNumberOfSacks.error = "Number of sacks must be greater than 0"
-                return false
-            }
-        } catch (e: NumberFormatException) {
-            etNumberOfSacks.error = "Please enter a valid number"
+        if (selectedTruck == null) {
+            Toast.makeText(this, "Please select a truck", Toast.LENGTH_SHORT).show()
             return false
         }
 
@@ -544,34 +631,6 @@ class OrderPickupActivity : AppCompatActivity() {
         }
 
         return true
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == LOCATION_PICKER_REQUEST && resultCode == RESULT_OK && data != null) {
-            // Get selected location from the map picker
-            val latitude = data.getDoubleExtra("LATITUDE", 0.0)
-            val longitude = data.getDoubleExtra("LONGITUDE", 0.0)
-            selectedLocation = GeoPoint(latitude, longitude)
-            selectedAddress = data.getStringExtra("ADDRESS") ?: ""
-
-            // Update the map
-            mapView.controller.setCenter(selectedLocation)
-            addMarkerToMap(selectedLocation!!)
-
-            // Update the location text
-            tvLocationAddress.setText(selectedAddress)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        mapView.onResume()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        mapView.onPause()
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -586,20 +645,23 @@ class OrderPickupActivity : AppCompatActivity() {
             address = selectedAddress,
             latitude = selectedLocation?.latitude ?: 0.0,
             longitude = selectedLocation?.longitude ?: 0.0,
-            amount = sacksCost + truckCost,
-            tax = taxAmount,
+            amount = selectedTruck?.truckPrice ?: 0.0,
+            tax = 0.0,
             total = totalAmount,
             paymentMethod = paymentMethod,
             wasteType = selectedWasteType,
-            numberOfSacks = numberOfSacks,
-            truckSize = truckSize,
-            sacksCost = sacksCost,
-            truckCost = truckCost,
+            selectedTruck = selectedTruck,
             barangayId = userBarangayId
         )
     }
 
-    companion object {
-        private const val LOCATION_PICKER_REQUEST = 1001
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        mapView.onPause()
     }
 }

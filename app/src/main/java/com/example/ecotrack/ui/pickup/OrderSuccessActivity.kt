@@ -36,6 +36,7 @@ class OrderSuccessActivity : AppCompatActivity() {
         btnSeeStatus.setOnClickListener {
             val intent = Intent(this, OrderStatusActivity::class.java)
             intent.putExtra("ORDER_DATA", order)
+            intent.putExtra("FORCE_REFRESH", true)
             startActivity(intent)
         }
 

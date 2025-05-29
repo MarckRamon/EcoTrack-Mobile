@@ -7,7 +7,8 @@ enum class PaymentMethod {
     PAYMAYA,
     GRABPAY,
     BANK_TRANSFER,
-    OTC;
+    OTC,
+    XENDIT_PAYMENT_GATEWAY;
     
     fun getDisplayName(): String {
         return when (this) {
@@ -18,6 +19,7 @@ enum class PaymentMethod {
             GRABPAY -> "GrabPay"
             BANK_TRANSFER -> "Bank Transfer"
             OTC -> "Over the Counter"
+            XENDIT_PAYMENT_GATEWAY -> "XENDIT PAYMENT GATEWAY"
         }
     }
 } 

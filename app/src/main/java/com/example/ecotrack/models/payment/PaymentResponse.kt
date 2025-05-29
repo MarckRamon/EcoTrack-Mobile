@@ -72,7 +72,19 @@ data class PaymentResponse(
     val wasteType: String? = null,
     
     @SerializedName("truckSize")
-    val truckSize: String? = null
+    val truckSize: String? = null,
+    
+    @SerializedName("truckId")
+    val truckId: String? = null,
+    
+    @SerializedName("truckMake")
+    val truckMake: String? = null,
+    
+    @SerializedName("truckModel")
+    val truckModel: String? = null,
+    
+    @SerializedName("plateNumber")
+    val plateNumber: String? = null
 ) {
     override fun toString(): String {
         return "PaymentResponse(id=$id, orderId=$orderId, status=$status, jobOrderStatus=$jobOrderStatus, driverId=$driverId, estimatedArrival=$estimatedArrival, numberOfSacks=$numberOfSacks)"

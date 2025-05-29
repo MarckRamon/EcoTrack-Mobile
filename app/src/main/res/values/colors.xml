@@ -56,4 +56,12 @@
 
     <!-- App primary green color -->
     <color name="green_primary">@color/primaryGreen</color>
+
+    <!-- Material Design 3 colors -->
+    <color name="material_green">#4CAF50</color>
+    <color name="material_blue">#2196F3</color>
+    <color name="material_red">#F44336</color>
+    <color name="material_orange">#FF9800</color>
+    <color name="material_purple">#9C27B0</color>
+    <color name="material_teal">#009688</color>
 </resources>

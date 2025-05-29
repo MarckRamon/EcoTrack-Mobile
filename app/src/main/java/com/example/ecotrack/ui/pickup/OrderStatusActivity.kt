@@ -157,8 +157,8 @@ class OrderStatusActivity : AppCompatActivity() {
 
         // Set values
         tvWasteType.text = order.wasteType.getDisplayName()
-        tvSacks.text = order.numberOfSacks.toString()
-        tvTruckSize.text = order.truckSize.getDisplayName()
+        tvSacks.text = order.selectedTruck?.plateNumber ?: "N/A" // Display plate number instead of sacks
+        tvTruckSize.text = "${order.selectedTruck?.make ?: "N/A"} ${order.selectedTruck?.model ?: ""}" // Display make and model
         tvAmount.text = "₱${order.total.toInt()}"
         tvPaymentMethod.text = order.paymentMethod.getDisplayName()
         tvLocation.text = order.address
@@ -175,8 +175,15 @@ class OrderStatusActivity : AppCompatActivity() {
         }
         updateOrderStatus(initialStatus)
         
-        // Fetch the latest status immediately
-        fetchLatestStatus()
+        // Check if we should force a refresh (coming from OrderSuccessActivity)
+        val forceRefresh = intent.getBooleanExtra("FORCE_REFRESH", false)
+        if (forceRefresh) {
+            Log.d("OrderStatusActivity", "Force refresh requested - fetching latest data immediately")
+            fetchLatestStatus(forceRefresh = true)
+        } else {
+            // Fetch the latest status normally
+            fetchLatestStatus()
+        }
         
         // Set up periodic status checking
         startStatusPolling()
@@ -262,16 +269,17 @@ class OrderStatusActivity : AppCompatActivity() {
         }
     }
     
-    private fun fetchLatestStatus() {
+    private fun fetchLatestStatus(forceRefresh: Boolean = false) {
         // Use the payment reference number to fetch the latest status
         val orderId = order.id // Assuming this is the orderId used in the backend
         val referenceNumber = order.referenceNumber // Try using the reference number as an alternative
         
         // Skip if we recently made a request for this order (avoid redundant calls)
+        // Unless forceRefresh is true, in which case always make the request
         val currentTime = System.currentTimeMillis()
         val lastRequestTime = lastRequestTimes[orderId] ?: 0L
         
-        if (currentTime - lastRequestTime < MINIMUM_REQUEST_INTERVAL) {
+        if (!forceRefresh && currentTime - lastRequestTime < MINIMUM_REQUEST_INTERVAL) {
             Log.d("OrderStatusActivity", "Skipping redundant request for orderId: $orderId (last request was ${currentTime - lastRequestTime}ms ago)")
             return
         }
@@ -279,7 +287,7 @@ class OrderStatusActivity : AppCompatActivity() {
         // Update the last request time
         lastRequestTimes[orderId] = currentTime
         
-        Log.d("OrderStatusActivity", "Fetching status for orderId: $orderId, referenceNumber: $referenceNumber")
+        Log.d("OrderStatusActivity", "Fetching status for orderId: $orderId, referenceNumber: $referenceNumber" + if (forceRefresh) " (forced refresh)" else "")
         
         // Get the JWT token from the SessionManager
         val jwtToken = sessionManager.getToken()
@@ -356,15 +364,21 @@ class OrderStatusActivity : AppCompatActivity() {
             // Only update UI if status has changed
             if (lastKnownStatus != effectiveStatus) {
                 Log.d("OrderStatusActivity", "Status change detected: $lastKnownStatus -> $effectiveStatus")
-                // Update UI with the latest status
-                updateOrderStatus(effectiveStatus, paymentResponse)
                 
-                // Update order details from API response
-                updateOrderDetails(paymentResponse)
-                
-                // Hide cancel button if status is not Processing
-                if (effectiveStatus != "Processing") {
-                    btnCancel.visibility = View.GONE
+                // If there's a truckId in the response, try to fetch complete truck details
+                if (!paymentResponse.truckId.isNullOrBlank() && bearerToken != null) {
+                    fetchTruckDetails(paymentResponse.truckId, bearerToken, paymentResponse)
+                } else {
+                    // Update UI with the latest status if we can't fetch truck details
+                    updateOrderStatus(effectiveStatus, paymentResponse)
+                    
+                    // Update order details from API response
+                    updateOrderDetails(paymentResponse)
+                    
+                    // Hide cancel button if status is not Processing
+                    if (effectiveStatus != "Processing") {
+                        btnCancel.visibility = View.GONE
+                    }
                 }
             } else {
                 Log.d("OrderStatusActivity", "Status unchanged, skipping UI update: $effectiveStatus")
@@ -386,6 +400,84 @@ class OrderStatusActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e("OrderStatusActivity", "Error reading error body", e)
+            }
+        }
+    }
+
+    /**
+     * Fetch complete truck details by ID from the trucks API
+     */
+    private suspend fun fetchTruckDetails(truckId: String, bearerToken: String, paymentResponse: PaymentResponse) {
+        try {
+            Log.d("OrderStatusActivity", "Fetching detailed truck information for truckId: $truckId")
+            val response = apiService.getTrucks(bearerToken)
+            
+            if (response.isSuccessful && response.body() != null) {
+                val trucks = response.body()!!
+                Log.d("OrderStatusActivity", "Fetched ${trucks.size} trucks from API")
+                
+                // Find the truck with matching ID (try case-insensitive matching if exact match fails)
+                var matchingTruck = trucks.find { it.truckId == truckId }
+                
+                // If no exact match, try case-insensitive comparison
+                if (matchingTruck == null) {
+                    matchingTruck = trucks.find { it.truckId.equals(truckId, ignoreCase = true) }
+                    if (matchingTruck != null) {
+                        Log.d("OrderStatusActivity", "Found truck with case-insensitive match: ${matchingTruck.truckId} for requested ID: $truckId")
+                    }
+                }
+                
+                if (matchingTruck != null) {
+                    Log.d("OrderStatusActivity", "Found matching truck: ${matchingTruck.make} ${matchingTruck.model}, plate: ${matchingTruck.plateNumber}")
+                    
+                    // Create an enhanced payment response with the complete truck info
+                    val enhancedResponse = paymentResponse.copy(
+                        truckMake = matchingTruck.make,
+                        truckModel = matchingTruck.model,
+                        plateNumber = matchingTruck.plateNumber
+                    )
+                    
+                    // Now update UI with the enhanced response
+                    withContext(Dispatchers.Main) {
+                        updateOrderStatus(enhancedResponse.jobOrderStatus, enhancedResponse)
+                        updateOrderDetails(enhancedResponse)
+                        
+                        // Hide cancel button if status is not Processing
+                        if (enhancedResponse.jobOrderStatus != "Processing") {
+                            btnCancel.visibility = View.GONE
+                        }
+                    }
+                    
+                    return
+                } else {
+                    Log.w("OrderStatusActivity", "No matching truck found for ID: $truckId")
+                }
+            } else {
+                Log.e("OrderStatusActivity", "Failed to fetch trucks: ${response.code()}")
+            }
+            
+            // Fall back to original update if truck details couldn't be found
+            withContext(Dispatchers.Main) {
+                updateOrderStatus(paymentResponse.jobOrderStatus, paymentResponse)
+                updateOrderDetails(paymentResponse)
+                
+                // Hide cancel button if status is not Processing
+                if (paymentResponse.jobOrderStatus != "Processing") {
+                    btnCancel.visibility = View.GONE
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("OrderStatusActivity", "Error fetching truck details", e)
+            
+            // Fall back to original update
+            withContext(Dispatchers.Main) {
+                updateOrderStatus(paymentResponse.jobOrderStatus, paymentResponse)
+                updateOrderDetails(paymentResponse)
+                
+                // Hide cancel button if status is not Processing
+                if (paymentResponse.jobOrderStatus != "Processing") {
+                    btnCancel.visibility = View.GONE
+                }
             }
         }
     }
@@ -700,13 +792,76 @@ class OrderStatusActivity : AppCompatActivity() {
 
     // Add new method to update order details from API response
     private fun updateOrderDetails(paymentResponse: PaymentResponse) {
-        Log.d("OrderStatusActivity", "Updating order details from API: numberOfSacks=${paymentResponse.numberOfSacks}, wasteType=${paymentResponse.wasteType}")
+        Log.d("OrderStatusActivity", "Updating order details from API: truckId=${paymentResponse.truckId}, wasteType=${paymentResponse.wasteType}")
         
-        // Update number of sacks if it's provided in the API response
-        if (paymentResponse.numberOfSacks > 0) {
+        // Update the internal order object with the latest data from the API
+        if (paymentResponse.truckId != null || 
+            !paymentResponse.truckMake.isNullOrBlank() || 
+            !paymentResponse.truckModel.isNullOrBlank() || 
+            !paymentResponse.plateNumber.isNullOrBlank()) {
+            
+            // Get the current truck or null
+            val currentTruck = order.selectedTruck
+            
+            // Create a new Truck object with the API data
+            val updatedTruck = if (currentTruck != null) {
+                currentTruck.copy(
+                    truckId = paymentResponse.truckId ?: currentTruck.truckId,
+                    make = paymentResponse.truckMake ?: currentTruck.make,
+                    model = paymentResponse.truckModel ?: currentTruck.model,
+                    plateNumber = paymentResponse.plateNumber ?: currentTruck.plateNumber
+                )
+            } else {
+                com.example.ecotrack.models.Truck(
+                    truckId = paymentResponse.truckId ?: "truck_${paymentResponse.orderId}",
+                    size = paymentResponse.truckSize ?: "MEDIUM",
+                    wasteType = paymentResponse.wasteType ?: "MIXED",
+                    status = "ACTIVE",
+                    make = paymentResponse.truckMake ?: "EcoTrack",
+                    model = paymentResponse.truckModel ?: "Standard",
+                    plateNumber = paymentResponse.plateNumber ?: "ECO-${paymentResponse.orderId.takeLast(4)}",
+                    truckPrice = paymentResponse.amount ?: 0.0,
+                    createdAt = paymentResponse.createdAt.toString()
+                )
+            }
+            
+            // Update our internal order object
+            order = order.copy(selectedTruck = updatedTruck)
+            
+            Log.d("OrderStatusActivity", "Updated internal order with new truck data: " +
+                "ID=${updatedTruck.truckId}, Make=${updatedTruck.make}, " +
+                "Model=${updatedTruck.model}, Plate=${updatedTruck.plateNumber}")
+        }
+        
+        // Update plate number if it's provided in the API response
+        if (!paymentResponse.plateNumber.isNullOrBlank()) {
             runOnUiThread {
-                tvSacks.text = paymentResponse.numberOfSacks.toString()
-                Log.d("OrderStatusActivity", "Updated sacks display to: ${paymentResponse.numberOfSacks}")
+                tvSacks.text = paymentResponse.plateNumber
+                Log.d("OrderStatusActivity", "Updated plate number display to: ${paymentResponse.plateNumber}")
+            }
+        } else {
+            // Get the current truck
+            val currentTruck = order.selectedTruck
+            
+            if (currentTruck != null && !currentTruck.plateNumber.isNullOrBlank()) {
+                // Use the plate number from our updated order object
+                runOnUiThread {
+                    tvSacks.text = currentTruck.plateNumber
+                    Log.d("OrderStatusActivity", "Updated plate number display to: ${currentTruck.plateNumber}")
+                }
+            } else if (paymentResponse.numberOfSacks > 0) {
+                // If we don't have a plate number but have number of sacks, show that
+                runOnUiThread {
+                    tvSacks.text = paymentResponse.numberOfSacks.toString()
+                    Log.d("OrderStatusActivity", "Updated sacks display to: ${paymentResponse.numberOfSacks}")
+                }
+            } else {
+                // If we don't have either, create a plate number
+                val plateNumber = "ECO-${paymentResponse.orderId.takeLast(4)}"
+                runOnUiThread {
+                    tvSacks.text = plateNumber
+                    Log.d("OrderStatusActivity", "Updated plate number display to: $plateNumber")
+                }
             }
         }
         
@@ -718,11 +873,40 @@ class OrderStatusActivity : AppCompatActivity() {
             }
         }
         
-        // Update truck size if it's provided in the API response
-        if (!paymentResponse.truckSize.isNullOrBlank()) {
+        // Update truck make & model if they're provided in the API response
+        if (!paymentResponse.truckMake.isNullOrBlank() || !paymentResponse.truckModel.isNullOrBlank()) {
             runOnUiThread {
-                tvTruckSize.text = paymentResponse.truckSize
-                Log.d("OrderStatusActivity", "Updated truck size display to: ${paymentResponse.truckSize}")
+                // Format as "Make & Model" using actual values if available
+                val truckDisplay = "${paymentResponse.truckMake ?: ""} ${paymentResponse.truckModel ?: ""}".trim()
+                tvTruckSize.text = truckDisplay
+                Log.d("OrderStatusActivity", "Updated truck display to: $truckDisplay")
+            }
+        } else {
+            // Get the current truck
+            val currentTruck = order.selectedTruck
+            
+            if (currentTruck != null) {
+                // Use the truck from our updated order object
+                runOnUiThread {
+                    val truckDisplay = "${currentTruck.make} ${currentTruck.model}".trim()
+                    tvTruckSize.text = truckDisplay
+                    Log.d("OrderStatusActivity", "Updated truck display to: $truckDisplay")
+                }
+            } else if (!paymentResponse.truckSize.isNullOrBlank()) {
+                // If we only have truck size, use that
+                runOnUiThread {
+                    val truckDisplay = "${paymentResponse.truckSize} Standard"
+                    tvTruckSize.text = truckDisplay
+                    Log.d("OrderStatusActivity", "Updated truck display to: $truckDisplay")
+                }
+            }
+        }
+        
+        // Update payment method if it's provided in the API response
+        if (!paymentResponse.paymentMethod.isNullOrBlank()) {
+            runOnUiThread {
+                tvPaymentMethod.text = paymentResponse.paymentMethod
+                Log.d("OrderStatusActivity", "Updated payment method display to: ${paymentResponse.paymentMethod}")
             }
         }
     }

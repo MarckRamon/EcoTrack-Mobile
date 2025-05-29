@@ -75,6 +75,10 @@ interface ApiService {
     @GET("api/pickup-locations/{id}")
     suspend fun getPickupSiteDetails(@Path("id") id: String): Response<PickupSite>
 
+    // Trucks Endpoint
+    @GET("api/trucks")
+    suspend fun getTrucks(@Header("Authorization") authToken: String): Response<List<Truck>>
+
     // Collection Schedule Endpoints
     @GET("api/collection-schedules/barangay/{barangayId}")
     suspend fun getSchedulesByBarangay(

@@ -41,9 +41,7 @@ class OrderReceiptActivity : AppCompatActivity() {
     private lateinit var tvWasteType: TextView
     private lateinit var tvSacks: TextView
     private lateinit var tvTruck: TextView
-    private lateinit var tvSacksPrice: TextView
     private lateinit var tvTruckPrice: TextView
-    private lateinit var tvTax: TextView
     private lateinit var tvTotal: TextView
     private lateinit var btnBackToHome: Button
     private lateinit var btnDownloadLayout: ConstraintLayout
@@ -81,9 +79,7 @@ class OrderReceiptActivity : AppCompatActivity() {
         tvWasteType = findViewById(R.id.tv_waste_type)
         tvSacks = findViewById(R.id.tv_sacks)
         tvTruck = findViewById(R.id.tv_truck)
-        tvSacksPrice = findViewById(R.id.tv_sacks_price)
         tvTruckPrice = findViewById(R.id.tv_truck_price)
-        tvTax = findViewById(R.id.tv_tax)
         tvTotal = findViewById(R.id.tv_total)
         btnBackToHome = findViewById(R.id.btn_back_to_home)
         btnDownloadLayout = findViewById(R.id.btn_download)
@@ -123,11 +119,13 @@ class OrderReceiptActivity : AppCompatActivity() {
         tvAddress.text = order.address
         tvEmail.text = order.email
         tvWasteType.text = order.wasteType.getDisplayName()
-        tvSacks.text = order.numberOfSacks.toString()
-        tvTruck.text = order.truckSize.getDisplayName()
-        tvSacksPrice.text = "₱${order.sacksCost.toInt()}"
-        tvTruckPrice.text = "₱${order.truckCost.toInt()}"
-        tvTax.text = "₱${order.tax.toInt()}"
+        
+        // Update with truck information
+        tvSacks.text = order.selectedTruck?.plateNumber ?: "N/A" // Display plate number instead of sacks
+        tvTruck.text = "${order.selectedTruck?.make ?: "N/A"} ${order.selectedTruck?.model ?: ""}" // Display make and model
+        
+        // Use truck price directly
+        tvTruckPrice.text = "₱${order.selectedTruck?.truckPrice?.toInt() ?: 0}"
         tvTotal.text = "₱${order.total.toInt()}"
 
         // Set button click listeners

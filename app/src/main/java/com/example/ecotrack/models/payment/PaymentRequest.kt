@@ -49,6 +49,18 @@ data class PaymentRequest(
     @SerializedName("barangayId")
     val barangayId: String?,
     
-    @SerializedName("numberOfSacks")
-    val numberOfSacks: Int = 0
+    @SerializedName("selectedTruckId")
+    val selectedTruckId: String? = null,
+    
+    @SerializedName("truckId")
+    val truckId: String? = null,
+    
+    @SerializedName("truckMake")
+    val truckMake: String? = null,
+    
+    @SerializedName("truckModel")
+    val truckModel: String? = null,
+    
+    @SerializedName("plateNumber")
+    val plateNumber: String? = null
 )
