@@ -540,4 +540,21 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
         super.onDestroy()
         mapView.onDetach()
     }
+    
+    override fun onBackPressed() {
+        // If confirmation dialog is showing, hide it instead of going back
+        if (::confirmationDialog.isInitialized && confirmationDialog.visibility == View.VISIBLE) {
+            hideConfirmationDialog()
+            return
+        }
+        
+        // Prevent going back if this is an accepted job
+        if (payment?.jobOrderStatus == "Accepted" || payment?.jobOrderStatus == "In-Progress") {
+            val statusText = payment?.jobOrderStatus ?: "active"
+            Toast.makeText(this, "Cannot go back during an $statusText job", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        super.onBackPressed()
+    }
 } 

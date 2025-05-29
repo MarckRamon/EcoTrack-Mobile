@@ -78,7 +78,8 @@ class DriverJobOrderStatusActivity : BaseActivity() {
 
     enum class JobOrderStatusMode {
         ACCEPT,      // For accepting job orders (similar to DriverAcceptJobOrderActivity)
-        COMPLETE     // For completing collections (similar to DriverCollectionCompletedActivity)
+        COMPLETE,    // For completing collections (similar to DriverCollectionCompletedActivity)
+        VIEW         // For viewing job order details without actions
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,16 +130,18 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         amountTextView = findViewById(R.id.amountValueTextView)
         taxValueTextView = findViewById(R.id.taxValueTextView)
         
+        // Initialize back button for all modes
+        try {
+            backButton = findViewById(R.id.backButton)
+            backButton.setOnClickListener { onBackPressed() }
+        } catch (e: Exception) {
+            Log.e(TAG, "Back button not found in layout: ${e.message}")
+        }
+        
         // Initialize mode-specific views
         if (mode == JobOrderStatusMode.ACCEPT) {
             statusTextView = findViewById(R.id.jobOrderStatusTextView)
             actionButton = findViewById(R.id.acceptJobOrderButton)
-            try {
-                backButton = findViewById(R.id.backButton)
-                backButton.setOnClickListener { onBackPressed() }
-            } catch (e: Exception) {
-                Log.e(TAG, "Back button not found in layout: ${e.message}")
-            }
             toolbarTitleTextView = findViewById(R.id.toolbarTitle)
         } else {
             statusTextView = findViewById(R.id.statusTextView)
@@ -150,6 +153,13 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             confirmButton = findViewById(R.id.confirmButton)
             cancelButton = findViewById(R.id.cancelButton)
             dialogOverlay = findViewById(R.id.dialogOverlay)
+            
+            // If in VIEW mode, disable the action button
+            if (mode == JobOrderStatusMode.VIEW) {
+                actionButton.isEnabled = false
+                actionButton.text = "VIEW ONLY"
+                actionButton.alpha = 0.5f
+            }
         }
         
         // Configure the map
@@ -159,6 +169,11 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     }
     
     private fun setupListeners() {
+        // Skip setting action listeners in VIEW mode
+        if (mode == JobOrderStatusMode.VIEW) {
+            return
+        }
+        
         if (mode == JobOrderStatusMode.ACCEPT) {
             // Accept Job Order mode
             actionButton.setOnClickListener {
@@ -606,16 +621,17 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                     actionButton.text = if (mode == JobOrderStatusMode.ACCEPT) "JOB ORDER COMPLETED" else "COLLECTION ALREADY COMPLETED"
                     actionButton.alpha = 0.5f
                 }
-                "In-Progress" -> {
+                "In-Progress", "Accepted" -> {
                     if (mode == JobOrderStatusMode.ACCEPT) {
-                        actionButton.text = "CONTINUE TO LOCATION"
+                        actionButton.text = if (payment?.jobOrderStatus == "In-Progress") "CONTINUE TO LOCATION" else "GO TO LOCATION"
                     } else {
                         actionButton.text = "COLLECTION COMPLETED"
                     }
-                }
-                "Accepted" -> {
-                    if (mode == JobOrderStatusMode.ACCEPT) {
-                        actionButton.text = "GO TO LOCATION"
+                    
+                    // Hide and disable back button for In-Progress and Accepted status
+                    if (::backButton.isInitialized) {
+                        backButton.visibility = View.INVISIBLE
+                        backButton.isEnabled = false
                     }
                 }
                 else -> {
@@ -779,5 +795,50 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
         mapView.onDetach()
+    }
+    
+    override fun onBackPressed() {
+        // If confirmation dialog is showing, hide it instead of going back
+        if (mode != JobOrderStatusMode.ACCEPT && 
+            ::confirmationDialog.isInitialized && 
+            confirmationDialog.visibility == View.VISIBLE) {
+            hideConfirmationDialog()
+            return
+        }
+        
+        // Prevent going back if status is In-Progress or Accepted
+        if (payment?.jobOrderStatus == "In-Progress" || payment?.jobOrderStatus == "Accepted") {
+            val statusText = payment?.jobOrderStatus ?: "active"
+            Toast.makeText(this, "Cannot go back during an $statusText job", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        // Handle back navigation based on mode
+        when (mode) {
+            JobOrderStatusMode.ACCEPT -> {
+                // Go back to job orders screen
+                navigateToJobOrdersScreen()
+            }
+            JobOrderStatusMode.COMPLETE -> {
+                // If job is already completed, go back to job orders screen
+                if (payment?.jobOrderStatus == "Completed") {
+                    navigateToJobOrdersScreen()
+                } else {
+                    // Otherwise just finish the activity
+                    super.onBackPressed()
+                }
+            }
+            JobOrderStatusMode.VIEW -> {
+                // In view mode, just go back
+                super.onBackPressed()
+            }
+        }
+    }
+    
+    private fun navigateToJobOrdersScreen() {
+        val intent = Intent(this, DriverJobOrderActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(intent)
+        finish()
     }
 } 

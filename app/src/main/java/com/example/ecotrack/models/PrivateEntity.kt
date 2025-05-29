@@ -29,5 +29,8 @@ data class PrivateEntity(
     val latitude: Double = 0.0,
     
     @SerializedName("longitude")
-    val longitude: Double = 0.0
+    val longitude: Double = 0.0,
+    
+    @SerializedName("phoneNumber")
+    val phoneNumber: String? = null
 ) : Serializable 

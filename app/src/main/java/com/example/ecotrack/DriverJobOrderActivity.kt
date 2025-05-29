@@ -96,7 +96,6 @@ class DriverJobOrderActivity : BaseActivity() {
         tvAvailableDisabledMessage = findViewById(R.id.tvAvailableDisabledMessage)
         endCollectionButton = findViewById(R.id.endCollectionButton)
         profileImage = findViewById(R.id.profileImage)
-        notificationIcon = findViewById(R.id.iconLeft)
         
         // Set initial button state to disabled (dark gray)
         updateEndCollectionButtonState(false)
@@ -134,11 +133,6 @@ class DriverJobOrderActivity : BaseActivity() {
         // Set up profile image click
         profileImage.setOnClickListener {
             startActivity(Intent(this, DriverProfileActivity::class.java))
-        }
-        
-        // Set up notification icon click
-        notificationIcon.setOnClickListener {
-            Toast.makeText(this, "Notifications feature coming soon", Toast.LENGTH_SHORT).show()
         }
         
         // Set up view more buttons
@@ -191,7 +185,6 @@ class DriverJobOrderActivity : BaseActivity() {
         findViewById<View>(R.id.jobOrdersNav)?.isClickable = false
         findViewById<View>(R.id.collectionPointsNav)?.isClickable = false
         findViewById<View>(R.id.profileImage)?.isClickable = false
-        findViewById<View>(R.id.iconLeft)?.isClickable = false
         findViewById<View>(R.id.btnViewMoreAvailable)?.isClickable = false
         findViewById<View>(R.id.btnViewHistory)?.isClickable = false
         
@@ -222,7 +215,6 @@ class DriverJobOrderActivity : BaseActivity() {
         findViewById<View>(R.id.jobOrdersNav)?.isClickable = true
         findViewById<View>(R.id.collectionPointsNav)?.isClickable = true
         findViewById<View>(R.id.profileImage)?.isClickable = true
-        findViewById<View>(R.id.iconLeft)?.isClickable = true
         findViewById<View>(R.id.btnViewMoreAvailable)?.isClickable = true
         findViewById<View>(R.id.btnViewHistory)?.isClickable = true
         
@@ -233,8 +225,42 @@ class DriverJobOrderActivity : BaseActivity() {
     }
     
     private fun navigateToPrivateEntityMap() {
-        val intent = Intent(this, PrivateEntityMapActivity::class.java)
-        startActivityForResult(intent, PrivateEntityMapActivity.REQUEST_CODE_SELECT_ENTITY)
+        // Find the first completed payment that hasn't been delivered yet
+        val completedPayment = lifecycleScope.launch {
+            try {
+                val token = sessionManager.getToken()
+                val driverId = sessionManager.getUserId()
+                
+                if (token != null && driverId != null) {
+                    val response = apiService.getPaymentsByDriverId(
+                        driverId = driverId,
+                        authToken = "Bearer $token"
+                    )
+                    
+                    if (response.isSuccessful && response.body() != null) {
+                        val payments = response.body()
+                        // Filter for completed payments that haven't been delivered yet
+                        val completedPayments = payments?.filter { 
+                            it.jobOrderStatus == "Completed" && !it.isDelivered 
+                        }
+                        
+                        if (!completedPayments.isNullOrEmpty()) {
+                            // Launch the PrivateEntityMapActivity with the first completed payment
+                            val intent = Intent(this@DriverJobOrderActivity, PrivateEntityMapActivity::class.java)
+                            intent.putExtra("PAYMENT", completedPayments.first())
+                            startActivity(intent)
+                        } else {
+                            Toast.makeText(this@DriverJobOrderActivity, "No completed payments found that need delivery", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(this@DriverJobOrderActivity, "Failed to fetch payments", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching payments: ${e.message}")
+                Toast.makeText(this@DriverJobOrderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
     
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -309,7 +335,17 @@ class DriverJobOrderActivity : BaseActivity() {
                             it.jobOrderStatus == "In-Progress" || it.jobOrderStatus == "Accepted" 
                         }
                         val availablePayments = payments.filter { it.jobOrderStatus == "Available" }
-                        val completedPayments = payments.filter { it.jobOrderStatus == "Completed" }
+                        
+                        // Filter completed payments to exclude those that are already delivered
+                        val completedPayments = payments.filter { 
+                            it.jobOrderStatus == "Completed" && !it.isDelivered
+                        }
+                        
+                        // Log filtered payments for debugging
+                        Log.d(TAG, "Total payments: ${payments.size}")
+                        Log.d(TAG, "In-progress payments: ${inProgressPayments.size}")
+                        Log.d(TAG, "Available payments: ${availablePayments.size}")
+                        Log.d(TAG, "Completed payments (not delivered): ${completedPayments.size}")
                         
                         // Check if there's an active job (In-Progress or Accepted)
                         val hasActiveJob = inProgressPayments.isNotEmpty()
@@ -360,7 +396,7 @@ class DriverJobOrderActivity : BaseActivity() {
                         if (completedPayments.isNotEmpty()) {
                             // Log the completed payments for debugging
                             completedPayments.forEach { payment ->
-                                Log.d(TAG, "Completed payment: ${payment.id}, updatedAt: ${payment.updatedAt}, createdAt: ${payment.createdAt}, status: ${payment.jobOrderStatus}")
+                                Log.d(TAG, "Completed payment: ${payment.id}, updatedAt: ${payment.updatedAt}, createdAt: ${payment.createdAt}, status: ${payment.jobOrderStatus}, isDelivered: ${payment.isDelivered}")
                             }
                             
                             // Limit to 4 completed payments for the main screen

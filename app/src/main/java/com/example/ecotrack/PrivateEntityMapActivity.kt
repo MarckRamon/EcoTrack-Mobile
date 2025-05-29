@@ -22,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.ecotrack.models.PrivateEntitiesResponse
 import com.example.ecotrack.models.PrivateEntity
 import com.example.ecotrack.models.UserProfile
+import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
 import com.example.ecotrack.utils.RealTimeUpdateManager
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -33,6 +34,7 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import java.io.Serializable
 
 class PrivateEntityMapActivity : BaseActivity() {
 
@@ -376,13 +378,37 @@ class PrivateEntityMapActivity : BaseActivity() {
     
     private fun confirmSelectedLocation() {
         selectedEntity?.let { entity ->
-            // Create an intent to return the selected entity
-            val resultIntent = Intent()
-            resultIntent.putExtra("SELECTED_ENTITY", entity)
+            // Get the payment from the intent
+            val payment = intent.getSerializableExtra("PAYMENT") as? Payment
             
-            // Set the result and finish
-            setResult(Activity.RESULT_OK, resultIntent)
-            finish()
+            // Create a copy of the entity with the phone number from the UI
+            val phoneNumber = entityPhoneTextView.text.toString()
+            val entityWithPhone = PrivateEntity(
+                entityId = entity.entityId,
+                userId = entity.userId,
+                entityName = entity.entityName,
+                address = entity.address,
+                entityStatus = entity.entityStatus,
+                entityWasteType = entity.entityWasteType,
+                latitude = entity.latitude,
+                longitude = entity.longitude,
+                phoneNumber = phoneNumber
+            )
+            
+            if (payment != null) {
+                // Navigate to the PrivateEntityArrivedAtTheLocationActivity
+                val intent = Intent(this, PrivateEntityArrivedAtTheLocationActivity::class.java)
+                intent.putExtra("SELECTED_ENTITY", entityWithPhone as Serializable)
+                intent.putExtra("PAYMENT", payment as Serializable)
+                startActivity(intent)
+                finish()
+            } else {
+                // If no payment was passed, return the selected entity as a result
+                val resultIntent = Intent()
+                resultIntent.putExtra("SELECTED_ENTITY", entityWithPhone as Serializable)
+                setResult(Activity.RESULT_OK, resultIntent)
+                finish()
+            }
         } ?: run {
             Toast.makeText(this, "No entity selected", Toast.LENGTH_SHORT).show()
         }

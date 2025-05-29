@@ -16,14 +16,6 @@
         android:gravity="center_vertical"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageButton
-            android:id="@+id/notificationButton"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_notification"
-            android:contentDescription="Notifications"/>
-
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"

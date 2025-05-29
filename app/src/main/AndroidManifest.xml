@@ -211,6 +211,18 @@
             android:exported="false"
             android:screenOrientation="portrait" />
             
+        <!-- Add the PrivateEntityArrivedAtTheLocationActivity -->
+        <activity
+            android:name=".PrivateEntityArrivedAtTheLocationActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+            
+        <!-- Add the DeliveryHistoryActivity -->
+        <activity
+            android:name=".DeliveryHistoryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+            
         <!-- Firebase Cloud Messaging Service -->
         <service
             android:name=".utils.EcoTrackFirebaseMessagingService"
