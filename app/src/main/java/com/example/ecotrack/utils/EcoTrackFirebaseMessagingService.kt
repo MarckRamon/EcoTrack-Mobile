@@ -118,6 +118,13 @@ class EcoTrackFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
         Log.d(TAG, "From: ${remoteMessage.from}")
         
+        // Check if notifications are enabled
+        val sessionManager = SessionManager.getInstance(applicationContext)
+        if (!sessionManager.getNotificationPreference()) {
+            Log.d(TAG, "Notifications are disabled, not showing notification")
+            return
+        }
+        
         // Get message details
         val title = remoteMessage.notification?.title ?: "EcoTrack"
         val body = remoteMessage.notification?.body ?: "You have a new notification"

@@ -41,6 +41,7 @@ class SessionManager private constructor(context: Context) {
         private const val KEY_LAST_ACTIVITY = "last_activity"
         private const val SESSION_TIMEOUT = 3500L // 5 seconds for testing
         private const val FCM_TOKEN_KEY = "fcm_token"
+        private const val NOTIFICATIONS_ENABLED_KEY = "notifications_enabled"
         
         // Keep a single instance to avoid multiple timers
         @Volatile
@@ -507,5 +508,23 @@ class SessionManager private constructor(context: Context) {
     
     fun getFcmToken(): String? {
         return prefs.getString(FCM_TOKEN_KEY, null)
+    }
+
+    /**
+     * Saves the notification preference
+     * @param enabled Whether notifications are enabled
+     */
+    fun saveNotificationPreference(enabled: Boolean) {
+        editor.putBoolean(NOTIFICATIONS_ENABLED_KEY, enabled)
+        editor.apply()
+        Log.d(TAG, "Notification preference saved: $enabled")
+    }
+
+    /**
+     * Gets the notification preference
+     * @return Whether notifications are enabled, defaults to true
+     */
+    fun getNotificationPreference(): Boolean {
+        return prefs.getBoolean(NOTIFICATIONS_ENABLED_KEY, true)
     }
 } 
