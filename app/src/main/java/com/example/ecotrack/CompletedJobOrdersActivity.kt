@@ -49,7 +49,7 @@ class CompletedJobOrdersActivity : BaseActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setDisplayShowHomeEnabled(true)
-        supportActionBar?.title = "Job Order History"
+        supportActionBar?.title = "Completed Job Orders"
         
         toolbar.setNavigationOnClickListener {
             onBackPressed()
