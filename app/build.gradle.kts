@@ -87,6 +87,9 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx")
     
+    // Image loading
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    
     // CircleImageView
     implementation("de.hdodenhof:circleimageview:3.1.0")
     

@@ -36,6 +36,23 @@ import android.animation.ValueAnimator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.app.AlertDialog
+import android.Manifest
+import android.content.pm.PackageManager
+import android.provider.MediaStore
+import android.graphics.Bitmap
+import java.io.File
+import java.io.FileOutputStream
+import com.google.android.material.button.MaterialButton
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import com.bumptech.glide.Glide
+import android.widget.ImageButton
 
 class OrderStatusActivity : AppCompatActivity() {
 
@@ -81,6 +98,16 @@ class OrderStatusActivity : AppCompatActivity() {
     private lateinit var navPickup: LinearLayout
 
     private var lastKnownStatus: String? = null
+    private lateinit var btnUploadProof: MaterialButton
+    private lateinit var cardProof: androidx.cardview.widget.CardView
+    private lateinit var ivProof: ImageView
+    private lateinit var btnRemoveProof: ImageButton
+    private var latestPaymentResponse: PaymentResponse? = null
+    private var cachedProofUrl: String? = null
+    private val CAMERA_REQUEST_CODE = 1001
+    private val CAMERA_PERMISSION_CODE = 2001
+    private lateinit var requestCameraPermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var takePicturePreviewLauncher: ActivityResultLauncher<Void?>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,6 +144,33 @@ class OrderStatusActivity : AppCompatActivity() {
         tvPaymentMethod = findViewById(R.id.tv_payment_method)
         tvLocation = findViewById(R.id.tv_location)
         btnCancel = findViewById(R.id.btn_cancel)
+        btnUploadProof = findViewById(R.id.btn_upload_proof)
+        btnUploadProof.setOnClickListener { maybeStartCamera() }
+        cardProof = findViewById(R.id.card_proof_image)
+        ivProof = findViewById(R.id.iv_proof_image)
+        btnRemoveProof = findViewById(R.id.btn_remove_proof)
+        btnRemoveProof.setOnClickListener { confirmRetakeProof() }
+
+        // Initialize activity result launchers
+        requestCameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                takePicturePreviewLauncher.launch(null)
+            } else {
+                Toast.makeText(this, "Camera permission is required to take a photo", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        takePicturePreviewLauncher = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
+            if (bitmap != null) {
+                val tempFile = File.createTempFile("proof_", ".jpg", cacheDir)
+                FileOutputStream(tempFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                }
+                uploadToCatboxAndSave(tempFile)
+            } else {
+                Toast.makeText(this, "No image captured", Toast.LENGTH_SHORT).show()
+            }
+        }
 
         // Initialize status bar icons and lines
         iconDriverAssigned = findViewById(R.id.icon_driver_assigned)
@@ -174,6 +228,29 @@ class OrderStatusActivity : AppCompatActivity() {
             OrderStatus.CANCELLED -> "Cancelled"
         }
         updateOrderStatus(initialStatus)
+        // Try to render any existing proof image early (before network) using cached or last known response
+        try {
+            // 1) Intent extra from navigator (Home banner)
+            val intentProof = intent.getStringExtra("PROOF_IMAGE_URL")
+            if (!intentProof.isNullOrBlank()) {
+                cachedProofUrl = intentProof
+                showOrHideProof(intentProof)
+            } else {
+                // 2) Last known API response value
+                latestPaymentResponse?.getEffectiveConfirmationImageUrl()?.let {
+                    cachedProofUrl = it
+                    showOrHideProof(it)
+                }
+                // 3) Local cache by order id
+                if (cardProof.visibility != View.VISIBLE) {
+                    val cached = sharedPreferences.getString("proof_order_${order.id}", null)
+                    if (!cached.isNullOrBlank()) {
+                        cachedProofUrl = cached
+                        showOrHideProof(cached)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
         
         // Check if we should force a refresh (coming from OrderSuccessActivity)
         val forceRefresh = intent.getBooleanExtra("FORCE_REFRESH", false)
@@ -347,6 +424,7 @@ class OrderStatusActivity : AppCompatActivity() {
     private suspend fun processApiResponse(response: Response<PaymentResponse>, bearerToken: String?) {
         if (response.isSuccessful && response.body() != null) {
             val paymentResponse = response.body()!!
+            latestPaymentResponse = paymentResponse
             Log.d("OrderStatusActivity", "API Response: ${response.code()}")
             Log.d("OrderStatusActivity", "Fetched payment: id=${paymentResponse.id}, orderId=${paymentResponse.orderId}")
             Log.d("OrderStatusActivity", "Fetched status: ${paymentResponse.jobOrderStatus}, status: ${paymentResponse.status}")
@@ -368,6 +446,9 @@ class OrderStatusActivity : AppCompatActivity() {
                     
                     // Update order details from API response
                     updateOrderDetails(paymentResponse)
+                    // Always update proof image and refresh cache regardless of status change
+                    paymentResponse.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
+                    showOrHideProof(paymentResponse.getEffectiveConfirmationImageUrl() ?: cachedProofUrl)
                     
                     // Hide cancel button unless status is Processing or Available
                     if (effectiveStatus != "Processing" && effectiveStatus != "Available") {
@@ -375,7 +456,17 @@ class OrderStatusActivity : AppCompatActivity() {
                     }
                 }
             } else {
-                Log.d("OrderStatusActivity", "Status unchanged, skipping UI update: $effectiveStatus")
+                Log.d("OrderStatusActivity", "Status unchanged, ensuring proof preview is updated")
+                // Ensure proof image is shown even if status didn't change
+                paymentResponse.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
+                showOrHideProof(paymentResponse.getEffectiveConfirmationImageUrl() ?: cachedProofUrl ?: run {
+                    // fallback: try local cache by id
+                    try {
+                        val pid = paymentResponse.id
+                        sharedPreferences.getString("proof_${pid}", null)
+                            ?: sharedPreferences.getString("proof_order_${paymentResponse.orderId}", null)
+                    } catch (_: Exception) { null }
+                })
             }
         } else {
             Log.e("OrderStatusActivity", "Failed to fetch status: ${response.code()} - ${response.message()}")
@@ -454,6 +545,8 @@ class OrderStatusActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 updateOrderStatus(paymentResponse.jobOrderStatus, paymentResponse)
                 updateOrderDetails(paymentResponse)
+                showOrHideProof(paymentResponse.getEffectiveConfirmationImageUrl()
+                    ?: sharedPreferences.getString("proof_order_${paymentResponse.orderId}", null))
                 
                 // Hide cancel button unless status is Processing or Available
                 if (paymentResponse.jobOrderStatus != "Processing" && paymentResponse.jobOrderStatus != "Available") {
@@ -467,6 +560,8 @@ class OrderStatusActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 updateOrderStatus(paymentResponse.jobOrderStatus, paymentResponse)
                 updateOrderDetails(paymentResponse)
+                showOrHideProof(paymentResponse.getEffectiveConfirmationImageUrl()
+                    ?: sharedPreferences.getString("proof_order_${paymentResponse.orderId}", null))
                 
                 // Hide cancel button unless status is Processing or Available
                 if (paymentResponse.jobOrderStatus != "Processing" && paymentResponse.jobOrderStatus != "Available") {
@@ -487,6 +582,122 @@ class OrderStatusActivity : AppCompatActivity() {
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
         startActivity(intent)
     }
+
+    private fun maybeStartCamera() {
+        val hasCameraApp = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+        if (!hasCameraApp) {
+            Toast.makeText(this, "No camera available on this device", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        } else {
+            takePicturePreviewLauncher.launch(null)
+        }
+    }
+
+    // Old permission and activity result overrides are no longer used; kept out for clarity
+
+    private fun uploadToCatboxAndSave(imageFile: File) {
+        // Upload to Catbox using multipart form
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val client = OkHttpClient()
+                val mediaType = "image/jpeg".toMediaTypeOrNull()
+                val fileBody = imageFile.asRequestBody(mediaType)
+                val multipart = MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("reqtype", "fileupload")
+                    .addFormDataPart("userhash", "9977879e19e2ca7543183dd67")
+                    .addFormDataPart("fileToUpload", imageFile.name, fileBody)
+                    .build()
+
+                val request = Request.Builder()
+                    .url("https://catbox.moe/user/api.php")
+                    .post(multipart)
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val bodyString = response.body?.string()?.trim()
+                if (!response.isSuccessful || bodyString.isNullOrBlank()) {
+                    Log.e("OrderStatusActivity", "Catbox upload failed: ${response.code} ${response.message}")
+                    withContext(Dispatchers.Main) { Toast.makeText(this@OrderStatusActivity, "Failed to upload image", Toast.LENGTH_SHORT).show() }
+                    return@launch
+                }
+
+                val imageUrl = bodyString // Catbox returns the file URL directly
+
+                // Save to backend
+                val jwtToken = sessionManager.getToken()
+                if (jwtToken.isNullOrBlank()) {
+                    withContext(Dispatchers.Main) { Toast.makeText(this@OrderStatusActivity, "Missing auth token", Toast.LENGTH_SHORT).show() }
+                    return@launch
+                }
+                val bearerToken = if (jwtToken.startsWith("Bearer ")) jwtToken else "Bearer $jwtToken"
+
+                // We need the paymentId; prefer latest response id, otherwise fetch by order id
+                val paymentId = latestPaymentResponse?.id ?: run {
+                    val resp = apiService.getPaymentByOrderId(order.id, bearerToken)
+                    if (resp.isSuccessful && resp.body() != null) resp.body()!!.id else null
+                }
+
+                if (paymentId == null) {
+                    withContext(Dispatchers.Main) { Toast.makeText(this@OrderStatusActivity, "Unable to resolve payment ID", Toast.LENGTH_SHORT).show() }
+                    return@launch
+                }
+
+                val payload = mapOf("imageUrl" to imageUrl)
+                val saveResp = apiService.uploadPaymentConfirmationImage(paymentId, payload, bearerToken)
+                withContext(Dispatchers.Main) {
+                    if (saveResp.isSuccessful) {
+                        Toast.makeText(this@OrderStatusActivity, "Proof uploaded", Toast.LENGTH_SHORT).show()
+                        showOrHideProof(imageUrl)
+                        // Persist locally as fallback
+                        try {
+                            sharedPreferences.edit()
+                                .putString("proof_${paymentId}", imageUrl)
+                                .putString("proof_order_${order.id}", imageUrl)
+                                .apply()
+                        } catch (_: Exception) {}
+                    } else {
+                        Toast.makeText(this@OrderStatusActivity, "Failed to save proof", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("OrderStatusActivity", "Error uploading image", e)
+                withContext(Dispatchers.Main) { Toast.makeText(this@OrderStatusActivity, "Error uploading image", Toast.LENGTH_SHORT).show() }
+            } finally {
+                imageFile.delete()
+            }
+        }
+    }
+
+    private fun showOrHideProof(url: String?) {
+        if (!this::cardProof.isInitialized) return
+        val effectiveUrl = url ?: cachedProofUrl
+        if (!effectiveUrl.isNullOrBlank()) {
+            cardProof.visibility = View.VISIBLE
+            try {
+                com.bumptech.glide.Glide.with(this)
+                    .load(effectiveUrl)
+                    .centerCrop()
+                    .into(ivProof)
+            } catch (_: Exception) { }
+        } else {
+            cardProof.visibility = View.GONE
+        }
+    }
+
+private fun confirmRetakeProof() {
+    AlertDialog.Builder(this)
+        .setTitle("Retake proof photo?")
+        .setMessage("This will let you capture a new proof photo to replace the current one.")
+        .setPositiveButton("Retake") { _, _ -> maybeStartCamera() }
+        .setNegativeButton("Cancel", null)
+        .show()
+}
+
+// Removing proof via API is disabled due to server limits; user can retake instead.
 
     // Add animation utils with more subtle parameters
     private fun animateColorChange(view: View, fromColor: Int, toColor: Int, duration: Long = 800) {
@@ -584,6 +795,8 @@ class OrderStatusActivity : AppCompatActivity() {
                     animateColorChange(progressLine3, greenColor, greyColor)
                 }
                 btnCancel.visibility = View.VISIBLE
+                btnUploadProof.visibility = View.GONE
+                showOrHideProof(null)
             }
             "Accepted" -> {
                 // Get estimated arrival time from backend if available
@@ -630,6 +843,13 @@ class OrderStatusActivity : AppCompatActivity() {
                     animateColorChange(progressLine3, greenColor, greyColor)
                 }
                 btnCancel.visibility = View.GONE
+                btnUploadProof.visibility = View.GONE
+                if (paymentResponse?.getEffectiveConfirmationImageUrl().isNullOrBlank()) {
+                    showOrHideProof(cachedProofUrl)
+                } else {
+                    paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
+                    showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
+                }
             }
             "In-Progress" -> {
                 tvStatusHeader.text = "Pickup in Progress"
@@ -660,6 +880,13 @@ class OrderStatusActivity : AppCompatActivity() {
                     animateColorChange(progressLine3, greenColor, greyColor)
                 }
                 btnCancel.visibility = View.GONE
+                btnUploadProof.visibility = View.VISIBLE
+                if (paymentResponse?.getEffectiveConfirmationImageUrl().isNullOrBlank()) {
+                    showOrHideProof(cachedProofUrl)
+                } else {
+                    paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
+                    showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
+                }
             }
             "Completed" -> {
                 tvStatusHeader.text = "Completed"
@@ -687,6 +914,13 @@ class OrderStatusActivity : AppCompatActivity() {
                     animateColorChange(progressLine3, greyColor, greenColor)
                 }
                 btnCancel.visibility = View.GONE
+                btnUploadProof.visibility = View.VISIBLE
+                if (paymentResponse?.getEffectiveConfirmationImageUrl().isNullOrBlank()) {
+                    showOrHideProof(cachedProofUrl)
+                } else {
+                    paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
+                    showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
+                }
             }
             "Cancelled" -> {
                 tvStatusHeader.text = "Cancelled"
@@ -711,6 +945,8 @@ class OrderStatusActivity : AppCompatActivity() {
                     animateColorChange(progressLine3, greenColor, greyColor)
                 }
                 btnCancel.visibility = View.GONE
+                btnUploadProof.visibility = View.GONE
+                showOrHideProof(null)
             }
             else -> {
                 // Handle unknown status

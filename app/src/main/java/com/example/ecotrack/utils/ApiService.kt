@@ -137,6 +137,13 @@ interface ApiService {
         @Path("driverId") driverId: String,
         @Header("Authorization") authToken: String
     ): Response<List<Payment>>
+
+    @POST("api/payments/{paymentId}/confirmation-image")
+    suspend fun uploadPaymentConfirmationImage(
+        @Path("paymentId") paymentId: String,
+        @Body body: Map<String, String>,
+        @Header("Authorization") authToken: String
+    ): Response<Map<String, Any>>
     
     // Driver Job Order Status Update
     @PUT("api/driver/job/{paymentId}/status")

@@ -85,6 +85,11 @@ data class PaymentResponse(
     
     @SerializedName("plateNumber")
     val plateNumber: String? = null
+    ,
+    @SerializedName("confirmationImageUrl")
+    val confirmationImageUrl: String? = null,
+    @SerializedName("confirmationImage")
+    val confirmationImageAlt: String? = null
 ) {
     override fun toString(): String {
         return "PaymentResponse(id=$id, orderId=$orderId, status=$status, jobOrderStatus=$jobOrderStatus, driverId=$driverId, estimatedArrival=$estimatedArrival, numberOfSacks=$numberOfSacks)"
@@ -93,5 +98,9 @@ data class PaymentResponse(
     // Get estimated arrival from either field
     fun getEffectiveEstimatedArrival(): Date? {
         return estimatedArrival ?: estimatedArrivalAlt
+    }
+
+    fun getEffectiveConfirmationImageUrl(): String? {
+        return confirmationImageUrl ?: confirmationImageAlt
     }
 }
