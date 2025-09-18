@@ -53,6 +53,18 @@ class DriverHomeActivity : BaseActivity() {
         initViews()
         setupClickListeners()
         
+        // If we have a cached profile image URL, show it immediately
+        try {
+            val cachedUrl = sessionManager.getProfileImageUrl()
+            if (!cachedUrl.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(this)
+                    .load(cachedUrl)
+                    .placeholder(R.drawable.raph)
+                    .error(R.drawable.raph)
+                    .into(profileImage)
+            }
+        } catch (_: Exception) {}
+
         // Initialize real-time update manager
         realTimeUpdateManager = RealTimeUpdateManager(
             activity = this,
@@ -216,6 +228,18 @@ class DriverHomeActivity : BaseActivity() {
                     profile?.let {
                         // Update UI with profile data
                         welcomeTextView.text = "Welcome, ${it.firstName}!"
+                        // Load profile image if available
+                        try {
+                            val url = it.imageUrl ?: it.profileImage
+                            if (!url.isNullOrBlank()) {
+                                com.bumptech.glide.Glide.with(this@DriverHomeActivity)
+                                    .load(url)
+                                    .placeholder(R.drawable.raph)
+                                    .error(R.drawable.raph)
+                                    .into(profileImage)
+                                sessionManager.saveProfileImageUrl(url)
+                            }
+                        } catch (_: Exception) {}
                         
                         // Load job orders after profile is loaded
                         loadJobOrders()

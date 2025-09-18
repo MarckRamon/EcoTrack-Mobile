@@ -50,7 +50,11 @@ data class UserProfile(
     val preferences: Map<String, Any>?,
     val barangayId: String? = null,
     val barangayName: String? = null,
-    val role: String? = null
+    val role: String? = null,
+    @SerializedName("imageUrl")
+    val imageUrl: String? = null,
+    @SerializedName("profileImage")
+    val profileImage: String? = null
 )
 
 data class ProfileUpdateRequest(

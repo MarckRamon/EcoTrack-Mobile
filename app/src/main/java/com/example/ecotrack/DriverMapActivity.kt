@@ -111,6 +111,18 @@ class DriverMapActivity : BaseActivity() {
         jobOrdersNav = findViewById(R.id.jobOrdersNav)
         collectionPointsNav = findViewById(R.id.collectionPointsNav)
         
+        // Load cached profile image immediately if available
+        try {
+            val cachedUrl = sessionManager.getProfileImageUrl()
+            if (!cachedUrl.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(this)
+                    .load(cachedUrl)
+                    .placeholder(R.drawable.raph)
+                    .error(R.drawable.raph)
+                    .into(profileImage)
+            }
+        } catch (_: Exception) {}
+        
         // Add the location toggle button
         locationToggleButton = findViewById(R.id.locationToggleButton)
         if (locationToggleButton == null) {

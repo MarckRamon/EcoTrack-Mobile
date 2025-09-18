@@ -42,6 +42,7 @@ class SessionManager private constructor(context: Context) {
         private const val SESSION_TIMEOUT = 3500L // 5 seconds for testing
         private const val FCM_TOKEN_KEY = "fcm_token"
         private const val NOTIFICATIONS_ENABLED_KEY = "notifications_enabled"
+        private const val PROFILE_IMAGE_URL_KEY = "profile_image_url"
         
         // Keep a single instance to avoid multiple timers
         @Volatile
@@ -126,6 +127,17 @@ class SessionManager private constructor(context: Context) {
         editor.apply()
         sessionTimeoutDialogShown = false
         stopExpiryTimer()
+    }
+
+    fun saveProfileImageUrl(url: String?) {
+        if (url.isNullOrBlank()) return
+        editor.putString(PROFILE_IMAGE_URL_KEY, url)
+        editor.apply()
+        Log.d(TAG, "Saved profile image URL: $url")
+    }
+
+    fun getProfileImageUrl(): String? {
+        return prefs.getString(PROFILE_IMAGE_URL_KEY, null)
     }
     
     // Session timeout handling

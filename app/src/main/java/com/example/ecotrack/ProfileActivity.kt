@@ -20,6 +20,7 @@ class ProfileActivity : BaseActivity() {
     private lateinit var userNameText: TextView
     private lateinit var userEmailText: TextView
     private lateinit var userBarangayText: TextView
+    private lateinit var profileAvatar: de.hdodenhof.circleimageview.CircleImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,6 +30,17 @@ class ProfileActivity : BaseActivity() {
         supportActionBar?.hide()
         initViews()
         setupClickListeners()
+        // Show cached image immediately if available
+        try {
+            val cachedUrl = sessionManager.getProfileImageUrl()
+            if (!cachedUrl.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(this)
+                    .load(cachedUrl)
+                    .placeholder(R.drawable.raph)
+                    .error(R.drawable.raph)
+                    .into(profileAvatar)
+            }
+        } catch (_: Exception) {}
         loadUserData()
     }
 
@@ -36,6 +48,7 @@ class ProfileActivity : BaseActivity() {
         userNameText = findViewById(R.id.userName)
         userEmailText = findViewById(R.id.userEmail)
         userBarangayText = findViewById(R.id.userBarangay)
+        profileAvatar = findViewById(R.id.profileAvatar)
     }
 
     private fun setupClickListeners() {
@@ -137,6 +150,18 @@ class ProfileActivity : BaseActivity() {
                             Log.d(TAG, "Barangay info: ID=${it.barangayId}, Name=${it.barangayName}")
                             userNameText.text = "${it.firstName} ${it.lastName}"
                             userEmailText.text = it.email
+                            // Load profile picture if available
+                            try {
+                                val url = it.imageUrl ?: it.profileImage
+                                if (!url.isNullOrBlank()) {
+                                    com.bumptech.glide.Glide.with(this@ProfileActivity)
+                                        .load(url)
+                                        .placeholder(R.drawable.raph)
+                                        .error(R.drawable.raph)
+                                        .into(profileAvatar)
+                                    sessionManager.saveProfileImageUrl(url)
+                                }
+                            } catch (_: Exception) {}
                             
                             // Set barangay text or hide it if not available
                             if (it.barangayName != null) {

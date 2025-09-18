@@ -73,6 +73,17 @@ class MapActivity : BaseActivity() {
         garbageType = findViewById(R.id.garbageType)
         closeButton = findViewById(R.id.closeButton)
         profileImage = findViewById(R.id.profileImage)
+        // Load cached profile image immediately if available
+        try {
+            val cachedUrl = sessionManager.getProfileImageUrl()
+            if (!cachedUrl.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(this)
+                    .load(cachedUrl)
+                    .placeholder(R.drawable.raph)
+                    .error(R.drawable.raph)
+                    .into(profileImage)
+            }
+        } catch (_: Exception) {}
         homeNav = findViewById(R.id.homeNav)
         scheduleNav = findViewById(R.id.scheduleNav)
         pointsNav = findViewById(R.id.pointsNav)

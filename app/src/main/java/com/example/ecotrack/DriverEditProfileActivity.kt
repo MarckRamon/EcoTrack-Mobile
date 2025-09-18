@@ -1,12 +1,16 @@
 package com.example.ecotrack
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.activity.result.contract.ActivityResultContracts
+import com.bumptech.glide.Glide
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import com.example.ecotrack.databinding.ActivityDriverEditProfileBinding
 import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.models.ProfileUpdateRequest
@@ -43,6 +47,14 @@ class DriverEditProfileActivity : BaseActivity() {
     // Real-time update manager
     private lateinit var realTimeUpdateManager: RealTimeUpdateManager
 
+    // Image picking
+    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            Glide.with(this).load(it).into(binding.profileImage)
+            uploadAndSaveProfileImage(it)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDriverEditProfileBinding.inflate(layoutInflater)
@@ -70,6 +82,14 @@ class DriverEditProfileActivity : BaseActivity() {
         binding.saveButton.setOnClickListener {
             updateProfile()
         }
+
+        // Tap to change profile image
+        binding.profileImage.setOnClickListener {
+            openGallery()
+        }
+        binding.cameraOverlay?.setOnClickListener {
+            openGallery()
+        }
     }
     
     private fun validateDriverRole() {
@@ -79,6 +99,117 @@ class DriverEditProfileActivity : BaseActivity() {
             Toast.makeText(this, "This section is for drivers only. Redirecting...", Toast.LENGTH_LONG).show()
             finish()
             return
+        }
+    }
+
+    private fun openGallery() {
+        try {
+            pickImageLauncher.launch("image/*")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open gallery", e)
+            Toast.makeText(this, "Unable to open gallery", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun uploadAndSaveProfileImage(imageUri: Uri) {
+        val token = sessionManager.getToken() ?: run {
+            Toast.makeText(this, "Not authenticated", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        showLoading(true)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val catboxUrl = uploadToCatbox(imageUri)
+                if (catboxUrl.isNullOrEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        showLoading(false)
+                        Toast.makeText(this@DriverEditProfileActivity, "Failed to upload image", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                val mimeType = contentResolver.getType(imageUri) ?: "image/jpeg"
+                val imageType = mimeType.substringAfter('/', "jpeg")
+
+                val saveResp = apiService.updateProfileImage(
+                    authToken = "Bearer $token",
+                    body = mapOf(
+                        "imageUrl" to catboxUrl,
+                        "imageType" to imageType
+                    )
+                )
+
+                withContext(Dispatchers.Main) {
+                    showLoading(false)
+                    if (saveResp.isSuccessful) {
+                        // Persist URL for global access
+                        sessionManager.saveProfileImageUrl(catboxUrl)
+                        
+                        Glide.with(this@DriverEditProfileActivity)
+                            .load(catboxUrl)
+                            .skipMemoryCache(true)
+                            .into(binding.profileImage)
+                        Toast.makeText(this@DriverEditProfileActivity, "Profile image updated", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Log.e(TAG, "Failed to save image URL: ${saveResp.code()} ${saveResp.message()}")
+                        Toast.makeText(this@DriverEditProfileActivity, "Failed to save image URL", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error uploading/saving profile image", e)
+                withContext(Dispatchers.Main) {
+                    showLoading(false)
+                    Toast.makeText(this@DriverEditProfileActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun uploadToCatbox(imageUri: Uri): String? {
+        return try {
+            val contentResolver = contentResolver
+            val mimeType = contentResolver.getType(imageUri) ?: "image/jpeg"
+            val extension = when (mimeType.substringAfter('/').lowercase()) {
+                "jpeg", "jpg" -> ".jpg"
+                "png" -> ".png"
+                "webp" -> ".webp"
+                "gif" -> ".gif"
+                else -> ".jpg"
+            }
+            val fileName = "profile_${System.currentTimeMillis()}${extension}"
+
+            val inputStream = contentResolver.openInputStream(imageUri) ?: return null
+            val bytes = inputStream.readBytes()
+            inputStream.close()
+
+            val requestBody = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart("reqtype", "fileupload")
+                .addFormDataPart("userhash", "9977879e19e2ca7543183dd67")
+                .addFormDataPart(
+                    "fileToUpload",
+                    fileName,
+                    okhttp3.RequestBody.create(mimeType.toMediaTypeOrNull(), bytes)
+                )
+                .build()
+
+            val request = okhttp3.Request.Builder()
+                .url("https://catbox.moe/user/api.php")
+                .post(requestBody)
+                .build()
+
+            val okClient = okhttp3.OkHttpClient()
+            okClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Catbox upload failed: ${response.code}")
+                    return null
+                }
+                val bodyStr = response.body?.string()?.trim()
+                if (bodyStr.isNullOrBlank()) null else bodyStr
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Catbox upload error", e)
+            null
         }
     }
 

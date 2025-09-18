@@ -209,6 +209,13 @@ interface ApiService {
         @Header("Authorization") authToken: String
     ): Response<Map<String, Any>>
 
+    // User Profile Image
+    @PUT("api/users/profile/image")
+    suspend fun updateProfileImage(
+        @Header("Authorization") authToken: String,
+        @Body body: Map<String, String>
+    ): Response<Map<String, Any>>
+
     companion object {
         private const val TAG = "ApiService"
         private const val BASE_URL = "http://10.0.2.2:8080/" // Android emulator localhost

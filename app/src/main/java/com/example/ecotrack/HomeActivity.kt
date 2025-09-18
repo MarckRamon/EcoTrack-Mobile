@@ -57,6 +57,18 @@ class HomeActivity : BaseActivity() {
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // If we have a cached profile image URL, show it immediately
+        try {
+            val cachedUrl = sessionManager.getProfileImageUrl()
+            if (!cachedUrl.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(this)
+                    .load(cachedUrl)
+                    .placeholder(R.drawable.raph)
+                    .error(R.drawable.raph)
+                    .into(binding.profileImage)
+            }
+        } catch (_: Exception) {}
+
         // Check if user has customer role before proceeding
         validateCustomerAccount()
 
@@ -652,6 +664,18 @@ class HomeActivity : BaseActivity() {
                         profile?.let {
                             // Update UI with profile data
                             binding.welcomeText?.text = "Welcome, ${it.firstName}"
+                            // Load profile image if available
+                            try {
+                                val url = it.imageUrl ?: it.profileImage
+                                if (!url.isNullOrBlank()) {
+                                    com.bumptech.glide.Glide.with(this@HomeActivity)
+                                        .load(url)
+                                        .placeholder(R.drawable.raph)
+                                        .error(R.drawable.raph)
+                                        .into(binding.profileImage)
+                                    sessionManager.saveProfileImageUrl(url)
+                                }
+                            } catch (_: Exception) {}
                         }
                     } else {
                         Log.e(TAG, "Failed to load profile: ${response.code()}")

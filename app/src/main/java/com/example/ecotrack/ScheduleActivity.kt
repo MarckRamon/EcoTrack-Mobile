@@ -83,6 +83,18 @@ class ScheduleActivity : BaseActivity() {
 
         setupBottomNavigationBar()
 
+        // Load cached profile image immediately if available
+        try {
+            val cachedUrl = sessionManager.getProfileImageUrl()
+            if (!cachedUrl.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(this)
+                    .load(cachedUrl)
+                    .placeholder(R.drawable.raph)
+                    .error(R.drawable.raph)
+                    .into(binding.profileIcon)
+            }
+        } catch (_: Exception) {}
+
         // Load barangays for the filter dropdown
         loadBarangays()
 
