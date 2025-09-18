@@ -51,12 +51,25 @@ class LoginActivity : BaseActivity() {
         
         // Check if user is already logged in with custom backend
         if (sessionManager.isLoggedIn()) {
-            startActivity(Intent(this, HomeActivity::class.java))
+            val savedRole = (sessionManager.getUserType() ?: "customer").lowercase()
+            when (savedRole) {
+                "driver" -> startActivity(Intent(this, DriverHomeActivity::class.java))
+                else -> startActivity(Intent(this, HomeActivity::class.java))
+            }
             finish()
             return
         }
 
         setupToggleButtons()
+
+        // If an intent extra requests a specific role selection, apply it
+        intent.getStringExtra("selectRole")?.lowercase()?.let { role ->
+            if (role == "driver") {
+                setCustomerToggle(false)
+            } else if (role == "customer") {
+                setCustomerToggle(true)
+            }
+        }
 
         customerBinding.btnLogin.setOnClickListener {
             val email = customerBinding.etEmail.text.toString()
@@ -247,14 +260,30 @@ class LoginActivity : BaseActivity() {
                     
                     // Check if the response and token are valid
                     if (loginResponse != null && loginResponse.token.isNotEmpty()) {
-                        // Store token and userId in SessionManager
+                        // Determine role from response
+                        val userRole = (loginResponse.role ?: "customer").lowercase()
+
+                        // Enforce role selection: if customer UI selected, only allow customer; if driver UI selected, only allow driver
+                        val isRoleAllowed = (isCustomerSelected && userRole == "customer") || (!isCustomerSelected && userRole == "driver")
+
+                        if (!isRoleAllowed) {
+                            // Ensure any previous session is cleared to avoid auto-redirects
+                            sessionManager.logout()
+                            withContext(Dispatchers.Main) {
+                                // Inform user and hard-reset this screen to prevent any pending redirects
+                                showLoginError("Please use the ${if (userRole == "driver") "Driver" else "Customer"} login to access this account.")
+                                val intent = Intent(this@LoginActivity, LoginActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                startActivity(intent)
+                            }
+                            return@launch
+                        }
+
+                        // Store token, userId, and role in SessionManager (only after role check passes)
                         sessionManager.saveToken(loginResponse.token)
                         sessionManager.saveUserId(loginResponse.userId)
-                        
-                        // Provide a default value if role is null
-                        val userRole = loginResponse.role ?: "customer"
                         sessionManager.saveUserType(userRole)
-                        
+
                         // Request notification permissions if needed
                         withContext(Dispatchers.Main) {
                             // Check for notification permission for Android 13+

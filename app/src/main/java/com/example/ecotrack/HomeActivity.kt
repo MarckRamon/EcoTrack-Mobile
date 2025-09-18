@@ -587,22 +587,17 @@ class HomeActivity : BaseActivity() {
 
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
-            // Redirect based on account type
-            when (userType) {
-                "driver" -> redirectToDriverHome()
-                "admin" -> {
-                    // For now just logout, later redirect to admin interface
-                    sessionManager.logout()
-                    startActivity(Intent(this, LoginActivity::class.java))
-                    finish()
-                }
-                else -> {
-                    // Unknown role, logout and redirect to login
-                    sessionManager.logout()
-                    startActivity(Intent(this, LoginActivity::class.java))
-                    finish()
-                }
+            // For any non-customer role, log out and return to LoginActivity with the appropriate tab preselected
+            sessionManager.logout()
+            val intent = Intent(this, LoginActivity::class.java)
+            if (userType == "driver") {
+                intent.putExtra("selectRole", "driver")
+            } else if (userType == "customer") {
+                intent.putExtra("selectRole", "customer")
             }
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
             return
         }
 
@@ -633,24 +628,17 @@ class HomeActivity : BaseActivity() {
 
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
-            when (roleFromToken) {
-                "driver" -> {
-                    // Save the role and redirect
-                    sessionManager.saveUserType("driver")
-                    redirectToDriverHome()
-                }
-                "admin" -> {
-                    // For now just logout, later redirect to admin interface
-                    sessionManager.logout()
-                    startActivity(Intent(this, LoginActivity::class.java))
-                    finish()
-                }
-                else -> {
-                    sessionManager.logout()
-                    startActivity(Intent(this, LoginActivity::class.java))
-                    finish()
-                }
+            // For any non-customer role detected in token, force logout and return to Login with role hint
+            sessionManager.logout()
+            val intent = Intent(this, LoginActivity::class.java)
+            if (roleFromToken == "driver") {
+                intent.putExtra("selectRole", "driver")
+            } else if (roleFromToken == "customer") {
+                intent.putExtra("selectRole", "customer")
             }
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
             return
         }
 
