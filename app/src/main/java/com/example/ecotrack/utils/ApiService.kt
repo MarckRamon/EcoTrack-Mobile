@@ -146,6 +146,14 @@ interface ApiService {
         @Header("Authorization") authToken: String
     ): Response<Payment>
 
+    // Customer Payment Job Order Status Update
+    @PUT("api/payments/{paymentId}/job-order-status")
+    suspend fun updatePaymentJobOrderStatus(
+        @Path("paymentId") paymentId: String,
+        @Body statusUpdate: JobOrderStatusUpdate,
+        @Header("Authorization") authToken: String
+    ): Response<Payment>
+
     // Update Payment Delivery Status
     @PUT("api/payments/{paymentId}/delivery-status")
     suspend fun updateDeliveryStatus(

@@ -188,23 +188,17 @@ class OrderStatusActivity : AppCompatActivity() {
         // Set up periodic status checking
         startStatusPolling()
 
-        // If order is in PROCESSING status, show the ability to cancel
-        if (initialStatus == "Processing") {
-            btnCancel.visibility = View.VISIBLE
-            btnCancel.setOnClickListener {
-                // Show confirmation dialog before cancellation
-                AlertDialog.Builder(this)
-                    .setTitle("Cancel Order")
-                    .setMessage("Are you sure you want to cancel this order?")
-                    .setPositiveButton("Yes") { _, _ ->
-                        // Cancel the order via API
-                        cancelOrder()
-                    }
-                    .setNegativeButton("No", null)
-                    .show()
-            }
-        } else {
-            btnCancel.visibility = View.GONE
+        // Initialize cancel button: hidden by default until backend confirms Processing
+        btnCancel.visibility = View.GONE
+        btnCancel.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Cancel Order")
+                .setMessage("Are you sure you want to cancel this order?")
+                .setPositiveButton("Yes") { _, _ ->
+                    cancelOrder()
+                }
+                .setNegativeButton("No", null)
+                .show()
         }
 
         // Add debug functionality - long press on payment method text to cycle through payment methods
@@ -375,8 +369,8 @@ class OrderStatusActivity : AppCompatActivity() {
                     // Update order details from API response
                     updateOrderDetails(paymentResponse)
                     
-                    // Hide cancel button if status is not Processing
-                    if (effectiveStatus != "Processing") {
+                    // Hide cancel button unless status is Processing or Available
+                    if (effectiveStatus != "Processing" && effectiveStatus != "Available") {
                         btnCancel.visibility = View.GONE
                     }
                 }
@@ -442,8 +436,8 @@ class OrderStatusActivity : AppCompatActivity() {
                         updateOrderStatus(enhancedResponse.jobOrderStatus, enhancedResponse)
                         updateOrderDetails(enhancedResponse)
                         
-                        // Hide cancel button if status is not Processing
-                        if (enhancedResponse.jobOrderStatus != "Processing") {
+                        // Hide cancel button unless status is Processing or Available
+                        if (enhancedResponse.jobOrderStatus != "Processing" && enhancedResponse.jobOrderStatus != "Available") {
                             btnCancel.visibility = View.GONE
                         }
                     }
@@ -461,8 +455,8 @@ class OrderStatusActivity : AppCompatActivity() {
                 updateOrderStatus(paymentResponse.jobOrderStatus, paymentResponse)
                 updateOrderDetails(paymentResponse)
                 
-                // Hide cancel button if status is not Processing
-                if (paymentResponse.jobOrderStatus != "Processing") {
+                // Hide cancel button unless status is Processing or Available
+                if (paymentResponse.jobOrderStatus != "Processing" && paymentResponse.jobOrderStatus != "Available") {
                     btnCancel.visibility = View.GONE
                 }
             }
@@ -474,8 +468,8 @@ class OrderStatusActivity : AppCompatActivity() {
                 updateOrderStatus(paymentResponse.jobOrderStatus, paymentResponse)
                 updateOrderDetails(paymentResponse)
                 
-                // Hide cancel button if status is not Processing
-                if (paymentResponse.jobOrderStatus != "Processing") {
+                // Hide cancel button unless status is Processing or Available
+                if (paymentResponse.jobOrderStatus != "Processing" && paymentResponse.jobOrderStatus != "Available") {
                     btnCancel.visibility = View.GONE
                 }
             }
@@ -589,6 +583,7 @@ class OrderStatusActivity : AppCompatActivity() {
                     animateColorChange(progressLine2, greenColor, greyColor)
                     animateColorChange(progressLine3, greenColor, greyColor)
                 }
+                btnCancel.visibility = View.VISIBLE
             }
             "Accepted" -> {
                 // Get estimated arrival time from backend if available
@@ -634,6 +629,7 @@ class OrderStatusActivity : AppCompatActivity() {
                     animateColorChange(progressLine2, greenColor, greyColor)
                     animateColorChange(progressLine3, greenColor, greyColor)
                 }
+                btnCancel.visibility = View.GONE
             }
             "In-Progress" -> {
                 tvStatusHeader.text = "Pickup in Progress"
@@ -663,6 +659,7 @@ class OrderStatusActivity : AppCompatActivity() {
                     // Last line stays grey
                     animateColorChange(progressLine3, greenColor, greyColor)
                 }
+                btnCancel.visibility = View.GONE
             }
             "Completed" -> {
                 tvStatusHeader.text = "Completed"
@@ -689,6 +686,7 @@ class OrderStatusActivity : AppCompatActivity() {
                     // Current icon's line is green
                     animateColorChange(progressLine3, greyColor, greenColor)
                 }
+                btnCancel.visibility = View.GONE
             }
             "Cancelled" -> {
                 tvStatusHeader.text = "Cancelled"
@@ -712,7 +710,6 @@ class OrderStatusActivity : AppCompatActivity() {
                     animateColorChange(progressLine2, greenColor, greyColor)
                     animateColorChange(progressLine3, greenColor, greyColor)
                 }
-                
                 btnCancel.visibility = View.GONE
             }
             else -> {
@@ -752,9 +749,9 @@ class OrderStatusActivity : AppCompatActivity() {
                     val paymentResponse = response.body()!!
                     val paymentId = paymentResponse.id
                     
-                    // Now update the job order status to "Cancelled"
+                    // Now update the job order status to "Cancelled" using customer API
                     val statusUpdate = JobOrderStatusUpdate("Cancelled")
-                    val updateResponse = apiService.updateJobOrderStatus(paymentId, statusUpdate, bearerToken)
+                    val updateResponse = apiService.updatePaymentJobOrderStatus(paymentId, statusUpdate, bearerToken)
                     
                     withContext(Dispatchers.Main) {
                         if (updateResponse.isSuccessful) {
