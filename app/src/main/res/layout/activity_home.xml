@@ -66,7 +66,7 @@
                     android:id="@+id/welcomeText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Welcome, Primo!"
+                    android:text="Welcome, User!"
                     android:textSize="16sp"
                     android:textColor="#757575"
                     android:layout_marginTop="16dp"
