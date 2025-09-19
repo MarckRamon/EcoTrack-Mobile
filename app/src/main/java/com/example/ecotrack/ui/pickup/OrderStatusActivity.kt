@@ -24,6 +24,7 @@ import com.example.ecotrack.ui.pickup.model.PaymentMethod
 import com.example.ecotrack.ui.pickup.model.PickupOrder
 import com.example.ecotrack.utils.ApiService
 import com.example.ecotrack.utils.FileLuService
+import com.example.ecotrack.utils.ProfileImageLoader
 import com.example.ecotrack.utils.SessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +71,7 @@ class OrderStatusActivity : AppCompatActivity() {
     private lateinit var order: PickupOrder
     private lateinit var apiService: ApiService
     private lateinit var fileLuService: FileLuService
+    private val profileImageLoader = ProfileImageLoader(this)
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var sessionManager: SessionManager
     
@@ -661,14 +663,31 @@ class OrderStatusActivity : AppCompatActivity() {
         if (!this::cardProof.isInitialized) return
         val effectiveUrl = url ?: cachedProofUrl
         if (!effectiveUrl.isNullOrBlank()) {
+            Log.d("OrderStatusActivity", "Loading proof image: $effectiveUrl")
             cardProof.visibility = View.VISIBLE
             try {
-                com.bumptech.glide.Glide.with(this)
-                    .load(effectiveUrl)
-                    .centerCrop()
-                    .into(ivProof)
-            } catch (_: Exception) { }
+                profileImageLoader.loadProofImage(
+                    url = effectiveUrl,
+                    imageView = ivProof,
+                    placeholderResId = R.drawable.ic_camera,
+                    errorResId = R.drawable.ic_camera
+                )
+            } catch (e: Exception) {
+                Log.e("OrderStatusActivity", "Error loading proof image with ProfileImageLoader", e)
+                // Fallback to regular Glide loading
+                try {
+                    com.bumptech.glide.Glide.with(this)
+                        .load(effectiveUrl)
+                        .centerCrop()
+                        .placeholder(R.drawable.ic_camera)
+                        .error(R.drawable.ic_camera)
+                        .into(ivProof)
+                } catch (fallbackException: Exception) {
+                    Log.e("OrderStatusActivity", "Fallback Glide loading also failed", fallbackException)
+                }
+            }
         } else {
+            Log.d("OrderStatusActivity", "No proof image URL available, hiding card")
             cardProof.visibility = View.GONE
         }
     }

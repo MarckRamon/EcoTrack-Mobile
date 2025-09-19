@@ -200,6 +200,54 @@ class ProfileImageLoader(private val context: Context) {
     }
     
     /**
+     * Load proof image with enhanced debugging and error handling
+     */
+    fun loadProofImage(
+        url: String,
+        imageView: ImageView,
+        placeholderResId: Int = android.R.drawable.ic_menu_camera,
+        errorResId: Int = android.R.drawable.ic_menu_camera
+    ) {
+        Log.d(TAG, "Loading proof image: $url")
+        
+        // Check if this is a FileLu URL that needs conversion
+        if (url.contains("filelu.com") && !url.contains("cdnfinal.space")) {
+            Log.d(TAG, "Detected FileLu URL, converting...")
+            // Try to load from cache first
+            val cachedConvertedUrl = urlCache[url]
+            if (cachedConvertedUrl != null) {
+                Log.d(TAG, "Using cached converted URL: $cachedConvertedUrl")
+                loadImageDirectly(cachedConvertedUrl, imageView, placeholderResId, errorResId)
+            } else {
+                // Load original URL first, then convert
+                loadImageDirectly(url, imageView, placeholderResId, errorResId)
+                
+                // Convert URL in background
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val displayUrl = fileLuService.convertToDisplayUrl(url)
+                        if (displayUrl != null && displayUrl != url) {
+                            Log.d(TAG, "Converted FileLu URL: $url -> $displayUrl")
+                            urlCache[url] = displayUrl
+                            
+                            withContext(Dispatchers.Main) {
+                                loadImageDirectly(displayUrl, imageView, placeholderResId, errorResId)
+                            }
+                        } else {
+                            Log.w(TAG, "URL conversion returned null or same URL")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error converting proof image URL", e)
+                    }
+                }
+            }
+        } else {
+            Log.d(TAG, "Direct URL detected, loading immediately")
+            loadImageDirectly(url, imageView, placeholderResId, errorResId)
+        }
+    }
+    
+    /**
      * Legacy method for backward compatibility
      */
     fun loadProfileImageOptimized(
