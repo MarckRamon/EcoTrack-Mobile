@@ -16,6 +16,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.ecotrack.adapters.PaymentOrderAdapter
 import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.FileLuService
+import com.example.ecotrack.utils.ProfileImageLoader
 import com.example.ecotrack.utils.RealTimeUpdateManager
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.launch
@@ -40,6 +42,8 @@ class DriverHomeActivity : BaseActivity() {
     private lateinit var progressBar: ProgressBar
     
     private val apiService = ApiService.create()
+    private val fileLuService = FileLuService(this)
+    private val profileImageLoader = ProfileImageLoader(this)
     private val TAG = "DriverHomeActivity"
     
     // Real-time update manager
@@ -57,11 +61,7 @@ class DriverHomeActivity : BaseActivity() {
         try {
             val cachedUrl = sessionManager.getProfileImageUrl()
             if (!cachedUrl.isNullOrBlank()) {
-                com.bumptech.glide.Glide.with(this)
-                    .load(cachedUrl)
-                    .placeholder(R.drawable.raph)
-                    .error(R.drawable.raph)
-                    .into(profileImage)
+                loadProfileImage(cachedUrl)
             }
         } catch (_: Exception) {}
 
@@ -232,11 +232,7 @@ class DriverHomeActivity : BaseActivity() {
                         try {
                             val url = it.imageUrl ?: it.profileImage
                             if (!url.isNullOrBlank()) {
-                                com.bumptech.glide.Glide.with(this@DriverHomeActivity)
-                                    .load(url)
-                                    .placeholder(R.drawable.raph)
-                                    .error(R.drawable.raph)
-                                    .into(profileImage)
+                                loadProfileImage(url)
                                 sessionManager.saveProfileImageUrl(url)
                             }
                         } catch (_: Exception) {}
@@ -263,6 +259,15 @@ class DriverHomeActivity : BaseActivity() {
                 showNoConnectionView()
             }
         }
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = profileImage,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
     }
     
     private fun loadJobOrders() {

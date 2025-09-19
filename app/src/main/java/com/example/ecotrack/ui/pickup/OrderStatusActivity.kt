@@ -23,6 +23,7 @@ import com.example.ecotrack.ui.pickup.model.OrderStatus
 import com.example.ecotrack.ui.pickup.model.PaymentMethod
 import com.example.ecotrack.ui.pickup.model.PickupOrder
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.FileLuService
 import com.example.ecotrack.utils.SessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +69,7 @@ class OrderStatusActivity : AppCompatActivity() {
     private lateinit var backButton: ImageView
     private lateinit var order: PickupOrder
     private lateinit var apiService: ApiService
+    private lateinit var fileLuService: FileLuService
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var sessionManager: SessionManager
     
@@ -115,6 +117,7 @@ class OrderStatusActivity : AppCompatActivity() {
         
         // Initialize API service
         apiService = ApiService.create()
+        fileLuService = FileLuService(this)
         
         // Initialize shared preferences and session manager
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
@@ -166,7 +169,7 @@ class OrderStatusActivity : AppCompatActivity() {
                 FileOutputStream(tempFile).use { out ->
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
                 }
-                uploadToCatboxAndSave(tempFile)
+                uploadToFileLuAndSave(tempFile)
             } else {
                 Toast.makeText(this, "No image captured", Toast.LENGTH_SHORT).show()
             }
@@ -598,34 +601,16 @@ class OrderStatusActivity : AppCompatActivity() {
 
     // Old permission and activity result overrides are no longer used; kept out for clarity
 
-    private fun uploadToCatboxAndSave(imageFile: File) {
-        // Upload to Catbox using multipart form
+    private fun uploadToFileLuAndSave(imageFile: File) {
+        // Upload to FileLu using the service
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val client = OkHttpClient()
-                val mediaType = "image/jpeg".toMediaTypeOrNull()
-                val fileBody = imageFile.asRequestBody(mediaType)
-                val multipart = MultipartBody.Builder()
-                    .setType(MultipartBody.FORM)
-                    .addFormDataPart("reqtype", "fileupload")
-                    .addFormDataPart("userhash", "9977879e19e2ca7543183dd67")
-                    .addFormDataPart("fileToUpload", imageFile.name, fileBody)
-                    .build()
-
-                val request = Request.Builder()
-                    .url("https://catbox.moe/user/api.php")
-                    .post(multipart)
-                    .build()
-
-                val response = client.newCall(request).execute()
-                val bodyString = response.body?.string()?.trim()
-                if (!response.isSuccessful || bodyString.isNullOrBlank()) {
-                    Log.e("OrderStatusActivity", "Catbox upload failed: ${response.code} ${response.message}")
+                val imageUrl = fileLuService.uploadImageFile(imageFile)
+                if (imageUrl.isNullOrBlank()) {
+                    Log.e("OrderStatusActivity", "FileLu upload failed")
                     withContext(Dispatchers.Main) { Toast.makeText(this@OrderStatusActivity, "Failed to upload image", Toast.LENGTH_SHORT).show() }
                     return@launch
                 }
-
-                val imageUrl = bodyString // Catbox returns the file URL directly
 
                 // Save to backend
                 val jwtToken = sessionManager.getToken()

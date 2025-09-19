@@ -15,6 +15,8 @@ import com.example.ecotrack.databinding.ActivityDriverEditProfileBinding
 import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.models.ProfileUpdateRequest
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.FileLuService
+import com.example.ecotrack.utils.ProfileImageLoader
 import com.example.ecotrack.utils.RealTimeUpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +26,8 @@ import kotlinx.coroutines.withContext
 class DriverEditProfileActivity : BaseActivity() {
     private lateinit var binding: ActivityDriverEditProfileBinding
     private val apiService = ApiService.create()
+    private val fileLuService = FileLuService(this)
+    private val profileImageLoader = ProfileImageLoader(this)
     private val TAG = "DriverEditProfileActivity"
     
     // Store original profile values
@@ -120,8 +124,8 @@ class DriverEditProfileActivity : BaseActivity() {
         showLoading(true)
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val catboxUrl = uploadToCatbox(imageUri)
-                if (catboxUrl.isNullOrEmpty()) {
+                val fileLuUrl = fileLuService.uploadImageUri(imageUri, "profile_${System.currentTimeMillis()}")
+                if (fileLuUrl.isNullOrEmpty()) {
                     withContext(Dispatchers.Main) {
                         showLoading(false)
                         Toast.makeText(this@DriverEditProfileActivity, "Failed to upload image", Toast.LENGTH_SHORT).show()
@@ -135,7 +139,7 @@ class DriverEditProfileActivity : BaseActivity() {
                 val saveResp = apiService.updateProfileImage(
                     authToken = "Bearer $token",
                     body = mapOf(
-                        "imageUrl" to catboxUrl,
+                        "imageUrl" to fileLuUrl,
                         "imageType" to imageType
                     )
                 )
@@ -144,12 +148,9 @@ class DriverEditProfileActivity : BaseActivity() {
                     showLoading(false)
                     if (saveResp.isSuccessful) {
                         // Persist URL for global access
-                        sessionManager.saveProfileImageUrl(catboxUrl)
+                        sessionManager.saveProfileImageUrl(fileLuUrl)
                         
-                        Glide.with(this@DriverEditProfileActivity)
-                            .load(catboxUrl)
-                            .skipMemoryCache(true)
-                            .into(binding.profileImage)
+                        loadProfileImage(fileLuUrl)
                         Toast.makeText(this@DriverEditProfileActivity, "Profile image updated", Toast.LENGTH_SHORT).show()
                     } else {
                         Log.e(TAG, "Failed to save image URL: ${saveResp.code()} ${saveResp.message()}")
@@ -166,52 +167,6 @@ class DriverEditProfileActivity : BaseActivity() {
         }
     }
 
-    private fun uploadToCatbox(imageUri: Uri): String? {
-        return try {
-            val contentResolver = contentResolver
-            val mimeType = contentResolver.getType(imageUri) ?: "image/jpeg"
-            val extension = when (mimeType.substringAfter('/').lowercase()) {
-                "jpeg", "jpg" -> ".jpg"
-                "png" -> ".png"
-                "webp" -> ".webp"
-                "gif" -> ".gif"
-                else -> ".jpg"
-            }
-            val fileName = "profile_${System.currentTimeMillis()}${extension}"
-
-            val inputStream = contentResolver.openInputStream(imageUri) ?: return null
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-
-            val requestBody = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
-                .addFormDataPart("reqtype", "fileupload")
-                .addFormDataPart("userhash", "9977879e19e2ca7543183dd67")
-                .addFormDataPart(
-                    "fileToUpload",
-                    fileName,
-                    okhttp3.RequestBody.create(mimeType.toMediaTypeOrNull(), bytes)
-                )
-                .build()
-
-            val request = okhttp3.Request.Builder()
-                .url("https://catbox.moe/user/api.php")
-                .post(requestBody)
-                .build()
-
-            val okClient = okhttp3.OkHttpClient()
-            okClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    Log.e(TAG, "Catbox upload failed: ${response.code}")
-                    return null
-                }
-                val bodyStr = response.body?.string()?.trim()
-                if (bodyStr.isNullOrBlank()) null else bodyStr
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Catbox upload error", e)
-            null
-        }
-    }
 
     private fun loadUserProfile() {
         val token = sessionManager.getToken()
@@ -272,6 +227,15 @@ class DriverEditProfileActivity : BaseActivity() {
                 }
             }
         }
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = binding.profileImage,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
     }
 
     private fun updateProfile() {

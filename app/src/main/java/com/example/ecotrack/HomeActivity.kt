@@ -22,6 +22,8 @@ import com.example.ecotrack.models.payment.PaymentResponse
 import com.example.ecotrack.ui.pickup.OrderStatusActivity
 import com.example.ecotrack.ui.pickup.model.PickupOrder
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.FileLuService
+import com.example.ecotrack.utils.ProfileImageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -34,6 +36,8 @@ class HomeActivity : BaseActivity() {
 
     private lateinit var binding: ActivityHomeBinding
     private val apiService = ApiService.create()
+    private val fileLuService = FileLuService(this)
+    private val profileImageLoader = ProfileImageLoader(this)
     private lateinit var welcomeText: TextView
     private lateinit var timeRemainingText: TextView
     private lateinit var reminderCard: CardView
@@ -668,11 +672,7 @@ class HomeActivity : BaseActivity() {
                             try {
                                 val url = it.imageUrl ?: it.profileImage
                                 if (!url.isNullOrBlank()) {
-                                    com.bumptech.glide.Glide.with(this@HomeActivity)
-                                        .load(url)
-                                        .placeholder(R.drawable.raph)
-                                        .error(R.drawable.raph)
-                                        .into(binding.profileImage)
+                                    loadProfileImage(url)
                                     sessionManager.saveProfileImageUrl(url)
                                 }
                             } catch (_: Exception) {}
@@ -702,6 +702,15 @@ class HomeActivity : BaseActivity() {
     private fun redirectToDriverHome() {
         startActivity(Intent(this, DriverHomeActivity::class.java))
         finish()
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = binding.profileImage,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
     }
 
     private fun startCountdownTimer() {

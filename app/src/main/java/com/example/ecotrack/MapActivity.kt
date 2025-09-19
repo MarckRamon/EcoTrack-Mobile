@@ -16,6 +16,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.ecotrack.models.PickupSite
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.ProfileImageLoader
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +44,7 @@ class MapActivity : BaseActivity() {
     private lateinit var pickupNav: View
     
     private val apiService = ApiService.create()
+    private val profileImageLoader = ProfileImageLoader(this)
     private val pickupSites = mutableListOf<PickupSite>()
     
     private val LOCATION_PERMISSION_REQUEST_CODE = 1001
@@ -77,11 +79,7 @@ class MapActivity : BaseActivity() {
         try {
             val cachedUrl = sessionManager.getProfileImageUrl()
             if (!cachedUrl.isNullOrBlank()) {
-                com.bumptech.glide.Glide.with(this)
-                    .load(cachedUrl)
-                    .placeholder(R.drawable.raph)
-                    .error(R.drawable.raph)
-                    .into(profileImage)
+                loadProfileImage(cachedUrl)
             }
         } catch (_: Exception) {}
         homeNav = findViewById(R.id.homeNav)
@@ -142,6 +140,15 @@ class MapActivity : BaseActivity() {
             // Navigate to Order Pickup activity
             startActivity(Intent(this, com.example.ecotrack.ui.pickup.OrderPickupActivity::class.java))
         }
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = profileImage,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
     }
     
     private fun checkLocationPermission() {

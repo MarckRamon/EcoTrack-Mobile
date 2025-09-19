@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.example.ecotrack.ui.SessionTimeoutDialog
+import com.example.ecotrack.utils.ImagePreloader
 import com.example.ecotrack.utils.SessionManager
 
 /**
@@ -14,6 +15,7 @@ import com.example.ecotrack.utils.SessionManager
 abstract class BaseActivity : AppCompatActivity(), SessionTimeoutDialog.SessionTimeoutListener {
     
     protected lateinit var sessionManager: SessionManager
+    private val imagePreloader = ImagePreloader(this)
     private val TAG = "BaseActivity"
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,6 +23,9 @@ abstract class BaseActivity : AppCompatActivity(), SessionTimeoutDialog.SessionT
         
         // Initialize session manager
         sessionManager = SessionManager.getInstance(this)
+        
+        // Preload profile image for faster display
+        imagePreloader.preloadProfileImage()
         
         // Check if the activity is part of forgot password flow
         val isForgotPasswordFlow = intent?.hasExtra("questionId1") == true && intent?.hasExtra("answer1") == true

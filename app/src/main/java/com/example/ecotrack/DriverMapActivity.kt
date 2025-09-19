@@ -18,6 +18,7 @@ import com.example.ecotrack.models.PrivateEntitiesResponse
 import com.example.ecotrack.models.PrivateEntity
 import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.ProfileImageLoader
 import com.example.ecotrack.utils.RealTimeUpdateManager
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import de.hdodenhof.circleimageview.CircleImageView
@@ -54,6 +55,7 @@ class DriverMapActivity : BaseActivity() {
     private lateinit var locationToggleButton: FloatingActionButton
     
     private val apiService = ApiService.create()
+    private val profileImageLoader = ProfileImageLoader(this)
     
     // Data lists
     private var jobOrders: List<Payment> = emptyList()
@@ -115,11 +117,7 @@ class DriverMapActivity : BaseActivity() {
         try {
             val cachedUrl = sessionManager.getProfileImageUrl()
             if (!cachedUrl.isNullOrBlank()) {
-                com.bumptech.glide.Glide.with(this)
-                    .load(cachedUrl)
-                    .placeholder(R.drawable.raph)
-                    .error(R.drawable.raph)
-                    .into(profileImage)
+                loadProfileImage(cachedUrl)
             }
         } catch (_: Exception) {}
         
@@ -179,6 +177,15 @@ class DriverMapActivity : BaseActivity() {
         }
         
         // collectionPointsNav is the current screen
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = profileImage,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
     }
     
     private fun navigateToPreviousMarker() {

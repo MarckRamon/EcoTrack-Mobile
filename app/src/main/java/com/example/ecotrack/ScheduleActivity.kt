@@ -19,6 +19,8 @@ import com.example.ecotrack.databinding.DialogScheduleInfoBinding
 import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.models.CollectionScheduleResponse
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.FileLuService
+import com.example.ecotrack.utils.ProfileImageLoader
 import com.kizitonwose.calendar.core.*
 import java.time.OffsetDateTime
 import com.kizitonwose.calendar.view.MonthDayBinder
@@ -36,6 +38,8 @@ class ScheduleActivity : BaseActivity() {
 
     private lateinit var binding: ActivityScheduleBinding
     private lateinit var apiService: ApiService
+    private val fileLuService = FileLuService(this)
+    private val profileImageLoader = ProfileImageLoader(this)
 
     // Data to store calendar display information
     private var schedulesByDate = mapOf<LocalDate, List<CollectionScheduleResponse>>()
@@ -87,11 +91,7 @@ class ScheduleActivity : BaseActivity() {
         try {
             val cachedUrl = sessionManager.getProfileImageUrl()
             if (!cachedUrl.isNullOrBlank()) {
-                com.bumptech.glide.Glide.with(this)
-                    .load(cachedUrl)
-                    .placeholder(R.drawable.raph)
-                    .error(R.drawable.raph)
-                    .into(binding.profileIcon)
+                loadProfileImage(cachedUrl)
             }
         } catch (_: Exception) {}
 
@@ -117,6 +117,15 @@ class ScheduleActivity : BaseActivity() {
                 binding.calendarView.smoothScrollToMonth(it.yearMonth.previousMonth)
             }
         }
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = binding.profileIcon,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
     }
 
     private fun setupBottomNavigationBar() {

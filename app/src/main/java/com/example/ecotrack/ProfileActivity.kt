@@ -8,6 +8,8 @@ import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.button.MaterialButton
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.FileLuService
+import com.example.ecotrack.utils.ProfileImageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,6 +18,8 @@ import android.widget.ImageButton
 
 class ProfileActivity : BaseActivity() {
     private val apiService = ApiService.create()
+    private val fileLuService = FileLuService(this)
+    private val profileImageLoader = ProfileImageLoader(this)
     private val TAG = "ProfileActivity"
     private lateinit var userNameText: TextView
     private lateinit var userEmailText: TextView
@@ -34,11 +38,7 @@ class ProfileActivity : BaseActivity() {
         try {
             val cachedUrl = sessionManager.getProfileImageUrl()
             if (!cachedUrl.isNullOrBlank()) {
-                com.bumptech.glide.Glide.with(this)
-                    .load(cachedUrl)
-                    .placeholder(R.drawable.raph)
-                    .error(R.drawable.raph)
-                    .into(profileAvatar)
+                loadProfileImage(cachedUrl)
             }
         } catch (_: Exception) {}
         loadUserData()
@@ -49,6 +49,15 @@ class ProfileActivity : BaseActivity() {
         userEmailText = findViewById(R.id.userEmail)
         userBarangayText = findViewById(R.id.userBarangay)
         profileAvatar = findViewById(R.id.profileAvatar)
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = profileAvatar,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
     }
 
     private fun setupClickListeners() {
@@ -154,11 +163,7 @@ class ProfileActivity : BaseActivity() {
                             try {
                                 val url = it.imageUrl ?: it.profileImage
                                 if (!url.isNullOrBlank()) {
-                                    com.bumptech.glide.Glide.with(this@ProfileActivity)
-                                        .load(url)
-                                        .placeholder(R.drawable.raph)
-                                        .error(R.drawable.raph)
-                                        .into(profileAvatar)
+                                    loadProfileImage(url)
                                     sessionManager.saveProfileImageUrl(url)
                                 }
                             } catch (_: Exception) {}

@@ -19,6 +19,8 @@ import com.example.ecotrack.databinding.ActivityEditProfileBinding
 import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.models.ProfileUpdateRequest
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.FileLuService
+import com.example.ecotrack.utils.ProfileImageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,6 +29,8 @@ import kotlinx.coroutines.withContext
 class EditProfileActivity : BaseActivity() {
     private lateinit var binding: ActivityEditProfileBinding
     private val apiService = ApiService.create()
+    private val fileLuService = FileLuService(this)
+    private val profileImageLoader = ProfileImageLoader(this)
     private val TAG = "EditProfileActivity"
 
     // Store original profile values
@@ -98,11 +102,7 @@ class EditProfileActivity : BaseActivity() {
         try {
             val cachedUrl = sessionManager.getProfileImageUrl()
             if (!cachedUrl.isNullOrBlank()) {
-                Glide.with(this)
-                    .load(cachedUrl)
-                    .placeholder(R.drawable.raph)
-                    .error(R.drawable.raph)
-                    .into(binding.profileImage)
+                loadProfileImage(cachedUrl)
             }
         } catch (_: Exception) {}
     }
@@ -143,11 +143,7 @@ class EditProfileActivity : BaseActivity() {
                             try {
                                 val url = it.imageUrl ?: it.profileImage
                                 if (!url.isNullOrBlank()) {
-                                    Glide.with(this@EditProfileActivity)
-                                        .load(url)
-                                        .placeholder(R.drawable.raph)
-                                        .error(R.drawable.raph)
-                                        .into(binding.profileImage)
+                                    loadProfileImage(url)
                                     sessionManager.saveProfileImageUrl(url)
                                 }
                             } catch (_: Exception) {}
@@ -180,6 +176,15 @@ class EditProfileActivity : BaseActivity() {
             }
         }
     }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = binding.profileImage,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
+    }
 
     private fun openGallery() {
         try {
@@ -199,8 +204,8 @@ class EditProfileActivity : BaseActivity() {
         showLoading(true)
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val catboxUrl = uploadToCatbox(imageUri)
-                if (catboxUrl.isNullOrEmpty()) {
+                val fileLuUrl = fileLuService.uploadImageUri(imageUri, "profile_${System.currentTimeMillis()}")
+                if (fileLuUrl.isNullOrEmpty()) {
                     withContext(Dispatchers.Main) {
                         showLoading(false)
                         Toast.makeText(this@EditProfileActivity, "Failed to upload image", Toast.LENGTH_SHORT).show()
@@ -214,7 +219,7 @@ class EditProfileActivity : BaseActivity() {
                 val saveResp = apiService.updateProfileImage(
                     authToken = "Bearer $token",
                     body = mapOf(
-                        "imageUrl" to catboxUrl,
+                        "imageUrl" to fileLuUrl,
                         "imageType" to imageType
                     )
                 )
@@ -223,11 +228,11 @@ class EditProfileActivity : BaseActivity() {
                     showLoading(false)
                     if (saveResp.isSuccessful) {
                         // Persist URL for global access
-                        sessionManager.saveProfileImageUrl(catboxUrl)
+                        sessionManager.saveProfileImageUrl(fileLuUrl)
                         
                         // Load the uploaded image URL to ensure replacement (and bust cache)
                         Glide.with(this@EditProfileActivity)
-                            .load(catboxUrl)
+                            .load(fileLuUrl)
                             .skipMemoryCache(true)
                             .into(binding.profileImage)
                         Toast.makeText(this@EditProfileActivity, "Profile image updated", Toast.LENGTH_SHORT).show()
@@ -246,53 +251,6 @@ class EditProfileActivity : BaseActivity() {
         }
     }
 
-    private fun uploadToCatbox(imageUri: Uri): String? {
-        return try {
-            val contentResolver = contentResolver
-            val mimeType = contentResolver.getType(imageUri) ?: "image/jpeg"
-            val extension = when (mimeType.substringAfter('/').lowercase()) {
-                "jpeg", "jpg" -> ".jpg"
-                "png" -> ".png"
-                "webp" -> ".webp"
-                "gif" -> ".gif"
-                else -> ".jpg"
-            }
-            val fileName = "profile_${System.currentTimeMillis()}${extension}"
-
-            val inputStream = contentResolver.openInputStream(imageUri) ?: return null
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-
-            val requestBody = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
-                .addFormDataPart("reqtype", "fileupload")
-                .addFormDataPart("userhash", "9977879e19e2ca7543183dd67")
-                .addFormDataPart(
-                    "fileToUpload",
-                    fileName,
-                    okhttp3.RequestBody.create(mimeType.toMediaTypeOrNull(), bytes)
-                )
-                .build()
-
-            val request = okhttp3.Request.Builder()
-                .url("https://catbox.moe/user/api.php")
-                .post(requestBody)
-                .build()
-
-            val okClient = okhttp3.OkHttpClient()
-            okClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    Log.e(TAG, "Catbox upload failed: ${response.code}")
-                    return null
-                }
-                val bodyStr = response.body?.string()?.trim()
-                // Catbox returns the file URL directly on success
-                if (bodyStr.isNullOrBlank()) null else bodyStr
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Catbox upload error", e)
-            null
-        }
-    }
 
     private fun updateProfile() {
         val token = sessionManager.getToken()
