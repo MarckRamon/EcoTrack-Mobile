@@ -366,7 +366,7 @@ class DriverArrivedAtTheLocationActivity : BaseActivity() {
             // Fallback to demo data
             customerLatitude = 21.3069 // Honolulu latitude
             customerLongitude = -157.8583 // Honolulu longitude
-            customerName = "Miggy Chan"
+            customerName = "Customer Name"
             customerPhone = "+639127463218"
             customerAddress = "7953 Oakland St. Honolulu, HI 96815"
             wasteType = "Biodegradable"

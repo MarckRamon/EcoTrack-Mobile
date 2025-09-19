@@ -174,7 +174,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Miggy Chan"
+                    android:text="Customer Name"
                     android:textAlignment="textEnd"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp"
@@ -342,7 +342,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="₱550"
+                    android:text="₱0"
                     android:textAlignment="textEnd"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp"
@@ -351,18 +351,47 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Accept Button -->
-    <Button
-        android:id="@+id/acceptJobOrderButton"
+    <!-- Button Container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/buttonContainer"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="16dp"
-        android:backgroundTint="@color/secondary"
-        android:text="ACCEPT JOB ORDER"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <!-- Accept Button -->
+        <Button
+            android:id="@+id/acceptJobOrderButton"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="@color/secondary"
+            android:text="ACCEPT JOB ORDER"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/cancelJobOrderButton"
+            app:layout_constraintHorizontal_chainStyle="spread"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Cancel Button -->
+        <Button
+            android:id="@+id/cancelJobOrderButton"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="@color/error"
+            android:text="CANCEL JOB ORDER"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/acceptJobOrderButton"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Progress Bar -->
     <ProgressBar

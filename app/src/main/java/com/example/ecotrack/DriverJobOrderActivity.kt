@@ -330,11 +330,13 @@ class DriverJobOrderActivity : BaseActivity() {
                     val payments = response.body()
                     
                     if (payments != null && payments.isNotEmpty()) {
-                        // Split payments into in-progress, available and completed
+                        // Split payments into in-progress, available and completed (exclude cancelled orders)
                         val inProgressPayments = payments.filter { 
-                            it.jobOrderStatus == "In-Progress" || it.jobOrderStatus == "Accepted" 
+                            (it.jobOrderStatus == "In-Progress" || it.jobOrderStatus == "Accepted") 
                         }
-                        val availablePayments = payments.filter { it.jobOrderStatus == "Available" }
+                        val availablePayments = payments.filter { 
+                            it.jobOrderStatus == "Available" 
+                        }
                         
                         // Filter completed payments to exclude those that are already delivered
                         val completedPayments = payments.filter { 

@@ -119,7 +119,7 @@
                 android:textStyle="italic"
                 android:layout_marginTop="4dp"
                 android:background="@drawable/tag_background"
-                android:paddingHorizontal="8dp"
+                android:paddingHorizontal="15dp"
                 android:paddingVertical="2dp" />
         </LinearLayout>
 

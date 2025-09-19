@@ -238,7 +238,8 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:background="@color/secondary_dark">
 
                 <ImageView
                     android:layout_width="24dp"

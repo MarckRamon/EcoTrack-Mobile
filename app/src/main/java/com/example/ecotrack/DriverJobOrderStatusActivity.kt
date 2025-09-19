@@ -47,6 +47,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     private lateinit var totalTextView: TextView
     private lateinit var statusTextView: TextView
     private lateinit var actionButton: Button
+    private lateinit var cancelJobOrderButton: Button
     private lateinit var backButton: ImageView
     private lateinit var progressBar: ProgressBar
     private lateinit var toolbarTitleTextView: TextView
@@ -142,6 +143,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         if (mode == JobOrderStatusMode.ACCEPT) {
             statusTextView = findViewById(R.id.jobOrderStatusTextView)
             actionButton = findViewById(R.id.acceptJobOrderButton)
+            cancelJobOrderButton = findViewById(R.id.cancelJobOrderButton)
             toolbarTitleTextView = findViewById(R.id.toolbarTitle)
         } else {
             statusTextView = findViewById(R.id.statusTextView)
@@ -196,6 +198,12 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                         checkForActiveJobs()
                     }
                 }
+            }
+            
+            // Cancel Job Order button
+            cancelJobOrderButton.setOnClickListener {
+                // Update job order status to "Cancelled"
+                updateJobOrderStatus("Cancelled")
             }
         } else {
             // Collection Completed mode
@@ -286,8 +294,8 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     private fun hideLoading() {
         progressBar.visibility = View.GONE
         
-        // Only enable button if status is not "Completed"
-        if (payment?.jobOrderStatus != "Completed") {
+        // Only enable button if status is not "Completed" or "Cancelled"
+        if (payment?.jobOrderStatus != "Completed" && payment?.jobOrderStatus != "Cancelled") {
             actionButton.isEnabled = true
         }
     }
@@ -339,6 +347,12 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                             val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
                                             intent.putExtra("PAYMENT", updatedPayment)
                                             startActivity(intent)
+                                        }
+                                        "Cancelled" -> {
+                                            // Show cancellation message and navigate back to job orders
+                                            Toast.makeText(this@DriverJobOrderStatusActivity, "Job order cancelled successfully!", Toast.LENGTH_SHORT).show()
+                                            navigateToJobOrders()
+                                            statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.material_red))
                                         }
                                         else -> {
                                             // Handle other statuses if needed
@@ -403,9 +417,18 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                 // Continue with the flow using the locally updated payment
                                 if (mode == JobOrderStatusMode.ACCEPT) {
                                     // For Accept Job Order mode
-                                    val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
-                                    intent.putExtra("PAYMENT", updatedPayment)
-                                    startActivity(intent)
+                                    when (status) {
+                                        "Cancelled" -> {
+                                            // Show cancellation message and navigate back to job orders
+                                            Toast.makeText(this@DriverJobOrderStatusActivity, "Job order cancelled successfully!", Toast.LENGTH_SHORT).show()
+                                            navigateToJobOrders()
+                                        }
+                                        else -> {
+                                            val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
+                                            intent.putExtra("PAYMENT", updatedPayment)
+                                            startActivity(intent)
+                                        }
+                                    }
                                 } else {
                                     // Collection completed mode
                                     statusTextView.text = status
@@ -460,9 +483,18 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                             // Continue with the flow using the locally updated payment
                             if (mode == JobOrderStatusMode.ACCEPT) {
                                 // For Accept Job Order mode
-                                val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
-                                intent.putExtra("PAYMENT", updatedPayment)
-                                startActivity(intent)
+                                when (status) {
+                                    "Cancelled" -> {
+                                        // Show cancellation message and navigate back to job orders
+                                        Toast.makeText(this@DriverJobOrderStatusActivity, "Job order cancelled successfully!", Toast.LENGTH_SHORT).show()
+                                        navigateToJobOrders()
+                                    }
+                                    else -> {
+                                        val intent = Intent(this@DriverJobOrderStatusActivity, DriverArrivedAtTheLocationActivity::class.java)
+                                        intent.putExtra("PAYMENT", updatedPayment)
+                                        startActivity(intent)
+                                    }
+                                }
                             } else {
                                 // Collection completed mode
                                 statusTextView.text = status
@@ -620,10 +652,57 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                     actionButton.isEnabled = false
                     actionButton.text = if (mode == JobOrderStatusMode.ACCEPT) "JOB ORDER COMPLETED" else "COLLECTION ALREADY COMPLETED"
                     actionButton.alpha = 0.5f
+                    
+                    // Hide cancel button and center the accept button with 400dp width
+                    if (mode == JobOrderStatusMode.ACCEPT && ::cancelJobOrderButton.isInitialized) {
+                        cancelJobOrderButton.visibility = View.GONE
+                        
+                        // Update accept button constraints to center it with 400dp width
+                        val layoutParams = actionButton.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                        layoutParams.width = (400 * resources.displayMetrics.density).toInt() // Convert 400dp to pixels
+                        layoutParams.marginEnd = 0 // Remove end margin
+                        layoutParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                        layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                        layoutParams.endToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                        actionButton.layoutParams = layoutParams
+                    }
+                }
+                "Cancelled" -> {
+                    actionButton.isEnabled = false
+                    actionButton.text = if (mode == JobOrderStatusMode.ACCEPT) "JOB ORDER CANCELLED" else "JOB ORDER CANCELLED"
+                    actionButton.alpha = 0.5f
+                    
+                    // Hide cancel button and center the accept button with 400dp width
+                    if (mode == JobOrderStatusMode.ACCEPT && ::cancelJobOrderButton.isInitialized) {
+                        cancelJobOrderButton.visibility = View.GONE
+                        
+                        // Update accept button constraints to center it with 400dp width
+                        val layoutParams = actionButton.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                        layoutParams.width = (400 * resources.displayMetrics.density).toInt() // Convert 400dp to pixels
+                        layoutParams.marginEnd = 0 // Remove end margin
+                        layoutParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                        layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                        layoutParams.endToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                        actionButton.layoutParams = layoutParams
+                    }
                 }
                 "In-Progress", "Accepted" -> {
                     if (mode == JobOrderStatusMode.ACCEPT) {
                         actionButton.text = if (payment?.jobOrderStatus == "In-Progress") "CONTINUE TO LOCATION" else "GO TO LOCATION"
+                        
+                        // Make sure cancel button is visible and restore original button layout
+                        if (::cancelJobOrderButton.isInitialized) {
+                            cancelJobOrderButton.visibility = View.VISIBLE
+                            
+                            // Restore original accept button constraints (side by side layout)
+                            val layoutParams = actionButton.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                            layoutParams.width = 0 // 0dp for match_constraint
+                            layoutParams.marginEnd = (8 * resources.displayMetrics.density).toInt() // 8dp margin
+                            layoutParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                            layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                            layoutParams.endToStart = cancelJobOrderButton.id
+                            actionButton.layoutParams = layoutParams
+                        }
                     } else {
                         actionButton.text = "COLLECTION COMPLETED"
                     }
@@ -636,6 +715,19 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                 }
                 else -> {
                     // Default button text is already set in the layout
+                    // Make sure cancel button is visible and restore original layout for default statuses (like "Available")
+                    if (mode == JobOrderStatusMode.ACCEPT && ::cancelJobOrderButton.isInitialized) {
+                        cancelJobOrderButton.visibility = View.VISIBLE
+                        
+                        // Restore original accept button constraints (side by side layout)
+                        val layoutParams = actionButton.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                        layoutParams.width = 0 // 0dp for match_constraint
+                        layoutParams.marginEnd = (8 * resources.displayMetrics.density).toInt() // 8dp margin
+                        layoutParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                        layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                        layoutParams.endToStart = cancelJobOrderButton.id
+                        actionButton.layoutParams = layoutParams
+                    }
                 }
             }
         } else {
@@ -649,6 +741,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             "Available" -> "Available Job Order"
             "In-Progress" -> "In-Progress Job Order"
             "Completed" -> "Completed Job Order"
+            "Cancelled" -> "Cancelled Job Order"
             else -> if (mode == JobOrderStatusMode.ACCEPT) "Available Job Order" else "Collection Completed"
         }
         
@@ -659,13 +752,13 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         // For now, we'll use static data that matches the image
         val jobOrder = JobOrder(
             id = "JO-001",
-            customerName = "Miggy Chan",
+            customerName = "Name",
             address = "7953 Oakland St.",
             city = "Honolulu",
             state = "HI",
             zipCode = "96815",
-            price = "550",
-            phoneNumber = "+639127463218",
+            price = "0",
+            phoneNumber = "+63121212121",
             paymentMethod = "Cash on Hand",
             wasteType = "Plastic",
             status = OrderStatus.PENDING
@@ -698,6 +791,20 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         val defaultStatus = if (mode == JobOrderStatusMode.ACCEPT) "Available" else "In-Progress"
         statusTextView.text = defaultStatus
         updateToolbarTitle(defaultStatus)
+        
+        // Ensure cancel button is visible and restore original layout for default fallback status
+        if (mode == JobOrderStatusMode.ACCEPT && ::cancelJobOrderButton.isInitialized) {
+            cancelJobOrderButton.visibility = View.VISIBLE
+            
+            // Restore original accept button constraints (side by side layout)
+            val layoutParams = actionButton.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+            layoutParams.width = 0 // 0dp for match_constraint
+            layoutParams.marginEnd = (8 * resources.displayMetrics.density).toInt() // 8dp margin
+            layoutParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+            layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+            layoutParams.endToStart = cancelJobOrderButton.id
+            actionButton.layoutParams = layoutParams
+        }
     }
     
     private fun setupMap() {

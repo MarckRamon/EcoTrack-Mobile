@@ -74,15 +74,15 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_waste"
+                    android:src="@drawable/ic_phone"
                     app:tint="@color/secondary" />
 
                 <TextView
-                    android:id="@+id/entityWasteTypeTextView"
+                    android:id="@+id/phoneTextView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="Waste Type"
+                    android:text="Phone Number"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -96,15 +96,15 @@
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_phone"
+                    android:src="@drawable/ic_waste"
                     app:tint="@color/secondary" />
 
                 <TextView
-                    android:id="@+id/phoneTextView"
+                    android:id="@+id/entityWasteTypeTextView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="Phone Number"
+                    android:text="Waste Type"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -119,7 +119,7 @@
                 android:textStyle="italic"
                 android:layout_marginTop="4dp"
                 android:background="@drawable/tag_background"
-                android:paddingHorizontal="8dp"
+                android:paddingHorizontal="25dp"
                 android:paddingVertical="2dp" />
         </LinearLayout>
 
