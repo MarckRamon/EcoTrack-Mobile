@@ -3,25 +3,35 @@ package com.example.ecotrack
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.preference.PreferenceManager
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
 import com.example.ecotrack.models.JobOrder
 import com.example.ecotrack.models.JobOrderStatusUpdate
 import com.example.ecotrack.models.OrderStatus
 import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.FileLuService
+import com.google.android.material.button.MaterialButton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -29,6 +39,8 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import java.io.File
+import java.io.FileOutputStream
 import java.text.NumberFormat
 import java.util.Date
 import java.util.Locale
@@ -62,8 +74,24 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     private lateinit var cancelButton: Button
     private lateinit var dialogOverlay: View
     
+    // Driver proof photo views (for collection completed mode)
+    private lateinit var btnUploadDriverProof: MaterialButton
+    private lateinit var cardDriverProofImage: CardView
+    private lateinit var ivDriverProofImage: ImageView
+    private lateinit var btnRemoveDriverProof: ImageButton
+    private lateinit var scrollView: ScrollView
+    
     // API Service
     private lateinit var apiService: ApiService
+    private lateinit var fileLuService: FileLuService
+    
+    // Camera functionality
+    private lateinit var requestCameraPermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var takePicturePreviewLauncher: ActivityResultLauncher<Void?>
+    
+    // Driver proof photo state
+    private var driverProofImageUrl: String? = null
+    private var hasDriverProofPhoto = false
     
     // Payment data
     private var payment: Payment? = null
@@ -105,6 +133,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
 
         // Initialize API service
         apiService = ApiService.create()
+        fileLuService = FileLuService(this)
         
         // Initialize views
         initViews()
@@ -155,6 +184,19 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             confirmButton = findViewById(R.id.confirmButton)
             cancelButton = findViewById(R.id.cancelButton)
             dialogOverlay = findViewById(R.id.dialogOverlay)
+            
+            // Initialize driver proof photo views
+            btnUploadDriverProof = findViewById(R.id.btnUploadDriverProof)
+            cardDriverProofImage = findViewById(R.id.cardDriverProofImage)
+            ivDriverProofImage = findViewById(R.id.ivDriverProofImage)
+            btnRemoveDriverProof = findViewById(R.id.btnRemoveDriverProof)
+            scrollView = findViewById(R.id.scrollView)
+            
+            // Initialize camera activity result launchers
+            initializeCameraLaunchers()
+            
+            // Set up map-scrollview touch interaction
+            setupMapScrollViewInteraction()
             
             // If in VIEW mode, disable the action button
             if (mode == JobOrderStatusMode.VIEW) {
@@ -208,7 +250,21 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         } else {
             // Collection Completed mode
             actionButton.setOnClickListener {
-                showConfirmationDialog()
+                if (hasDriverProofPhoto) {
+                    showConfirmationDialog()
+                } else {
+                    Toast.makeText(this, "Please upload a proof photo before completing the collection", Toast.LENGTH_LONG).show()
+                }
+            }
+            
+            // Proof photo upload button
+            btnUploadDriverProof.setOnClickListener {
+                maybeStartCamera()
+            }
+            
+            // Remove proof photo button
+            btnRemoveDriverProof.setOnClickListener {
+                confirmRetakeDriverProof()
             }
             
             confirmButton.setOnClickListener {
@@ -221,6 +277,197 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             cancelButton.setOnClickListener {
                 hideConfirmationDialog()
             }
+        }
+    }
+    
+    private fun setupMapScrollViewInteraction() {
+        // Set up touch event handling for map-scrollview interaction
+        // Based on memory about Map-ScrollView Touch Interaction Implementation
+        if (mode == JobOrderStatusMode.COMPLETE && ::scrollView.isInitialized) {
+            mapView.setOnTouchListener { _, event ->
+                when (event.action) {
+                    android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
+                        // Disable scrolling when user is interacting with map
+                        scrollView.requestDisallowInterceptTouchEvent(true)
+                    }
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                        // Re-enable scrolling when map interaction ends
+                        scrollView.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                false // Let the map handle the touch event
+            }
+        }
+    }
+    
+    private fun initializeCameraLaunchers() {
+        // Initialize camera permission launcher
+        requestCameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                takePicturePreviewLauncher.launch(null)
+            } else {
+                Toast.makeText(this, "Camera permission is required to take a photo", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        // Initialize camera launcher
+        takePicturePreviewLauncher = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
+            if (bitmap != null) {
+                val tempFile = File.createTempFile("driver_proof_", ".jpg", cacheDir)
+                FileOutputStream(tempFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                }
+                uploadDriverProofToFileLuAndSave(tempFile)
+            } else {
+                Toast.makeText(this, "No image captured", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    private fun maybeStartCamera() {
+        val hasCameraApp = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+        if (!hasCameraApp) {
+            Toast.makeText(this, "No camera available on this device", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        } else {
+            takePicturePreviewLauncher.launch(null)
+        }
+    }
+    
+    private fun uploadDriverProofToFileLuAndSave(imageFile: File) {
+        // Upload to FileLu using the service
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val imageUrl = fileLuService.uploadImageFile(imageFile)
+                if (imageUrl.isNullOrBlank()) {
+                    Log.e(TAG, "FileLu upload failed")
+                    withContext(Dispatchers.Main) { 
+                        Toast.makeText(this@DriverJobOrderStatusActivity, "Failed to upload image", Toast.LENGTH_SHORT).show() 
+                    }
+                    return@launch
+                }
+
+                // Save to backend with driver confirmation
+                val jwtToken = sessionManager.getToken()
+                if (jwtToken.isNullOrBlank()) {
+                    withContext(Dispatchers.Main) { 
+                        Toast.makeText(this@DriverJobOrderStatusActivity, "Missing auth token", Toast.LENGTH_SHORT).show() 
+                    }
+                    return@launch
+                }
+                val bearerToken = if (jwtToken.startsWith("Bearer ")) jwtToken else "Bearer $jwtToken"
+                
+                Log.d(TAG, "Using auth token for driver upload: ${bearerToken.take(20)}...")
+                Log.d(TAG, "Driver ID from session: ${sessionManager.getUserId()}")
+
+                // Get the payment ID
+                val paymentId = payment?.id
+                if (paymentId == null) {
+                    withContext(Dispatchers.Main) { 
+                        Toast.makeText(this@DriverJobOrderStatusActivity, "Payment ID not found", Toast.LENGTH_SHORT).show() 
+                    }
+                    return@launch
+                }
+
+                // Create payload using the same structure as customer implementation
+                val payload = mapOf("imageUrl" to imageUrl)
+                Log.d(TAG, "Uploading driver proof with payload: $payload to paymentId: $paymentId")
+                val saveResp = apiService.uploadPaymentConfirmationImage(paymentId, payload, bearerToken)
+                withContext(Dispatchers.Main) {
+                    if (saveResp.isSuccessful) {
+                        Toast.makeText(this@DriverJobOrderStatusActivity, "Driver proof uploaded", Toast.LENGTH_SHORT).show()
+                        Log.d(TAG, "Driver proof upload successful, imageUrl: $imageUrl")
+                        showDriverProofImage(imageUrl)
+                        updateCollectionCompletedButtonState()
+                    } else {
+                        // Read the error response body for more details
+                        val errorBody = try {
+                            saveResp.errorBody()?.string()
+                        } catch (e: Exception) {
+                            "Unable to read error body: ${e.message}"
+                        }
+                        Log.e(TAG, "Failed to save driver proof: ${saveResp.code()} ${saveResp.message()}")
+                        Log.e(TAG, "Error response body: $errorBody")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@DriverJobOrderStatusActivity, "Failed to save proof: ${saveResp.code()}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error uploading driver proof image", e)
+                withContext(Dispatchers.Main) { 
+                    Toast.makeText(this@DriverJobOrderStatusActivity, "Error uploading image", Toast.LENGTH_SHORT).show() 
+                }
+            } finally {
+                imageFile.delete()
+            }
+        }
+    }
+    
+    private fun showDriverProofImage(url: String?) {
+        Log.d(TAG, "showDriverProofImage called with url: $url")
+        
+        if (url.isNullOrBlank()) {
+            Log.d(TAG, "No driver proof URL provided, hiding image and showing upload button")
+            cardDriverProofImage.visibility = View.GONE
+            btnUploadDriverProof.visibility = View.VISIBLE
+            hasDriverProofPhoto = false
+            driverProofImageUrl = null
+            return
+        }
+        
+        Log.d(TAG, "Showing driver proof image: $url")
+        driverProofImageUrl = url
+        hasDriverProofPhoto = true
+        cardDriverProofImage.visibility = View.VISIBLE
+        
+        // Hide upload button after successful upload
+        btnUploadDriverProof.visibility = View.GONE
+        
+        // Load image using Glide
+        try {
+            Glide.with(this)
+                .load(url)
+                .centerCrop()
+                .placeholder(R.drawable.ic_camera)
+                .error(R.drawable.ic_camera)
+                .into(ivDriverProofImage)
+            Log.d(TAG, "Driver proof image loaded successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading driver proof image", e)
+        }
+    }
+    
+    private fun confirmRetakeDriverProof() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Retake driver proof photo?")
+            .setMessage("This will let you capture a new proof photo to replace the current one.")
+            .setPositiveButton("Retake") { _, _ -> 
+                // Show upload button again and hide the current image
+                btnUploadDriverProof.visibility = View.VISIBLE
+                cardDriverProofImage.visibility = View.GONE
+                hasDriverProofPhoto = false
+                driverProofImageUrl = null
+                updateCollectionCompletedButtonState()
+                maybeStartCamera() 
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun updateCollectionCompletedButtonState() {
+        Log.d(TAG, "Updating collection completed button state - hasDriverProofPhoto: $hasDriverProofPhoto")
+        if (hasDriverProofPhoto) {
+            actionButton.isEnabled = true
+            actionButton.alpha = 1.0f
+            Log.d(TAG, "Button enabled - driver proof photo exists")
+        } else {
+            actionButton.isEnabled = false
+            actionButton.alpha = 0.5f
+            Log.d(TAG, "Button disabled - no driver proof photo")
         }
     }
     
@@ -730,9 +977,67 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                     }
                 }
             }
+            
+            // If in collection completed mode, check for existing driver proof photo and load it
+            if (mode == JobOrderStatusMode.COMPLETE) {
+                checkAndLoadExistingDriverProof()
+            }
         } else {
             // Fallback to static data if no payment is provided
             loadFallbackJobOrder()
+        }
+    }
+    
+    private fun checkAndLoadExistingDriverProof() {
+        payment?.let { payment ->
+            lifecycleScope.launch {
+                try {
+                    // Get auth token for API call
+                    val token = sessionManager.getToken()
+                    val bearerToken = if (token?.startsWith("Bearer ") == true) token else "Bearer $token"
+                    
+                    // Try to get payment details with auth token first
+                    val response = try {
+                        if (token != null) {
+                            // Try with auth if available
+                            apiService.getPaymentByOrderId(payment.orderId, bearerToken)
+                        } else {
+                            // Fallback to public endpoint
+                            apiService.getPaymentById(payment.id)
+                        }
+                    } catch (e: Exception) {
+                        Log.d(TAG, "Trying fallback payment API")
+                        apiService.getPaymentById(payment.id)
+                    }
+                    
+                    if (response.isSuccessful && response.body() != null) {
+                        val paymentResponse = response.body()!!
+                        // Only get driver confirmation, not customer confirmation
+                        val driverProofUrl = paymentResponse.driverConfirmation
+                        
+                        Log.d(TAG, "Driver confirmation URL from API: $driverProofUrl")
+                        Log.d(TAG, "Customer confirmation URL: ${paymentResponse.customerConfirmation}")
+                        Log.d(TAG, "Generic effective URL: ${paymentResponse.getEffectiveConfirmationImageUrl()}")
+                        
+                        if (!driverProofUrl.isNullOrBlank()) {
+                            Log.d(TAG, "Showing driver proof photo: $driverProofUrl")
+                            showDriverProofImage(driverProofUrl)
+                            updateCollectionCompletedButtonState()
+                        } else {
+                            Log.d(TAG, "No driver proof photo found, keeping upload button enabled")
+                            // No existing driver proof, keep button disabled and no image shown
+                            showDriverProofImage(null)
+                            updateCollectionCompletedButtonState()
+                        }
+                    } else {
+                        Log.e(TAG, "Failed to fetch payment details: ${response.code()} ${response.message()}")
+                        updateCollectionCompletedButtonState()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error fetching payment details for driver proof", e)
+                    updateCollectionCompletedButtonState()
+                }
+            }
         }
     }
     
@@ -804,6 +1109,11 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
             layoutParams.endToStart = cancelJobOrderButton.id
             actionButton.layoutParams = layoutParams
+        }
+        
+        // If in collection completed mode, update button state
+        if (mode == JobOrderStatusMode.COMPLETE) {
+            updateCollectionCompletedButtonState()
         }
     }
     
