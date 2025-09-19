@@ -201,14 +201,24 @@ class LoginActivity : BaseActivity() {
             }
         }
         
-        // Forgot Password button
-        customerBinding.forgotPasswordText.setOnClickListener {
-            startActivity(Intent(this, ForgotPasswordActivity::class.java))
-        }
-        
         // Register button
         customerBinding.btnRegister.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
+        }
+        
+        // Add a direct link to driver login for testing
+        // You can remove this later once the toggle works properly
+        customerBinding.forgotPasswordText.setOnClickListener {
+            // Show options: Forgot Password or Driver Login
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Choose Option")
+                .setItems(arrayOf("Forgot Password", "Driver Login")) { _, which ->
+                    when (which) {
+                        0 -> startActivity(Intent(this, ForgotPasswordActivity::class.java))
+                        1 -> startActivity(Intent(this, DriverLoginActivity::class.java))
+                    }
+                }
+                .show()
         }
     }
     
@@ -260,19 +270,35 @@ class LoginActivity : BaseActivity() {
                     
                     // Check if the response and token are valid
                     if (loginResponse != null && loginResponse.token.isNotEmpty()) {
-                        // Determine role from response
-                        val userRole = (loginResponse.role ?: "customer").lowercase()
+                        // Extract role from JWT token since API response doesn't include role field
+                        val roleFromToken = sessionManager.extractRoleFromToken(loginResponse.token)
+                        val userRole = (roleFromToken ?: "customer").lowercase()
+                        Log.d(TAG, "LoginActivity - Role from token: '$roleFromToken', normalized: '$userRole'")
+                        Log.d(TAG, "LoginActivity - isCustomerSelected: $isCustomerSelected")
 
                         // Enforce role selection: if customer UI selected, only allow customer; if driver UI selected, only allow driver
                         val isRoleAllowed = (isCustomerSelected && userRole == "customer") || (!isCustomerSelected && userRole == "driver")
+                        Log.d(TAG, "LoginActivity - Role check: isCustomerSelected=$isCustomerSelected, userRole='$userRole', isRoleAllowed=$isRoleAllowed")
 
                         if (!isRoleAllowed) {
                             // Ensure any previous session is cleared to avoid auto-redirects
                             sessionManager.logout()
                             withContext(Dispatchers.Main) {
-                                // Inform user and hard-reset this screen to prevent any pending redirects
+                                // Inform user and redirect to the correct interface
                                 showLoginError("Please use the ${if (userRole == "driver") "Driver" else "Customer"} login to access this account.")
-                                val intent = Intent(this@LoginActivity, LoginActivity::class.java)
+                                
+                                // Redirect to the correct interface based on the user's role
+                                val intent = if (userRole == "driver") {
+                                    // Driver account trying to login through customer interface -> go to driver interface
+                                    Intent(this@LoginActivity, LoginActivity::class.java).apply {
+                                        putExtra("selectRole", "driver")
+                                    }
+                                } else {
+                                    // Customer account trying to login through driver interface -> go to customer interface
+                                    Intent(this@LoginActivity, LoginActivity::class.java).apply {
+                                        putExtra("selectRole", "customer")
+                                    }
+                                }
                                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                                 startActivity(intent)
                             }

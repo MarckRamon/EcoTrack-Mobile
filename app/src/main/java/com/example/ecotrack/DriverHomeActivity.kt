@@ -187,6 +187,8 @@ class DriverHomeActivity : BaseActivity() {
         
         // Extract role directly from token for a more reliable check
         val roleFromToken = sessionManager.extractRoleFromToken(token)
+        Log.d(TAG, "DriverHomeActivity - Role from token: '$roleFromToken'")
+        
         if (roleFromToken != null && roleFromToken != "driver") {
             Log.w(TAG, "Non-driver role detected in token: $roleFromToken")
             
