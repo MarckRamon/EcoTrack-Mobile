@@ -89,7 +89,11 @@ data class PaymentResponse(
     @SerializedName("confirmationImageUrl")
     val confirmationImageUrl: String? = null,
     @SerializedName("confirmationImage")
-    val confirmationImageAlt: String? = null
+    val confirmationImageAlt: String? = null,
+    @SerializedName("customerConfirmation")
+    val customerConfirmation: String? = null,
+    @SerializedName("driverConfirmation")
+    val driverConfirmation: String? = null
 ) {
     override fun toString(): String {
         return "PaymentResponse(id=$id, orderId=$orderId, status=$status, jobOrderStatus=$jobOrderStatus, driverId=$driverId, estimatedArrival=$estimatedArrival, numberOfSacks=$numberOfSacks)"
@@ -101,6 +105,6 @@ data class PaymentResponse(
     }
 
     fun getEffectiveConfirmationImageUrl(): String? {
-        return confirmationImageUrl ?: confirmationImageAlt
+        return confirmationImageUrl ?: confirmationImageAlt ?: customerConfirmation ?: driverConfirmation
     }
 }

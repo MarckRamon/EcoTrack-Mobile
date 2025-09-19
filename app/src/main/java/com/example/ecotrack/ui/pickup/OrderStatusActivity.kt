@@ -155,6 +155,27 @@ class OrderStatusActivity : AppCompatActivity() {
         ivProof = findViewById(R.id.iv_proof_image)
         btnRemoveProof = findViewById(R.id.btn_remove_proof)
         btnRemoveProof.setOnClickListener { confirmRetakeProof() }
+        
+        // Add test button for debugging (remove in production)
+        btnRemoveProof.setOnLongClickListener {
+            testProofImageLoading()
+            true
+        }
+        
+        // Add manual refresh for debugging (double-tap upload button)
+        var lastUploadTap = 0L
+        btnUploadProof.setOnClickListener {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastUploadTap < 500) {
+                // Double tap - force refresh
+                Log.d("OrderStatusActivity", "Double tap detected - forcing refresh")
+                fetchLatestStatus(forceRefresh = true)
+            } else {
+                // Single tap - normal upload
+                maybeStartCamera()
+            }
+            lastUploadTap = currentTime
+        }
 
         // Initialize activity result launchers
         requestCameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -237,35 +258,35 @@ class OrderStatusActivity : AppCompatActivity() {
         try {
             // 1) Intent extra from navigator (Home banner)
             val intentProof = intent.getStringExtra("PROOF_IMAGE_URL")
+            Log.d("OrderStatusActivity", "Intent proof URL: $intentProof")
             if (!intentProof.isNullOrBlank()) {
                 cachedProofUrl = intentProof
                 showOrHideProof(intentProof)
             } else {
                 // 2) Last known API response value
-                latestPaymentResponse?.getEffectiveConfirmationImageUrl()?.let {
+                val apiProofUrl = latestPaymentResponse?.getEffectiveConfirmationImageUrl()
+                Log.d("OrderStatusActivity", "API proof URL: $apiProofUrl")
+                apiProofUrl?.let {
                     cachedProofUrl = it
                     showOrHideProof(it)
                 }
                 // 3) Local cache by order id
                 if (cardProof.visibility != View.VISIBLE) {
                     val cached = sharedPreferences.getString("proof_order_${order.id}", null)
+                    Log.d("OrderStatusActivity", "Cached proof URL: $cached")
                     if (!cached.isNullOrBlank()) {
                         cachedProofUrl = cached
                         showOrHideProof(cached)
                     }
                 }
             }
-        } catch (_: Exception) {}
-        
-        // Check if we should force a refresh (coming from OrderSuccessActivity)
-        val forceRefresh = intent.getBooleanExtra("FORCE_REFRESH", false)
-        if (forceRefresh) {
-            Log.d("OrderStatusActivity", "Force refresh requested - fetching latest data immediately")
-            fetchLatestStatus(forceRefresh = true)
-        } else {
-            // Fetch the latest status normally
-            fetchLatestStatus()
+        } catch (e: Exception) {
+            Log.e("OrderStatusActivity", "Error in initial proof image loading", e)
         }
+        
+        // Always force refresh on startup to get latest proof images
+        Log.d("OrderStatusActivity", "Starting with force refresh to get latest proof images")
+        fetchLatestStatus(forceRefresh = true)
         
         // Set up periodic status checking
         startStatusPolling()
@@ -350,6 +371,11 @@ class OrderStatusActivity : AppCompatActivity() {
         val orderId = order.id // Assuming this is the orderId used in the backend
         val referenceNumber = order.referenceNumber // Try using the reference number as an alternative
         
+        Log.d("OrderStatusActivity", "=== FETCHING LATEST STATUS ===")
+        Log.d("OrderStatusActivity", "Order ID: $orderId")
+        Log.d("OrderStatusActivity", "Reference Number: $referenceNumber")
+        Log.d("OrderStatusActivity", "Force Refresh: $forceRefresh")
+        
         // Skip if we recently made a request for this order (avoid redundant calls)
         // Unless forceRefresh is true, in which case always make the request
         val currentTime = System.currentTimeMillis()
@@ -400,12 +426,17 @@ class OrderStatusActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // First try with order ID
+                Log.d("OrderStatusActivity", "Making API call with Order ID: $orderId")
                 var response = if (bearerToken != null) {
+                    Log.d("OrderStatusActivity", "Using bearer token: ${bearerToken.take(20)}...")
                     apiService.getPaymentByOrderId(orderId, bearerToken)
                 } else {
+                    Log.d("OrderStatusActivity", "No bearer token, making unauthenticated call")
                     // This will likely fail with 403 Forbidden if JWT is required
                     apiService.getPaymentByOrderId(orderId)
                 }
+                
+                Log.d("OrderStatusActivity", "First API call response code: ${response.code()}")
                 
                 // If first attempt fails, try with reference number
                 if (!response.isSuccessful) {
@@ -415,6 +446,7 @@ class OrderStatusActivity : AppCompatActivity() {
                     } else {
                         apiService.getPaymentByOrderId(referenceNumber)
                     }
+                    Log.d("OrderStatusActivity", "Second API call response code: ${response.code()}")
                 }
                 
                 withContext(Dispatchers.Main) {
@@ -427,16 +459,51 @@ class OrderStatusActivity : AppCompatActivity() {
     }
     
     private suspend fun processApiResponse(response: Response<PaymentResponse>, bearerToken: String?) {
+        Log.d("OrderStatusActivity", "=== PROCESSING API RESPONSE ===")
+        Log.d("OrderStatusActivity", "Response code: ${response.code()}")
+        Log.d("OrderStatusActivity", "Response successful: ${response.isSuccessful}")
+        Log.d("OrderStatusActivity", "Response body null: ${response.body() == null}")
+        
         if (response.isSuccessful && response.body() != null) {
             val paymentResponse = response.body()!!
             latestPaymentResponse = paymentResponse
-            Log.d("OrderStatusActivity", "API Response: ${response.code()}")
-            Log.d("OrderStatusActivity", "Fetched payment: id=${paymentResponse.id}, orderId=${paymentResponse.orderId}")
-            Log.d("OrderStatusActivity", "Fetched status: ${paymentResponse.jobOrderStatus}, status: ${paymentResponse.status}")
-            Log.d("OrderStatusActivity", "All payment data: $paymentResponse")
+            
+            Log.d("OrderStatusActivity", "=== PAYMENT RESPONSE DETAILS ===")
+            Log.d("OrderStatusActivity", "Payment ID: ${paymentResponse.id}")
+            Log.d("OrderStatusActivity", "Order ID: ${paymentResponse.orderId}")
+            Log.d("OrderStatusActivity", "Status: ${paymentResponse.status}")
+            Log.d("OrderStatusActivity", "Job Order Status: ${paymentResponse.jobOrderStatus}")
+            Log.d("OrderStatusActivity", "Confirmation Image URL: ${paymentResponse.confirmationImageUrl}")
+            Log.d("OrderStatusActivity", "Confirmation Image Alt: ${paymentResponse.confirmationImageAlt}")
+            Log.d("OrderStatusActivity", "Customer Confirmation: ${paymentResponse.customerConfirmation}")
+            Log.d("OrderStatusActivity", "Driver Confirmation: ${paymentResponse.driverConfirmation}")
+            Log.d("OrderStatusActivity", "Effective Confirmation Image URL: ${paymentResponse.getEffectiveConfirmationImageUrl()}")
+            Log.d("OrderStatusActivity", "Full response: $paymentResponse")
             
             // Check if we should use jobOrderStatus or regular status
             val effectiveStatus = paymentResponse.jobOrderStatus.takeIf { status -> status.isNotBlank() } ?: paymentResponse.status
+            
+            // Always update proof image from API response, regardless of status change
+            val apiProofUrl = paymentResponse.getEffectiveConfirmationImageUrl()
+            Log.d("OrderStatusActivity", "=== PROOF IMAGE PROCESSING ===")
+            Log.d("OrderStatusActivity", "API returned proof URL: $apiProofUrl")
+            Log.d("OrderStatusActivity", "Current cached URL: $cachedProofUrl")
+            
+            if (!apiProofUrl.isNullOrBlank()) {
+                Log.d("OrderStatusActivity", "Updating proof image from API")
+                cachedProofUrl = apiProofUrl
+                showOrHideProof(apiProofUrl)
+                Log.d("OrderStatusActivity", "Updated proof image from API")
+            } else {
+                Log.d("OrderStatusActivity", "No proof URL in API response - checking fallbacks")
+                // Try fallback to cached URL
+                if (!cachedProofUrl.isNullOrBlank()) {
+                    Log.d("OrderStatusActivity", "Using cached proof URL as fallback: $cachedProofUrl")
+                    showOrHideProof(cachedProofUrl)
+                } else {
+                    Log.d("OrderStatusActivity", "No proof URL available anywhere")
+                }
+            }
             
             // Only update UI if status has changed
             if (lastKnownStatus != effectiveStatus) {
@@ -451,9 +518,6 @@ class OrderStatusActivity : AppCompatActivity() {
                     
                     // Update order details from API response
                     updateOrderDetails(paymentResponse)
-                    // Always update proof image and refresh cache regardless of status change
-                    paymentResponse.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
-                    showOrHideProof(paymentResponse.getEffectiveConfirmationImageUrl() ?: cachedProofUrl)
                     
                     // Hide cancel button unless status is Processing or Available
                     if (effectiveStatus != "Processing" && effectiveStatus != "Available") {
@@ -461,17 +525,7 @@ class OrderStatusActivity : AppCompatActivity() {
                     }
                 }
             } else {
-                Log.d("OrderStatusActivity", "Status unchanged, ensuring proof preview is updated")
-                // Ensure proof image is shown even if status didn't change
-                paymentResponse.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
-                showOrHideProof(paymentResponse.getEffectiveConfirmationImageUrl() ?: cachedProofUrl ?: run {
-                    // fallback: try local cache by id
-                    try {
-                        val pid = paymentResponse.id
-                        sharedPreferences.getString("proof_${pid}", null)
-                            ?: sharedPreferences.getString("proof_order_${paymentResponse.orderId}", null)
-                    } catch (_: Exception) { null }
-                })
+                Log.d("OrderStatusActivity", "Status unchanged")
             }
         } else {
             Log.e("OrderStatusActivity", "Failed to fetch status: ${response.code()} - ${response.message()}")
@@ -638,6 +692,7 @@ class OrderStatusActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     if (saveResp.isSuccessful) {
                         Toast.makeText(this@OrderStatusActivity, "Proof uploaded", Toast.LENGTH_SHORT).show()
+                        Log.d("OrderStatusActivity", "Proof upload successful, imageUrl: $imageUrl")
                         showOrHideProof(imageUrl)
                         // Persist locally as fallback
                         try {
@@ -645,8 +700,10 @@ class OrderStatusActivity : AppCompatActivity() {
                                 .putString("proof_${paymentId}", imageUrl)
                                 .putString("proof_order_${order.id}", imageUrl)
                                 .apply()
+                            Log.d("OrderStatusActivity", "Proof URL saved to cache: $imageUrl")
                         } catch (_: Exception) {}
                     } else {
+                        Log.e("OrderStatusActivity", "Failed to save proof: ${saveResp.code()} ${saveResp.message()}")
                         Toast.makeText(this@OrderStatusActivity, "Failed to save proof", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -660,12 +717,35 @@ class OrderStatusActivity : AppCompatActivity() {
     }
 
     private fun showOrHideProof(url: String?) {
-        if (!this::cardProof.isInitialized) return
+        if (!this::cardProof.isInitialized) {
+            Log.e("OrderStatusActivity", "cardProof not initialized")
+            return
+        }
+        
         val effectiveUrl = url ?: cachedProofUrl
+        Log.d("OrderStatusActivity", "showOrHideProof called with url: $url, cachedUrl: $cachedProofUrl, effectiveUrl: $effectiveUrl")
+        
         if (!effectiveUrl.isNullOrBlank()) {
             Log.d("OrderStatusActivity", "Loading proof image: $effectiveUrl")
             cardProof.visibility = View.VISIBLE
+            
+            // First try the simplest approach - direct Glide loading
             try {
+                Log.d("OrderStatusActivity", "Attempting direct Glide load")
+                com.bumptech.glide.Glide.with(this)
+                    .load(effectiveUrl)
+                    .centerCrop()
+                    .placeholder(R.drawable.ic_camera)
+                    .error(R.drawable.ic_camera)
+                    .into(ivProof)
+                Log.d("OrderStatusActivity", "Direct Glide load initiated")
+            } catch (e: Exception) {
+                Log.e("OrderStatusActivity", "Exception in direct Glide load", e)
+            }
+            
+            // Also try ProfileImageLoader as backup
+            try {
+                Log.d("OrderStatusActivity", "Attempting ProfileImageLoader load")
                 profileImageLoader.loadProofImage(
                     url = effectiveUrl,
                     imageView = ivProof,
@@ -673,22 +753,54 @@ class OrderStatusActivity : AppCompatActivity() {
                     errorResId = R.drawable.ic_camera
                 )
             } catch (e: Exception) {
-                Log.e("OrderStatusActivity", "Error loading proof image with ProfileImageLoader", e)
-                // Fallback to regular Glide loading
-                try {
-                    com.bumptech.glide.Glide.with(this)
-                        .load(effectiveUrl)
-                        .centerCrop()
-                        .placeholder(R.drawable.ic_camera)
-                        .error(R.drawable.ic_camera)
-                        .into(ivProof)
-                } catch (fallbackException: Exception) {
-                    Log.e("OrderStatusActivity", "Fallback Glide loading also failed", fallbackException)
-                }
+                Log.e("OrderStatusActivity", "ProfileImageLoader load failed", e)
             }
         } else {
             Log.d("OrderStatusActivity", "No proof image URL available, hiding card")
             cardProof.visibility = View.GONE
+        }
+    }
+    
+    private fun testProofImageLoading() {
+        Log.d("OrderStatusActivity", "Testing proof image loading...")
+        
+        // Test 1: Load a simple test image
+        try {
+            Log.d("OrderStatusActivity", "Test 1: Loading test image from drawable")
+            com.bumptech.glide.Glide.with(this)
+                .load(R.drawable.ic_camera)
+                .into(ivProof)
+            cardProof.visibility = View.VISIBLE
+        } catch (e: Exception) {
+            Log.e("OrderStatusActivity", "Test 1 failed", e)
+        }
+        
+        // Test 2: Try loading a known working URL
+        try {
+            Log.d("OrderStatusActivity", "Test 2: Loading test URL")
+            com.bumptech.glide.Glide.with(this)
+                .load("https://via.placeholder.com/300x200/0000FF/FFFFFF?text=Test+Image")
+                .into(ivProof)
+        } catch (e: Exception) {
+            Log.e("OrderStatusActivity", "Test 2 failed", e)
+        }
+        
+        // Test 3: Check if ImageView is properly initialized
+        Log.d("OrderStatusActivity", "ImageView initialized: ${this::ivProof.isInitialized}")
+        Log.d("OrderStatusActivity", "CardView initialized: ${this::cardProof.isInitialized}")
+        Log.d("OrderStatusActivity", "CardView visibility: ${cardProof.visibility}")
+        Log.d("OrderStatusActivity", "ImageView visibility: ${ivProof.visibility}")
+    }
+    
+    private fun clearProofImageCache() {
+        try {
+            Log.d("OrderStatusActivity", "Clearing proof image cache")
+            sharedPreferences.edit()
+                .remove("proof_order_${order.id}")
+                .apply()
+            cachedProofUrl = null
+        } catch (e: Exception) {
+            Log.e("OrderStatusActivity", "Error clearing proof cache", e)
         }
     }
 
