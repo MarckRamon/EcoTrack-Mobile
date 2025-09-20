@@ -143,65 +143,56 @@
                 app:layout_constraintTop_toBottomOf="@+id/tv_label_waste_type" />
 
             <TextView
-                android:id="@+id/tv_label_select_truck"
+                android:id="@+id/tv_label_trash_weight"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Select Truck"
+                android:text="Trash Weight (kg)"
                 android:textColor="@android:color/black"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/spinner_waste_type" />
 
-            <LinearLayout
-                android:id="@+id/truck_selection_container"
+            <EditText
+                android:id="@+id/et_trash_weight"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal"
                 android:background="@drawable/edit_text_background"
+                android:drawableStart="@drawable/ic_recycling"
+                android:drawablePadding="8dp"
+                android:hint="Enter trash weight in kilograms"
+                android:inputType="numberDecimal"
                 android:padding="12dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_label_select_truck">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_garbage_truck_vector"
-                    android:contentDescription="Truck Icon"
-                    app:tint="#555555" />
-
-                <TextView
-                    android:id="@+id/tv_selected_truck"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:text="No truck selected"
-                    android:textColor="@android:color/black"
-                    android:textSize="14sp" />
-
-                <Button
-                    android:id="@+id/btn_select_truck"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="SELECT"
-                    android:textStyle="bold"
-                    android:textColor="#4CAF50" />
-            </LinearLayout>
+                app:layout_constraintTop_toBottomOf="@+id/tv_label_trash_weight" />
 
             <TextView
-                android:id="@+id/tv_truck_info"
+                android:id="@+id/tv_label_notes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Notes / Instructions (Optional)"
+                android:textColor="@android:color/black"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/et_trash_weight" />
+
+            <EditText
+                android:id="@+id/et_notes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Please select a truck for your waste pickup. Different trucks have different capacities and costs."
-                android:textColor="#888888"
-                android:textSize="12sp"
-                app:layout_constraintStart_toStartOf="parent"
+                android:background="@drawable/edit_text_background"
+                android:drawableStart="@drawable/ic_notification"
+                android:drawablePadding="8dp"
+                android:hint="Enter any special instructions or notes"
+                android:inputType="textMultiLine"
+                android:minLines="3"
+                android:gravity="top"
+                android:padding="12dp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/truck_selection_container" />
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tv_label_notes" />
 
             <TextView
                 android:id="@+id/tv_title_payment_method"
@@ -213,7 +204,7 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_truck_info" />
+                app:layout_constraintTop_toBottomOf="@+id/et_notes" />
 
             <RadioGroup
                 android:id="@+id/radio_group_payment_method"

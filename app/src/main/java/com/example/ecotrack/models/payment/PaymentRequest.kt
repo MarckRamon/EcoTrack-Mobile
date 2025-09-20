@@ -49,6 +49,9 @@ data class PaymentRequest(
     @SerializedName("barangayId")
     val barangayId: String?,
     
+    @SerializedName("trashWeight")
+    val trashWeight: Double,
+    
     @SerializedName("selectedTruckId")
     val selectedTruckId: String? = null,
     
@@ -62,5 +65,8 @@ data class PaymentRequest(
     val truckModel: String? = null,
     
     @SerializedName("plateNumber")
-    val plateNumber: String? = null
+    val plateNumber: String? = null,
+    
+    @SerializedName("quoteId")
+    val quoteId: String? = null
 )

@@ -84,8 +84,23 @@ data class PaymentResponse(
     val truckModel: String? = null,
     
     @SerializedName("plateNumber")
-    val plateNumber: String? = null
-    ,
+    val plateNumber: String? = null,
+    
+    @SerializedName("trashWeight")
+    val trashWeight: Double? = null,
+    
+    @SerializedName("notes")
+    val notes: String? = null,
+    
+    @SerializedName("note") // Alternative field name
+    val noteAlt: String? = null,
+    
+    @SerializedName("customerNotes") // Alternative field name
+    val customerNotes: String? = null,
+    
+    @SerializedName("description") // Alternative field name
+    val description: String? = null,
+    
     @SerializedName("confirmationImageUrl")
     val confirmationImageUrl: String? = null,
     @SerializedName("confirmationImage")
@@ -93,7 +108,10 @@ data class PaymentResponse(
     @SerializedName("customerConfirmation")
     val customerConfirmation: String? = null,
     @SerializedName("driverConfirmation")
-    val driverConfirmation: String? = null
+    val driverConfirmation: String? = null,
+    
+    @SerializedName("serviceRating")
+    val serviceRating: Int? = null
 ) {
     override fun toString(): String {
         return "PaymentResponse(id=$id, orderId=$orderId, status=$status, jobOrderStatus=$jobOrderStatus, driverId=$driverId, estimatedArrival=$estimatedArrival, numberOfSacks=$numberOfSacks)"
@@ -106,5 +124,10 @@ data class PaymentResponse(
 
     fun getEffectiveConfirmationImageUrl(): String? {
         return confirmationImageUrl ?: confirmationImageAlt ?: customerConfirmation ?: driverConfirmation
+    }
+    
+    // Get notes from any available field
+    fun getEffectiveNotes(): String? {
+        return notes ?: noteAlt ?: customerNotes ?: description
     }
 }

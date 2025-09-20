@@ -21,11 +21,11 @@ import com.example.ecotrack.models.xendit.CreateInvoiceRequest
 import com.example.ecotrack.models.xendit.Customer
 import com.example.ecotrack.models.xendit.Item
 import com.example.ecotrack.models.payment.PaymentRequest
+import com.example.ecotrack.models.quote.QuoteRequest
+import com.example.ecotrack.models.quote.QuoteResponse
 import com.example.ecotrack.ui.pickup.model.PaymentMethod
 import com.example.ecotrack.ui.pickup.model.PickupOrder
 import com.example.ecotrack.ui.pickup.model.WasteType
-import com.example.ecotrack.models.Truck
-import com.example.ecotrack.ui.pickup.dialogs.TruckSelectionDialog
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -43,18 +43,16 @@ class OrderPickupActivity : AppCompatActivity() {
     private lateinit var etFullName: EditText
     private lateinit var etEmail: EditText
     private lateinit var spinnerWasteType: Spinner
+    private lateinit var etTrashWeight: EditText
+    private lateinit var etNotes: EditText
     private lateinit var btnProceedToPayment: Button
     private lateinit var btnEditLocation: View
     private lateinit var tvLocationAddress: TextView
     private lateinit var mapView: MapView
-    private lateinit var btnSelectTruck: Button
-    private lateinit var tvSelectedTruck: TextView
     
     private var selectedLocation: GeoPoint? = null
     private var selectedAddress: String = ""
     private var selectedWasteType: WasteType = WasteType.MIXED
-    private var selectedTruck: Truck? = null
-    private var availableTrucks: List<Truck> = emptyList()
 
     // Session manager for user data
     private lateinit var sessionManager: SessionManager
@@ -88,8 +86,6 @@ class OrderPickupActivity : AppCompatActivity() {
             .create(XenditApiService::class.java)
     }
 
-    // Pricing variables
-    private var totalAmount: Double = 0.0
 
     // Tag for logging
     private val TAG = "OrderPickupActivity"
@@ -138,11 +134,11 @@ class OrderPickupActivity : AppCompatActivity() {
         etFullName = findViewById(R.id.et_full_name)
         etEmail = findViewById(R.id.et_email)
         spinnerWasteType = findViewById(R.id.spinner_waste_type)
+        etTrashWeight = findViewById(R.id.et_trash_weight)
+        etNotes = findViewById(R.id.et_notes)
         btnProceedToPayment = findViewById(R.id.btn_proceed_to_payment)
         btnEditLocation = findViewById(R.id.btn_edit_location)
         tvLocationAddress = findViewById(R.id.tv_location_address)
-        btnSelectTruck = findViewById(R.id.btn_select_truck)
-        tvSelectedTruck = findViewById(R.id.tv_selected_truck)
 
         // Setup waste type spinner
         val wasteTypes = WasteType.values()
@@ -163,16 +159,6 @@ class OrderPickupActivity : AppCompatActivity() {
             }
         }
 
-        // Setup truck selection button
-        btnSelectTruck.setOnClickListener {
-            if (availableTrucks.isEmpty()) {
-                Toast.makeText(this, "Loading trucks, please wait...", Toast.LENGTH_SHORT).show()
-                loadTrucks()
-            } else {
-                showTruckSelectionDialog()
-            }
-        }
-
         // Initialize map
         mapView = findViewById(R.id.map_view)
         mapView.setTileSource(TileSourceFactory.MAPNIK)
@@ -180,9 +166,6 @@ class OrderPickupActivity : AppCompatActivity() {
 
         // Initialize session manager
         sessionManager = SessionManager.getInstance(this)
-
-        // Load trucks from API
-        loadTrucks()
         
         // Load user profile to get barangay information
         loadUserProfile()
@@ -232,12 +215,10 @@ class OrderPickupActivity : AppCompatActivity() {
                     PaymentMethod.GCASH // Default online payment method
                 }
 
-                calculateTotalAmount()
                 val order = createPickupOrder(selectedPaymentMethod)
 
-                // Log the selected payment method and truck information
+                // Log the selected payment method
                 Log.d(TAG, "Selected payment method: ${selectedPaymentMethod.name}, display name: ${selectedPaymentMethod.getDisplayName()}")
-                Log.d(TAG, "Selected truck: ${selectedTruck?.truckId}, make: ${selectedTruck?.make}, model: ${selectedTruck?.model}")
 
                 // Save the order temporarily
                 TempOrderHolder.saveOrder(order)
@@ -264,88 +245,7 @@ class OrderPickupActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadTrucks() {
-        lifecycleScope.launch {
-            try {
-                // Get auth token
-                val token = sessionManager.getToken()
-                if (token == null) {
-                    Log.e(TAG, "Authentication token not available")
-                    Toast.makeText(
-                        this@OrderPickupActivity,
-                        "Authentication error, please log in again",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@launch
-                }
-                
-                // Add bearer token to the request
-                val response = apiService.getTrucks("Bearer $token")
-                
-                if (response.isSuccessful && response.body() != null) {
-                    availableTrucks = response.body()!!
-                    Log.d(TAG, "Loaded ${availableTrucks.size} trucks")
-                    
-                    if (availableTrucks.isNotEmpty()) {
-                        // Show the first available truck by default
-                        val availableTruck = availableTrucks.firstOrNull { it.status.equals("AVAILABLE", ignoreCase = true) }
-                        if (availableTruck != null) {
-                            selectedTruck = availableTruck
-                            updateSelectedTruckDisplay()
-                        }
-                    }
-                } else {
-                    Log.e(TAG, "Failed to load trucks: ${response.code()} - ${response.message()}")
-                    Toast.makeText(
-                        this@OrderPickupActivity,
-                        "Failed to load trucks. Please try again.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading trucks", e)
-                Toast.makeText(
-                    this@OrderPickupActivity,
-                    "Error loading trucks: ${e.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-    }
-
-    private fun showTruckSelectionDialog() {
-        val availableTrucksFiltered = availableTrucks.filter { it.status.equals("AVAILABLE", ignoreCase = true) }
-        
-        if (availableTrucksFiltered.isEmpty()) {
-            Toast.makeText(this, "No available trucks found", Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        val dialog = TruckSelectionDialog(this, availableTrucksFiltered) { truck ->
-            selectedTruck = truck
-            updateSelectedTruckDisplay()
-            calculateTotalAmount()
-        }
-        
-        dialog.show()
-    }
-    
-    private fun updateSelectedTruckDisplay() {
-        selectedTruck?.let {
-            tvSelectedTruck.text = "${it.make} ${it.model} (₱${it.truckPrice})"
-            tvSelectedTruck.setTextColor(ContextCompat.getColor(this, android.R.color.black))
-        } ?: run {
-            tvSelectedTruck.text = "No truck selected"
-            tvSelectedTruck.setTextColor(ContextCompat.getColor(this, R.color.gray))
-        }
-    }
-
-    private fun calculateTotalAmount(): Double {
-        // Calculate the total amount (truck cost only, no tax)
-        totalAmount = selectedTruck?.truckPrice ?: 0.0
-        
-        return totalAmount
-    }
+    // Removed truck loading and selection methods as per new requirements
 
     // Process cash on hand payment directly with backend
     private fun processCashOnHandPayment(order: PickupOrder) {
@@ -357,10 +257,10 @@ class OrderPickupActivity : AppCompatActivity() {
                     throw Exception("Authentication token not available")
                 }
                 
-                // Log truck information from the order
-                Log.d(TAG, "Processing cash payment with truck: ID=${order.selectedTruck?.truckId}, make=${order.selectedTruck?.make}, model=${order.selectedTruck?.model}")
+                // Log order information
+                Log.d(TAG, "Processing cash payment with trash weight: ${order.trashWeight} kg")
                 
-                // Create a payment request for the backend
+                // Create a payment request for the backend using the new structure
                 val paymentRequest = PaymentRequest(
                     orderId = order.id,
                     customerName = order.fullName,
@@ -368,23 +268,24 @@ class OrderPickupActivity : AppCompatActivity() {
                     address = order.address,
                     latitude = order.latitude,
                     longitude = order.longitude,
-                    amount = order.amount,
+                    amount = 0.0, // Backend will calculate
                     tax = 0.0,
-                    totalAmount = order.total,
-                    paymentMethod = order.paymentMethod.getDisplayName(),
-                    paymentReference = "cash_${order.id}",
-                    notes = "Cash on Hand payment",
+                    totalAmount = 0.0, // Backend will calculate
+                    paymentMethod = "CASH_ON_HAND",
+                    paymentReference = "COH-${order.id}",
+                    notes = order.notes ?: "Cash on Hand payment",
                     wasteType = order.wasteType.name,
                     barangayId = order.barangayId,
-                    selectedTruckId = order.selectedTruck?.truckId,
-                    truckId = order.selectedTruck?.truckId, // Add truckId field with the same value as selectedTruckId
-                    truckMake = order.selectedTruck?.make, // Add truck make
-                    truckModel = order.selectedTruck?.model, // Add truck model
-                    plateNumber = order.selectedTruck?.plateNumber // Add plate number
+                    trashWeight = order.trashWeight,
+                    selectedTruckId = null,
+                    truckId = null,
+                    truckMake = null,
+                    truckModel = null,
+                    plateNumber = null
                 )
                 
                 // Log the payment request details
-                Log.d(TAG, "Payment request details: selectedTruckId=${paymentRequest.selectedTruckId}, truckId=${paymentRequest.truckId}, make=${paymentRequest.truckMake}, model=${paymentRequest.truckModel}, plateNumber=${paymentRequest.plateNumber}, paymentMethod=${paymentRequest.paymentMethod}")
+                Log.d(TAG, "Payment request details: trashWeight=${paymentRequest.trashWeight}, paymentMethod=${paymentRequest.paymentMethod}, notes=${paymentRequest.notes}")
                 
                 // Make an API call to the backend to process the cash payment
                 // This uses the same API endpoint that processes orders after Xendit payment
@@ -393,6 +294,7 @@ class OrderPickupActivity : AppCompatActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val paymentResult = response.body()!!
                     Log.d(TAG, "Cash on hand payment processed successfully for order ${order.id}")
+                    Log.d(TAG, "Backend returned amount: ${paymentResult.amount}, total: ${paymentResult.totalAmount}")
                     
                     // Navigate to success page
                     runOnUiThread {
@@ -425,38 +327,88 @@ class OrderPickupActivity : AppCompatActivity() {
     private fun createXenditInvoice(order: PickupOrder) {
         lifecycleScope.launch {
             try {
-                // Log truck information from the original order
-                Log.d(TAG, "Creating Xendit invoice with original truck: ID=${order.selectedTruck?.truckId}, make=${order.selectedTruck?.make}, model=${order.selectedTruck?.model}")
+                // Log order information
+                Log.d(TAG, "Creating Xendit invoice with trash weight: ${order.trashWeight} kg")
+                
+                // Step 1: Get quote from backend
+                val token = sessionManager.getToken()
+                if (token == null) {
+                    throw Exception("Authentication token not available")
+                }
+                
+                Log.d(TAG, "Step 1: Getting quote from backend...")
+                
+                // Create request to get quote from backend
+                val quoteRequest = QuoteRequest(
+                    customerEmail = order.email,
+                    address = order.address,
+                    latitude = order.latitude,
+                    longitude = order.longitude,
+                    wasteType = order.wasteType.name,
+                    trashWeight = order.trashWeight
+                )
+                
+                // Get quote from backend
+                val quoteResponse = apiService.getQuote(quoteRequest, "Bearer $token")
+                
+                if (!quoteResponse.isSuccessful || quoteResponse.body() == null) {
+                    val errorBody = quoteResponse.errorBody()?.string()
+                    throw Exception("Failed to get quote from backend: $errorBody")
+                }
+                
+                val quote = quoteResponse.body()!!
+                val quoteAmount = quote.estimatedAmount
+                val quoteTotal = quote.estimatedTotalAmount
+                
+                Log.d(TAG, "Quote received: quoteId=${quote.quoteId}, amount=₱$quoteAmount, total=₱$quoteTotal")
+                Log.d(TAG, "Assigned truck: ${quote.truckDetails}")
+                Log.d(TAG, "Assigned driver: ${quote.driverDetails}")
+                
+                // Validate quote pricing
+                if (quoteAmount <= 0 && quoteTotal <= 0) {
+                    throw Exception("Quote pricing calculation failed")
+                }
                 
                 // Use a clear query parameter for status, as path segments might be handled differently by gateways/browsers
                 val successRedirectUrl = "ecotrack://payment-callback?redirect_status=success&order_id=${order.id}"
                 val failureRedirectUrl = "ecotrack://payment-callback?redirect_status=failure&order_id=${order.id}" // also handle cancelled here
 
-                // Update the order with XENDIT_PAYMENT_GATEWAY payment method
-                val updatedOrder = order.copy(paymentMethod = PaymentMethod.XENDIT_PAYMENT_GATEWAY)
-                // Update the order in TempOrderHolder
-                TempOrderHolder.updateOrder(updatedOrder)
+                // Step 2: Save quote reply in frontend as temporary data (DON'T send to database)
+                Log.d(TAG, "Step 2: Saving quote data in frontend temporary data (NOT in database)...")
                 
-                // Log truck information from the updated order
-                Log.d(TAG, "Updated order with Xendit payment method. Truck: ID=${updatedOrder.selectedTruck?.truckId}, make=${updatedOrder.selectedTruck?.make}, model=${updatedOrder.selectedTruck?.model}")
+                val orderWithQuoteData = order.copy(
+                    paymentMethod = PaymentMethod.XENDIT_PAYMENT_GATEWAY,
+                    amount = quoteAmount,
+                    total = quoteTotal
+                )
+                
+                // Store the order with quote data and quote response in frontend temporary storage ONLY
+                TempOrderHolder.updateOrder(orderWithQuoteData)
+                TempOrderHolder.saveQuote(order.id, quote) // Store quote for later use in payment callback
+                Log.d(TAG, "Saved quote data in frontend temp storage: amount=₱$quoteAmount, total=₱$quoteTotal")
+                Log.d(TAG, "IMPORTANT: Quote data saved ONLY in frontend memory, NOT in database!")
+                
+                // Step 3: Send to Xendit with quote pricing
+                Log.d(TAG, "Step 3: Creating Xendit invoice with quote pricing...")
+                Log.d(TAG, "Order details: Trash weight: ${orderWithQuoteData.trashWeight} kg, Amount: ₱${orderWithQuoteData.amount}, Total: ₱${orderWithQuoteData.total}")
                 
                 val request = CreateInvoiceRequest(
-                    externalId = updatedOrder.id, // Use the order's unique ID as external_id
-                    amount = updatedOrder.total,
-                    description = "EcoTrack Trash Pickup Service for order ${updatedOrder.id}",
+                    externalId = orderWithQuoteData.id, // Use the order's unique ID as external_id
+                    amount = orderWithQuoteData.total,
+                    description = "EcoTrack Trash Pickup Service - ${orderWithQuoteData.trashWeight}kg ${orderWithQuoteData.wasteType.getDisplayName()}",
                     customer = Customer(
-                        givenNames = updatedOrder.fullName,
-                        email = updatedOrder.email,
+                        givenNames = orderWithQuoteData.fullName,
+                        email = orderWithQuoteData.email,
                         mobileNumber = "09123456789" // Placeholder, ideally get from user profile
                     ),
                     successRedirectUrl = successRedirectUrl,
                     failureRedirectUrl = failureRedirectUrl,
                     items = listOf(
                         Item(
-                            name = "Trash Pickup Service",
-                            quantity = 1,
-                            price = updatedOrder.total
-                        )
+                                name = "Trash Pickup Service (${orderWithQuoteData.trashWeight}kg)",
+                                quantity = 1,
+                                price = orderWithQuoteData.total
+                            )
                     )
                 )
 
@@ -467,10 +419,15 @@ class OrderPickupActivity : AppCompatActivity() {
 
                 if (response.isSuccessful) {
                     response.body()?.let {
-                        Log.d(TAG, "Successfully created Xendit invoice, URL: ${it.invoiceUrl}, invoice ID: ${it.id}")
+                        Log.d(TAG, "Step 4: Successfully created Xendit invoice with quote pricing!")
+                        Log.d(TAG, "Xendit invoice URL: ${it.invoiceUrl}, invoice ID: ${it.id}")
+                        Log.d(TAG, "Invoice amount: ₱${orderWithQuoteData.total} (Quote pricing from backend)")
+                        Log.d(TAG, "Next: User will pay quote amount, then callback will create payment with quote data")
+                        
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it.invoiceUrl))
                         startActivity(intent)
                         // Keep button disabled until user returns or cancels
+                        // Note: PaymentCallbackActivity will handle final database storage and cleanup
                     } ?: run {
                         throw Exception("Empty response body from Xendit")
                     }
@@ -604,6 +561,7 @@ class OrderPickupActivity : AppCompatActivity() {
     private fun validateForm(): Boolean {
         val fullName = etFullName.text.toString().trim()
         val email = etEmail.text.toString().trim()
+        val trashWeight = etTrashWeight.text.toString().trim()
 
         if (fullName.isEmpty()) {
             etFullName.error = "Please enter your full name"
@@ -620,8 +578,19 @@ class OrderPickupActivity : AppCompatActivity() {
             return false
         }
         
-        if (selectedTruck == null) {
-            Toast.makeText(this, "Please select a truck", Toast.LENGTH_SHORT).show()
+        if (trashWeight.isEmpty()) {
+            etTrashWeight.error = "Please enter trash weight"
+            return false
+        }
+        
+        try {
+            val weight = trashWeight.toDouble()
+            if (weight <= 0) {
+                etTrashWeight.error = "Weight must be greater than 0"
+                return false
+            }
+        } catch (e: NumberFormatException) {
+            etTrashWeight.error = "Please enter a valid weight"
             return false
         }
 
@@ -639,18 +608,22 @@ class OrderPickupActivity : AppCompatActivity() {
     }
 
     private fun createPickupOrder(paymentMethod: PaymentMethod): PickupOrder {
+        val trashWeight = etTrashWeight.text.toString().trim().toDoubleOrNull() ?: 0.0
+        val notes = etNotes.text.toString().trim().takeIf { it.isNotEmpty() }
+        
         return PickupOrder(
             fullName = etFullName.text.toString().trim(),
             email = etEmail.text.toString().trim(),
             address = selectedAddress,
             latitude = selectedLocation?.latitude ?: 0.0,
             longitude = selectedLocation?.longitude ?: 0.0,
-            amount = selectedTruck?.truckPrice ?: 0.0,
+            amount = 0.0, // Amount will be calculated by backend
             tax = 0.0,
-            total = totalAmount,
+            total = 0.0, // Total will be calculated by backend
             paymentMethod = paymentMethod,
             wasteType = selectedWasteType,
-            selectedTruck = selectedTruck,
+            trashWeight = trashWeight,
+            notes = notes,
             barangayId = userBarangayId
         )
     }

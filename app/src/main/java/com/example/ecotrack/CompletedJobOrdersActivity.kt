@@ -91,7 +91,17 @@ class CompletedJobOrdersActivity : BaseActivity() {
                     
                     if (payments != null && payments.isNotEmpty()) {
                         // Filter only completed payments
-                        val completedPayments = payments.filter { it.jobOrderStatus == "Completed" }
+                        val completedPayments = payments.filter { payment ->
+                            // Prioritize jobOrderStatus over regular status field
+                            val effectiveStatus = if (!payment.jobOrderStatus.isNullOrBlank()) {
+                                payment.jobOrderStatus.trim()
+                            } else {
+                                payment.status?.trim() ?: ""
+                            }
+                            
+                            // Only include orders that are truly completed
+                            effectiveStatus.equals("Completed", ignoreCase = true)
+                        }
                         
                         if (completedPayments.isNotEmpty()) {
                             setupCompletedPaymentsAdapter(completedPayments)

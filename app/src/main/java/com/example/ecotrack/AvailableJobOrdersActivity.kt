@@ -101,7 +101,17 @@ class AvailableJobOrdersActivity : BaseActivity() {
                         val hasActiveJob = activeJobs.isNotEmpty()
                         
                         // Filter only available payments
-                        val availablePayments = payments.filter { it.jobOrderStatus == "Available" }
+                        val availablePayments = payments.filter { payment ->
+                            // Prioritize jobOrderStatus over regular status field
+                            val effectiveStatus = if (!payment.jobOrderStatus.isNullOrBlank()) {
+                                payment.jobOrderStatus.trim()
+                            } else {
+                                payment.status?.trim() ?: ""
+                            }
+                            
+                            // Only include orders that are truly available
+                            effectiveStatus.equals("Available", ignoreCase = true)
+                        }
                         
                         if (availablePayments.isNotEmpty()) {
                             // Set up the adapter with the hasActiveJob flag to disable items

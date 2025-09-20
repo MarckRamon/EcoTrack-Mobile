@@ -112,6 +112,14 @@ class OrderStatusActivity : AppCompatActivity() {
     private val CAMERA_PERMISSION_CODE = 2001
     private lateinit var requestCameraPermissionLauncher: ActivityResultLauncher<String>
     private lateinit var takePicturePreviewLauncher: ActivityResultLauncher<Void?>
+    
+    // Rating UI elements
+    private lateinit var cardRating: androidx.cardview.widget.CardView
+    private lateinit var btnSubmitRating: com.google.android.material.button.MaterialButton
+    private lateinit var tvRatingFeedback: TextView
+    private lateinit var starViews: List<ImageView>
+    private var selectedRating: Int = 0
+    private var isRatingSubmitted: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -155,6 +163,28 @@ class OrderStatusActivity : AppCompatActivity() {
         ivProof = findViewById(R.id.iv_proof_image)
         btnRemoveProof = findViewById(R.id.btn_remove_proof)
         btnRemoveProof.setOnClickListener { confirmRetakeProof() }
+        
+        // Initialize rating UI elements
+        cardRating = findViewById(R.id.card_rating)
+        btnSubmitRating = findViewById(R.id.btn_submit_rating)
+        tvRatingFeedback = findViewById(R.id.tv_rating_feedback)
+        
+        // Initialize star views
+        starViews = listOf(
+            findViewById(R.id.star_1),
+            findViewById(R.id.star_2),
+            findViewById(R.id.star_3),
+            findViewById(R.id.star_4),
+            findViewById(R.id.star_5)
+        )
+        
+        // Set up rating functionality
+        setupRatingUI()
+        
+        // Set submit rating button click listener
+        btnSubmitRating.setOnClickListener {
+            submitRating()
+        }
         
         // Add test button for debugging (remove in production)
         btnRemoveProof.setOnLongClickListener {
@@ -237,8 +267,18 @@ class OrderStatusActivity : AppCompatActivity() {
 
         // Set values
         tvWasteType.text = order.wasteType.getDisplayName()
-        tvSacks.text = order.selectedTruck?.plateNumber ?: "N/A" // Display plate number instead of sacks
-        tvTruckSize.text = "${order.selectedTruck?.make ?: "N/A"} ${order.selectedTruck?.model ?: ""}" // Display make and model
+        tvSacks.text = "${order.trashWeight}kg" // Display trash weight
+        
+        // Debug notes display
+        Log.d("OrderStatusActivity", "=== INITIAL NOTES DEBUG ===")
+        Log.d("OrderStatusActivity", "Initial order notes: '${order.notes}'")
+        Log.d("OrderStatusActivity", "Notes isNullOrBlank: ${order.notes.isNullOrBlank()}")
+        
+        val initialNotes = if (order.notes.isNullOrBlank()) "No additional notes" else order.notes
+        tvTruckSize.text = initialNotes // Display order notes
+        Log.d("OrderStatusActivity", "Initial displayed notes: '$initialNotes'")
+        Log.d("OrderStatusActivity", "==========================")
+        
         tvAmount.text = "₱${order.total.toInt()}"
         tvPaymentMethod.text = order.paymentMethod.getDisplayName()
         tvLocation.text = order.address
@@ -473,10 +513,19 @@ class OrderStatusActivity : AppCompatActivity() {
             Log.d("OrderStatusActivity", "Order ID: ${paymentResponse.orderId}")
             Log.d("OrderStatusActivity", "Status: ${paymentResponse.status}")
             Log.d("OrderStatusActivity", "Job Order Status: ${paymentResponse.jobOrderStatus}")
+            Log.d("OrderStatusActivity", "Trash Weight: ${paymentResponse.trashWeight}")
+            Log.d("OrderStatusActivity", "Notes: '${paymentResponse.notes}'")
+            Log.d("OrderStatusActivity", "Note Alt: '${paymentResponse.noteAlt}'")
+            Log.d("OrderStatusActivity", "Customer Notes: '${paymentResponse.customerNotes}'")
+            Log.d("OrderStatusActivity", "Description: '${paymentResponse.description}'")
+            Log.d("OrderStatusActivity", "Effective Notes: '${paymentResponse.getEffectiveNotes()}'")
+            Log.d("OrderStatusActivity", "Notes null: ${paymentResponse.notes == null}")
+            Log.d("OrderStatusActivity", "Notes blank: ${paymentResponse.notes?.isBlank()}")
             Log.d("OrderStatusActivity", "Confirmation Image URL: ${paymentResponse.confirmationImageUrl}")
             Log.d("OrderStatusActivity", "Confirmation Image Alt: ${paymentResponse.confirmationImageAlt}")
             Log.d("OrderStatusActivity", "Customer Confirmation: ${paymentResponse.customerConfirmation}")
             Log.d("OrderStatusActivity", "Driver Confirmation: ${paymentResponse.driverConfirmation}")
+            Log.d("OrderStatusActivity", "Service Rating: ${paymentResponse.serviceRating}")
             Log.d("OrderStatusActivity", "Effective Confirmation Image URL: ${paymentResponse.getEffectiveConfirmationImageUrl()}")
             Log.d("OrderStatusActivity", "Full response: $paymentResponse")
             
@@ -913,6 +962,7 @@ private fun confirmRetakeProof() {
                 btnCancel.visibility = View.VISIBLE
                 btnUploadProof.visibility = View.GONE
                 showOrHideProof(null)
+                hideRatingCard()
             }
             "Accepted" -> {
                 // Get estimated arrival time from backend if available
@@ -966,6 +1016,7 @@ private fun confirmRetakeProof() {
                     paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
                     showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
                 }
+                hideRatingCard()
             }
             "In-Progress" -> {
                 tvStatusHeader.text = "Pickup in Progress"
@@ -1003,6 +1054,7 @@ private fun confirmRetakeProof() {
                     paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
                     showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
                 }
+                hideRatingCard()
             }
             "Completed" -> {
                 tvStatusHeader.text = "Completed"
@@ -1037,6 +1089,9 @@ private fun confirmRetakeProof() {
                     paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
                     showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
                 }
+                
+                // Show rating card for completed orders
+                showRatingCard(paymentResponse)
             }
             "Cancelled" -> {
                 tvStatusHeader.text = "Cancelled"
@@ -1063,6 +1118,7 @@ private fun confirmRetakeProof() {
                 btnCancel.visibility = View.GONE
                 btnUploadProof.visibility = View.GONE
                 showOrHideProof(null)
+                hideRatingCard()
             }
             else -> {
                 // Handle unknown status
@@ -1141,78 +1197,7 @@ private fun confirmRetakeProof() {
 
     // Add new method to update order details from API response
     private fun updateOrderDetails(paymentResponse: PaymentResponse) {
-        Log.d("OrderStatusActivity", "Updating order details from API: truckId=${paymentResponse.truckId}, wasteType=${paymentResponse.wasteType}")
-        
-        // Update the internal order object with the latest data from the API
-        if (paymentResponse.truckId != null || 
-            !paymentResponse.truckMake.isNullOrBlank() || 
-            !paymentResponse.truckModel.isNullOrBlank() || 
-            !paymentResponse.plateNumber.isNullOrBlank()) {
-            
-            // Get the current truck or null
-            val currentTruck = order.selectedTruck
-            
-            // Create a new Truck object with the API data
-            val updatedTruck = if (currentTruck != null) {
-                currentTruck.copy(
-                    truckId = paymentResponse.truckId ?: currentTruck.truckId,
-                    make = paymentResponse.truckMake ?: currentTruck.make,
-                    model = paymentResponse.truckModel ?: currentTruck.model,
-                    plateNumber = paymentResponse.plateNumber ?: currentTruck.plateNumber
-                )
-            } else {
-                com.example.ecotrack.models.Truck(
-                    truckId = paymentResponse.truckId ?: "truck_${paymentResponse.orderId}",
-                    size = paymentResponse.truckSize ?: "MEDIUM",
-                    wasteType = paymentResponse.wasteType ?: "MIXED",
-                    status = "ACTIVE",
-                    make = paymentResponse.truckMake ?: "EcoTrack",
-                    model = paymentResponse.truckModel ?: "Standard",
-                    plateNumber = paymentResponse.plateNumber ?: "ECO-${paymentResponse.orderId.takeLast(4)}",
-                    truckPrice = paymentResponse.amount ?: 0.0,
-                    createdAt = paymentResponse.createdAt.toString()
-                )
-            }
-            
-            // Update our internal order object
-            order = order.copy(selectedTruck = updatedTruck)
-            
-            Log.d("OrderStatusActivity", "Updated internal order with new truck data: " +
-                "ID=${updatedTruck.truckId}, Make=${updatedTruck.make}, " +
-                "Model=${updatedTruck.model}, Plate=${updatedTruck.plateNumber}")
-        }
-        
-        // Update plate number if it's provided in the API response
-        if (!paymentResponse.plateNumber.isNullOrBlank()) {
-            runOnUiThread {
-                tvSacks.text = paymentResponse.plateNumber
-                Log.d("OrderStatusActivity", "Updated plate number display to: ${paymentResponse.plateNumber}")
-            }
-        } else {
-            // Get the current truck
-            val currentTruck = order.selectedTruck
-            
-            if (currentTruck != null && !currentTruck.plateNumber.isNullOrBlank()) {
-                // Use the plate number from our updated order object
-                runOnUiThread {
-                    tvSacks.text = currentTruck.plateNumber
-                    Log.d("OrderStatusActivity", "Updated plate number display to: ${currentTruck.plateNumber}")
-                }
-            } else if (paymentResponse.numberOfSacks > 0) {
-                // If we don't have a plate number but have number of sacks, show that
-                runOnUiThread {
-                    tvSacks.text = paymentResponse.numberOfSacks.toString()
-                    Log.d("OrderStatusActivity", "Updated sacks display to: ${paymentResponse.numberOfSacks}")
-                }
-            } else {
-                // If we don't have either, create a plate number
-                val plateNumber = "ECO-${paymentResponse.orderId.takeLast(4)}"
-                runOnUiThread {
-                    tvSacks.text = plateNumber
-                    Log.d("OrderStatusActivity", "Updated plate number display to: $plateNumber")
-                }
-            }
-        }
+        Log.d("OrderStatusActivity", "Updating order details from API: orderId=${paymentResponse.orderId}, wasteType=${paymentResponse.wasteType}")
         
         // Update waste type if it's provided in the API response
         if (!paymentResponse.wasteType.isNullOrBlank()) {
@@ -1222,40 +1207,212 @@ private fun confirmRetakeProof() {
             }
         }
         
-        // Update truck make & model if they're provided in the API response
-        if (!paymentResponse.truckMake.isNullOrBlank() || !paymentResponse.truckModel.isNullOrBlank()) {
-            runOnUiThread {
-                // Format as "Make & Model" using actual values if available
-                val truckDisplay = "${paymentResponse.truckMake ?: ""} ${paymentResponse.truckModel ?: ""}".trim()
-                tvTruckSize.text = truckDisplay
-                Log.d("OrderStatusActivity", "Updated truck display to: $truckDisplay")
-            }
-        } else {
-            // Get the current truck
-            val currentTruck = order.selectedTruck
-            
-            if (currentTruck != null) {
-                // Use the truck from our updated order object
-                runOnUiThread {
-                    val truckDisplay = "${currentTruck.make} ${currentTruck.model}".trim()
-                    tvTruckSize.text = truckDisplay
-                    Log.d("OrderStatusActivity", "Updated truck display to: $truckDisplay")
-                }
-            } else if (!paymentResponse.truckSize.isNullOrBlank()) {
-                // If we only have truck size, use that
-                runOnUiThread {
-                    val truckDisplay = "${paymentResponse.truckSize} Standard"
-                    tvTruckSize.text = truckDisplay
-                    Log.d("OrderStatusActivity", "Updated truck display to: $truckDisplay")
-                }
-            }
-        }
-        
         // Update payment method if it's provided in the API response
         if (!paymentResponse.paymentMethod.isNullOrBlank()) {
             runOnUiThread {
                 tvPaymentMethod.text = paymentResponse.paymentMethod
                 Log.d("OrderStatusActivity", "Updated payment method display to: ${paymentResponse.paymentMethod}")
+            }
+        }
+        
+        // Update trash weight from API response if available, otherwise use original order
+        runOnUiThread {
+            val displayWeight = paymentResponse.trashWeight ?: order.trashWeight
+            tvSacks.text = "${displayWeight}kg"
+            Log.d("OrderStatusActivity", "Updated trash weight display to: ${displayWeight}kg (from ${if (paymentResponse.trashWeight != null) "API" else "original order"})")
+        }
+        
+        // Update notes from API response if available, otherwise use original order
+        runOnUiThread {
+            val apiNotes = paymentResponse.getEffectiveNotes() // Use helper function to get notes from any field
+            val originalNotes = order.notes
+            
+            Log.d("OrderStatusActivity", "=== NOTES DEBUG INFO ===")
+            Log.d("OrderStatusActivity", "API effective notes: '$apiNotes'")
+            Log.d("OrderStatusActivity", "API notes field: '${paymentResponse.notes}'")
+            Log.d("OrderStatusActivity", "API noteAlt field: '${paymentResponse.noteAlt}'")
+            Log.d("OrderStatusActivity", "API customerNotes field: '${paymentResponse.customerNotes}'")
+            Log.d("OrderStatusActivity", "API description field: '${paymentResponse.description}'")
+            Log.d("OrderStatusActivity", "Original order notes: '$originalNotes'")
+            Log.d("OrderStatusActivity", "API notes isNullOrBlank: ${apiNotes.isNullOrBlank()}")
+            Log.d("OrderStatusActivity", "Original notes isNullOrBlank: ${originalNotes.isNullOrBlank()}")
+            
+            val displayNotes = when {
+                !apiNotes.isNullOrBlank() -> {
+                    Log.d("OrderStatusActivity", "Using API notes: '$apiNotes'")
+                    apiNotes
+                }
+                !originalNotes.isNullOrBlank() -> {
+                    Log.d("OrderStatusActivity", "Using original order notes: '$originalNotes'")
+                    originalNotes
+                }
+                else -> {
+                    Log.d("OrderStatusActivity", "No notes available, using fallback")
+                    "No additional notes"
+                }
+            }
+            
+            tvTruckSize.text = displayNotes
+            Log.d("OrderStatusActivity", "Final displayed notes: '$displayNotes'")
+            Log.d("OrderStatusActivity", "========================")
+        }
+    }
+    
+    // Rating functionality methods
+    private fun setupRatingUI() {
+        // Initially hide rating card
+        cardRating.visibility = View.GONE
+        
+        // Set up click listeners for stars
+        starViews.forEachIndexed { index, star ->
+            star.setOnClickListener {
+                selectRating(index + 1)
+            }
+        }
+    }
+    
+    private fun selectRating(rating: Int) {
+        if (isRatingSubmitted) return // Don't allow changes after submission
+        
+        selectedRating = rating
+        updateStarDisplay()
+        
+        // Enable submit button and update feedback
+        btnSubmitRating.isEnabled = true
+        tvRatingFeedback.visibility = View.VISIBLE
+        tvRatingFeedback.text = when (rating) {
+            1 -> "Poor - We'll work to improve"
+            2 -> "Fair - Could be better"
+            3 -> "Good - Satisfactory service"
+            4 -> "Very Good - Great service!"
+            5 -> "Excellent - Outstanding service!"
+            else -> "Tap stars to rate"
+        }
+        
+        Log.d("OrderStatusActivity", "Selected rating: $rating")
+    }
+    
+    private fun updateStarDisplay() {
+        starViews.forEachIndexed { index, star ->
+            val starPosition = index + 1
+            if (starPosition <= selectedRating) {
+                // Filled star
+                star.setImageResource(R.drawable.ic_star)
+                star.setColorFilter(ContextCompat.getColor(this, R.color.star_filled))
+            } else {
+                // Empty star
+                star.setImageResource(R.drawable.ic_star_outline)
+                star.setColorFilter(ContextCompat.getColor(this, R.color.star_empty))
+            }
+        }
+    }
+    
+    private fun showRatingCard(paymentResponse: PaymentResponse? = null) {
+        cardRating.visibility = View.VISIBLE
+        Log.d("OrderStatusActivity", "Showing rating card for completed order")
+        
+        // Check if rating already exists in API response
+        paymentResponse?.let { response ->
+            response.serviceRating?.let { existingRating ->
+                if (existingRating > 0) {
+                    Log.d("OrderStatusActivity", "Found existing rating: $existingRating, restoring UI")
+                    restoreExistingRating(existingRating)
+                }
+            }
+        }
+    }
+    
+    private fun restoreExistingRating(rating: Int) {
+        // Restore the rating state
+        selectedRating = rating
+        isRatingSubmitted = true
+        
+        // Update star display
+        updateStarDisplay()
+        
+        // Update UI to show submitted state
+        btnSubmitRating.text = "Rating Submitted"
+        btnSubmitRating.isEnabled = false
+        btnSubmitRating.setBackgroundColor(ContextCompat.getColor(this, R.color.success_green))
+        
+        // Show thank you message
+        tvRatingFeedback.visibility = View.VISIBLE
+        tvRatingFeedback.text = "Thank you for your feedback!"
+        tvRatingFeedback.setTextColor(ContextCompat.getColor(this, R.color.success_green))
+        
+        // Disable star interactions
+        starViews.forEach { star ->
+            star.isClickable = false
+            star.isFocusable = false
+        }
+        
+        Log.d("OrderStatusActivity", "Restored existing rating: $rating stars")
+    }
+    
+    private fun hideRatingCard() {
+        cardRating.visibility = View.GONE
+        Log.d("OrderStatusActivity", "Hiding rating card")
+    }
+    
+    private fun submitRating() {
+        if (selectedRating == 0 || isRatingSubmitted) {
+            return
+        }
+        
+        // Disable button to prevent multiple submissions
+        btnSubmitRating.isEnabled = false
+        btnSubmitRating.text = "Submitting..."
+        
+        val token = sessionManager.getToken()
+        if (token == null) {
+            Toast.makeText(this, "Authentication error. Please login again.", Toast.LENGTH_SHORT).show()
+            btnSubmitRating.isEnabled = true
+            btnSubmitRating.text = "Submit Rating"
+            return
+        }
+        
+        val bearerToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
+        val orderId = order.id
+        
+        Log.d("OrderStatusActivity", "Submitting rating: $selectedRating for order: $orderId")
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val requestBody = mapOf("serviceRating" to selectedRating)
+                val response = apiService.submitServiceRating(orderId, requestBody, bearerToken)
+                
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
+                        // Rating submitted successfully
+                        isRatingSubmitted = true
+                        btnSubmitRating.text = "Rating Submitted"
+                        btnSubmitRating.setBackgroundColor(ContextCompat.getColor(this@OrderStatusActivity, R.color.success_green))
+                        tvRatingFeedback.text = "Thank you for your feedback!"
+                        tvRatingFeedback.setTextColor(ContextCompat.getColor(this@OrderStatusActivity, R.color.success_green))
+                        
+                        // Disable star interactions
+                        starViews.forEach { star ->
+                            star.isClickable = false
+                            star.isFocusable = false
+                        }
+                        
+                        Toast.makeText(this@OrderStatusActivity, "Rating submitted successfully!", Toast.LENGTH_SHORT).show()
+                        Log.d("OrderStatusActivity", "Rating submitted successfully")
+                    } else {
+                        // Failed to submit rating
+                        Log.e("OrderStatusActivity", "Failed to submit rating: ${response.code()} - ${response.message()}")
+                        btnSubmitRating.isEnabled = true
+                        btnSubmitRating.text = "Submit Rating"
+                        Toast.makeText(this@OrderStatusActivity, "Failed to submit rating. Please try again.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("OrderStatusActivity", "Error submitting rating", e)
+                withContext(Dispatchers.Main) {
+                    btnSubmitRating.isEnabled = true
+                    btnSubmitRating.text = "Submit Rating"
+                    Toast.makeText(this@OrderStatusActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

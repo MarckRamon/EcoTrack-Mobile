@@ -176,8 +176,8 @@ class PaymentCallbackActivity : AppCompatActivity() {
             return
         }
 
-        // Log truck information from the order
-        Log.d(TAG, "Sending payment to backend for order ${order.id} with truck: ID=${order.selectedTruck?.truckId}, make=${order.selectedTruck?.make}, model=${order.selectedTruck?.model}")
+        // Log order information
+        Log.d(TAG, "Sending payment to backend for order ${order.id} with trash weight: ${order.trashWeight}kg")
 
         // Get payment reference from Xendit callback or generate one
         val paymentReference = if (data != null) {
@@ -196,151 +196,116 @@ class PaymentCallbackActivity : AppCompatActivity() {
         // Log the payment method before creating the request
         Log.d(TAG, "Payment method before creating request: ${order.paymentMethod.name}, display name: ${order.paymentMethod.getDisplayName()}")
 
-        // Create payment request
-        val paymentRequest = PaymentRequest(
-            orderId = order.id,
-            customerName = order.fullName,
-            customerEmail = order.email,
-            address = order.address,
-            latitude = order.latitude,
-            longitude = order.longitude,
-            amount = order.amount,
-            tax = order.tax,
-            totalAmount = order.total,
-            paymentMethod = order.paymentMethod.getDisplayName(), // Use display name instead of enum name
-            paymentReference = paymentReference,
-            notes = "Payment from mobile app",
-            wasteType = order.wasteType.name, // Include the waste type here
-            barangayId = order.barangayId, // Include the barangayId here
-            selectedTruckId = order.selectedTruck?.truckId, // Use the truck ID instead of number of sacks
-            truckId = order.selectedTruck?.truckId, // Add truckId field with the same value as selectedTruckId
-            truckMake = order.selectedTruck?.make, // Add truck make
-            truckModel = order.selectedTruck?.model, // Add truck model
-            plateNumber = order.selectedTruck?.plateNumber // Add plate number
-        )
+        // Step 4: Received Xendit payment completion callback
+        Log.d(TAG, "Step 4: Received Xendit payment completion callback for order ${order.id}")
+        Log.d(TAG, "Payment reference: $paymentReference")
 
         // Log the payment method being sent to the backend
         Log.d(TAG, "Sending payment to backend with method: ${order.paymentMethod.getDisplayName()}")
-        Log.d(TAG, "Full payment request: $paymentRequest")
-        Log.d(TAG, "Selected truck ID being sent: ${paymentRequest.selectedTruckId}, truckId: ${paymentRequest.truckId}, make: ${paymentRequest.truckMake}, model: ${paymentRequest.truckModel}, plateNumber: ${paymentRequest.plateNumber}")
 
-        // Send payment data to backend
+        // Perform network calls inside a coroutine
         lifecycleScope.launch {
-            // Create a variable for the order we'll use (either original or updated)
-            var orderToUse = order
-            
             try {
+                // Get the stored quote data
+                val quote = TempOrderHolder.getQuote(order.id)
+                if (quote == null) {
+                    Log.e(TAG, "Quote data not found for order ${order.id}")
+                    throw Exception("Quote data not found for order")
+                }
+                
+                Log.d(TAG, "Creating final payment entry with quote data...")
+                Log.d(TAG, "Quote data: quoteId=${quote.quoteId}, amount=₱${quote.estimatedAmount}, total=₱${quote.estimatedTotalAmount}")
+                Log.d(TAG, "Truck: ${quote.truckDetails}, Driver: ${quote.driverDetails}")
+                
+                val paymentRequest = PaymentRequest(
+                    orderId = order.id,
+                    customerName = order.fullName,
+                    customerEmail = order.email,
+                    address = order.address,
+                    latitude = order.latitude,
+                    longitude = order.longitude,
+                    amount = quote.estimatedAmount, // Use quote pricing
+                    tax = 0.0,
+                    totalAmount = quote.estimatedTotalAmount, // Use quote pricing
+                    paymentMethod = "ONLINE",
+                    paymentReference = paymentReference,
+                    notes = order.notes ?: "Online payment via Xendit - completed",
+                    wasteType = order.wasteType.name,
+                    barangayId = order.barangayId,
+                    trashWeight = order.trashWeight,
+                    selectedTruckId = null,
+                    truckId = quote.assignedTruckId,
+                    truckMake = null,
+                    truckModel = null,
+                    plateNumber = null,
+                    quoteId = quote.quoteId
+                )
+                
+                Log.d(TAG, "Full payment request: $paymentRequest")
+                Log.d(TAG, "Trash weight being sent: ${paymentRequest.trashWeight}kg, waste type: ${paymentRequest.wasteType}")
+                
+                // Check if final payment already exists
+                try {
+                    val existingOrderResponse = apiService.getPaymentByOrderId(order.id, "Bearer $token")
+                    if (existingOrderResponse.isSuccessful && existingOrderResponse.body() != null) {
+                        val existingOrder = existingOrderResponse.body()!!
+                        Log.d(TAG, "Found existing order ${order.id} with payment method: ${existingOrder.paymentMethod}")
+                        
+                        // If it's an actual payment, not just a quote, order already exists
+                        if (existingOrder.paymentMethod != "GET_PRICING_ONLY") {
+                            Log.d(TAG, "Final payment already exists, navigating to success directly")
+                            
+                            // Clean up temporary data since order already exists
+                            TempOrderHolder.removeOrder(order.id)
+                            
+                            val updatedOrder = order.copy(
+                                amount = existingOrder.amount ?: order.amount,
+                                total = existingOrder.totalAmount ?: order.total
+                            )
+
+                            val intent = Intent(this@PaymentCallbackActivity, OrderSuccessActivity::class.java)
+                            intent.putExtra("ORDER_DATA", updatedOrder)
+                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                            finish()
+                            return@launch
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d(TAG, "No existing payment found: ${e.message}")
+                    Log.d(TAG, "Continuing with creating final payment entry...")
+                }
+                
+                // Create the payment
                 val response = apiService.processPayment(paymentRequest, "Bearer $token")
 
                 if (response.isSuccessful) {
-                    Log.i(TAG, "Payment successfully sent to backend: ${response.body()}")
+                    Log.i(TAG, "Payment successfully stored in database: ${response.body()}")
 
-                    // Remove order from temp storage
+                    // Clean up temporary data
+                    Log.d(TAG, "Cleaning up temporary data...")
                     TempOrderHolder.removeOrder(order.id)
-
-                    // Check if the response contains updated truck information
-                    val paymentResponse = response.body()
+                    Log.d(TAG, "Temporary data cleaned up successfully")
                     
-                    if (paymentResponse != null) {
-                        Log.d(TAG, "Got payment response from backend: ${paymentResponse}")
-                        
-                        // Check if we have a truckId but missing truck details
-                        if (paymentResponse.truckId != null && 
-                            (paymentResponse.truckMake.isNullOrBlank() || 
-                             paymentResponse.truckModel.isNullOrBlank() || 
-                             paymentResponse.plateNumber.isNullOrBlank())) {
-                            
-                            // Try to fetch complete truck details
-                            try {
-                                Log.d(TAG, "Fetching detailed truck information for truckId: ${paymentResponse.truckId}")
-                                val trucksResponse = apiService.getTrucks("Bearer $token")
-                                
-                                if (trucksResponse.isSuccessful && trucksResponse.body() != null) {
-                                    val trucks = trucksResponse.body()!!
-                                    Log.d(TAG, "Fetched ${trucks.size} trucks from API")
-                                    
-                                    // Find the truck with matching ID (try case-insensitive matching if exact match fails)
-                                    var matchingTruck = trucks.find { it.truckId == paymentResponse.truckId }
-                                    
-                                    // If no exact match, try case-insensitive comparison
-                                    if (matchingTruck == null) {
-                                        Log.d(TAG, "No exact match found for truck ID: ${paymentResponse.truckId}, trying case-insensitive match")
-                                        matchingTruck = trucks.find { it.truckId.equals(paymentResponse.truckId, ignoreCase = true) }
-                                        if (matchingTruck != null) {
-                                            Log.d(TAG, "Found truck with case-insensitive match: ${matchingTruck.truckId} for requested ID: ${paymentResponse.truckId}")
-                                        } else {
-                                            Log.d(TAG, "No matching truck found among ${trucks.size} trucks. Available IDs: ${trucks.map { it.truckId }.take(5).joinToString()}")
-                                        }
-                                    }
-                                    
-                                    if (matchingTruck != null) {
-                                        Log.d(TAG, "Found matching truck: ${matchingTruck.make} ${matchingTruck.model}, plate: ${matchingTruck.plateNumber}")
-                                        
-                                        // Create an updated truck with complete info
-                                        val updatedTruck = com.example.ecotrack.models.Truck(
-                                            truckId = matchingTruck.truckId,
-                                            size = matchingTruck.size,
-                                            wasteType = paymentResponse.wasteType ?: matchingTruck.wasteType,
-                                            status = matchingTruck.status,
-                                            make = matchingTruck.make,
-                                            model = matchingTruck.model,
-                                            plateNumber = matchingTruck.plateNumber,
-                                            truckPrice = matchingTruck.truckPrice,
-                                            createdAt = matchingTruck.createdAt
-                                        )
-                                        
-                                        // Update our order with the complete truck information
-                                        orderToUse = order.copy(selectedTruck = updatedTruck)
-                                        Log.d(TAG, "Updated order with complete truck information from trucks API: ${updatedTruck}")
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error fetching complete truck details", e)
-                                // Continue with original paymentResponse data
-                            }
-                        }
-                        
-                        // Check for truck info in payment response (if we didn't already update via trucks API)
-                        if (orderToUse == order && 
-                            (paymentResponse.truckId != null || 
-                            !paymentResponse.truckMake.isNullOrBlank() ||
-                            !paymentResponse.truckModel.isNullOrBlank() ||
-                            !paymentResponse.plateNumber.isNullOrBlank())) {
-                            
-                            // Get the current truck
-                            val currentTruck = order.selectedTruck
-                            
-                            // Create updated truck
-                            val updatedTruck = if (currentTruck != null) {
-                                currentTruck.copy(
-                                    truckId = paymentResponse.truckId ?: currentTruck.truckId,
-                                    make = paymentResponse.truckMake ?: currentTruck.make,
-                                    model = paymentResponse.truckModel ?: currentTruck.model,
-                                    plateNumber = paymentResponse.plateNumber ?: currentTruck.plateNumber
-                                )
-                            } else {
-                                com.example.ecotrack.models.Truck(
-                                    truckId = paymentResponse.truckId ?: "truck_${paymentResponse.orderId}",
-                                    size = paymentResponse.truckSize ?: "MEDIUM",
-                                    wasteType = paymentResponse.wasteType ?: "MIXED",
-                                    status = "ACTIVE",
-                                    make = paymentResponse.truckMake ?: "EcoTrack",
-                                    model = paymentResponse.truckModel ?: "Standard",
-                                    plateNumber = paymentResponse.plateNumber ?: "ECO-${paymentResponse.orderId.takeLast(4)}",
-                                    truckPrice = paymentResponse.amount ?: 0.0,
-                                    createdAt = paymentResponse.createdAt.toString()
-                                )
-                            }
-                            
-                            // Update our order with the new truck information
-                            orderToUse = order.copy(selectedTruck = updatedTruck)
-                            Log.d(TAG, "Updated order with truck information from API response: ${updatedTruck}")
-                        }
+                    Log.d(TAG, "FLOW COMPLETE: Quote → Xendit → Payment creation with quote data → Cleanup")
+                    Log.d(TAG, "SUCCESS: Customer paid quote amount, payment created with full quote details!")
+
+                    // Update order with backend response if needed
+                    val paymentResponse = response.body()
+                    val finalOrder = if (paymentResponse != null) {
+                        Log.d(TAG, "Final order details from database: ${paymentResponse}")
+                        // Use the final values from database
+                        order.copy(
+                            amount = paymentResponse.amount ?: order.amount,
+                            total = paymentResponse.totalAmount ?: order.total
+                        )
+                    } else {
+                        order
                     }
 
                     // Navigate to success screen
                     val intent = Intent(this@PaymentCallbackActivity, OrderSuccessActivity::class.java)
-                    intent.putExtra("ORDER_DATA", orderToUse)
+                    intent.putExtra("ORDER_DATA", finalOrder)
                     intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                     startActivity(intent)
                     finish() // Important: Finish PaymentCallbackActivity so user can't go back to it
@@ -355,31 +320,17 @@ class PaymentCallbackActivity : AppCompatActivity() {
 
                     // Navigate to success screen anyway since payment was successful with Xendit
                     val intent = Intent(this@PaymentCallbackActivity, OrderSuccessActivity::class.java)
-                    intent.putExtra("ORDER_DATA", orderToUse)
+                    intent.putExtra("ORDER_DATA", order) // Use original order since response failed
                     intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                     startActivity(intent)
                     finish()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error sending payment to backend", e)
-
-                // Handle error but still navigate to success since Xendit payment was successful
-                if (::tvStatus.isInitialized) {
-                    progressBar.visibility = View.GONE
-                    tvStatus.text = "Payment successful but failed to sync with our system."
-                    Toast.makeText(
-                        this@PaymentCallbackActivity,
-                        "Payment successful but failed to sync with our system.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-
-                // Remove order from temp storage
+                Log.e(TAG, "Error sending payment to backend: ${e.message}", e)
+                // Even if backend call fails, navigate to success to avoid blocking the user
                 TempOrderHolder.removeOrder(order.id)
-
-                // Navigate to success screen anyway since payment was successful with Xendit
                 val intent = Intent(this@PaymentCallbackActivity, OrderSuccessActivity::class.java)
-                intent.putExtra("ORDER_DATA", orderToUse)
+                intent.putExtra("ORDER_DATA", order)
                 intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
                 finish()

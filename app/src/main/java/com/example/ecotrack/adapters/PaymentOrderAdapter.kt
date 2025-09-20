@@ -54,30 +54,14 @@ class PaymentOrderAdapter(
             val formatter = NumberFormat.getCurrencyInstance(Locale("en", "PH"))
             priceTextView.text = formatter.format(payment.totalAmount)
             
-            // Set date text based on section type
-            if (section == "Completed") {
-                // For completed items, show the updatedAt date or fall back to createdAt
-                val dateText = if (payment.updatedAt != null) {
-                    "Updated: ${dateFormat.format(payment.updatedAt)}"
-                } else if (payment.createdAt != null) {
-                    // Fallback to createdAt if updatedAt is null
-                    "Created: ${dateFormat.format(payment.createdAt)}"
-                } else {
-                    "Date: N/A"
-                }
-                dateTextView.text = dateText
-            } else if (section == "In-Progress") {
-                // For in-progress items, show the status (Accepted or In-Progress)
-                dateTextView.text = payment.jobOrderStatus ?: "Unknown Status"
-            } else {
-                // For available items, show the createdAt date
-                val dateText = if (payment.createdAt != null) {
-                    "Created: ${dateFormat.format(payment.createdAt)}"
-                } else {
-                    "Date: N/A"
-                }
-                dateTextView.text = dateText
+            // Set status text to always show the actual job order status
+            val statusText = when (section) {
+                "Completed" -> "COMPLETED"
+                "In-Progress" -> payment.jobOrderStatus?.uppercase() ?: "IN-PROGRESS"
+                "Available" -> "AVAILABLE"
+                else -> payment.jobOrderStatus?.uppercase() ?: "UNKNOWN"
             }
+            dateTextView.text = statusText
             
             // Apply different styling based on section
             when (section) {

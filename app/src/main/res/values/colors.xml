@@ -63,6 +63,14 @@
     <color name="material_blue">#2196F3</color>
     <color name="material_red">#F44336</color>
     <color name="material_orange">#FF9800</color>
+    <color name="material_yellow">#FFC107</color>
     <color name="material_purple">#9C27B0</color>
     <color name="material_teal">#009688</color>
+    
+    <!-- Star Rating Colors -->
+    <color name="star_filled">#FFC107</color>
+    <color name="star_empty">#DDDDDD</color>
+    
+    <!-- Success Color -->
+    <color name="success_green">#4CAF50</color>
 </resources>

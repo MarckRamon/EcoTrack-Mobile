@@ -5,6 +5,8 @@ import com.example.ecotrack.models.*
 import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.models.payment.PaymentRequest
 import com.example.ecotrack.models.payment.PaymentResponse
+import com.example.ecotrack.models.quote.QuoteRequest
+import com.example.ecotrack.models.quote.QuoteResponse
 import com.example.ecotrack.models.Barangay
 import com.example.ecotrack.models.DeliveryStatusUpdate
 import com.example.ecotrack.utils.NetworkUtils.Companion.ChunkedTransferFixInterceptor
@@ -106,6 +108,12 @@ interface ApiService {
     ): Response<List<MissedReportResponse>>
 
     // Payment Endpoints
+    @POST("api/payments/quote")
+    suspend fun getQuote(
+        @Body quoteRequest: QuoteRequest,
+        @Header("Authorization") authToken: String
+    ): Response<QuoteResponse>
+    
     @POST("api/payments")
     suspend fun processPayment(
         @Body paymentRequest: PaymentRequest,
@@ -214,6 +222,14 @@ interface ApiService {
     suspend fun updateProfileImage(
         @Header("Authorization") authToken: String,
         @Body body: Map<String, String>
+    ): Response<Map<String, Any>>
+
+    // Service Rating
+    @PUT("api/payments/order/{orderId}/rating")
+    suspend fun submitServiceRating(
+        @Path("orderId") orderId: String,
+        @Body body: Map<String, Int>,
+        @Header("Authorization") authToken: String
     ): Response<Map<String, Any>>
 
     companion object {

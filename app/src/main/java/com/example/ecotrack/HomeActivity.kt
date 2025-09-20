@@ -31,6 +31,8 @@ import kotlinx.coroutines.withContext
 import com.example.ecotrack.databinding.ActivityHomeBinding
 import retrofit2.Response
 import androidx.core.content.ContextCompat
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 
 class HomeActivity : BaseActivity() {
 
@@ -51,6 +53,16 @@ class HomeActivity : BaseActivity() {
     private var lastOrderCheckTime = 0L
     private val MIN_CHECK_INTERVAL = 60000L // 1 minute interval between API checks
     private var cachedActiveOrders: List<PaymentResponse>? = null
+    private var allOrders: List<PaymentResponse>? = null
+    private var currentFilter: String = "SHOW_ALL"
+    
+    // Filter UI elements
+    private lateinit var statusFilterChipGroup: ChipGroup
+    private lateinit var chipShowAll: Chip
+    private lateinit var chipAvailable: Chip
+    private lateinit var chipInProgress: Chip
+    private lateinit var chipCompleted: Chip
+    private lateinit var chipCancelled: Chip
 
     // This container will hold additional order cards
     private lateinit var additionalCardsContainer: LinearLayout
@@ -83,7 +95,9 @@ class HomeActivity : BaseActivity() {
         supportActionBar?.hide()
 
         initializeViews()
-        checkForActiveOrders()
+        // Always fetch fresh data when home page is visited
+        Log.d(TAG, "onCreate - fetching fresh data")
+        checkForActiveOrders(isManualRefresh = true)
         loadUserData()
         
         // Setup SwipeRefreshLayout for manual refresh
@@ -100,6 +114,17 @@ class HomeActivity : BaseActivity() {
         viewAllText = binding.viewAll
         reminderTitle = binding.reminderTitle
         additionalCardsContainer = binding.additionalCardsContainer
+        
+        // Initialize filter UI elements
+        statusFilterChipGroup = binding.statusFilterChipGroup
+        chipShowAll = binding.chipShowAll
+        chipAvailable = binding.chipAvailable
+        chipInProgress = binding.chipInProgress
+        chipCompleted = binding.chipCompleted
+        chipCancelled = binding.chipCancelled
+        
+        // Set up filter chip listeners
+        setupFilterChips()
         
         // Hide the reminder card initially until we check for active orders
         reminderCard.visibility = View.GONE
@@ -135,6 +160,88 @@ class HomeActivity : BaseActivity() {
             startActivity(Intent(this, com.example.ecotrack.ui.pickup.OrderPickupActivity::class.java))
         }
     }
+    
+    private fun setupFilterChips() {
+        // Set chip colors to match banner colors
+        setChipColors()
+        
+        chipShowAll.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                Log.d(TAG, "🎯 SHOW_ALL filter selected")
+                currentFilter = "SHOW_ALL"
+                applyCurrentFilter()
+            }
+        }
+        
+        chipAvailable.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                Log.d(TAG, "🎯 AVAILABLE filter selected")
+                currentFilter = "AVAILABLE"
+                applyCurrentFilter()
+            }
+        }
+        
+        chipInProgress.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                Log.d(TAG, "🎯 IN_PROGRESS filter selected")
+                currentFilter = "IN_PROGRESS"
+                applyCurrentFilter()
+            }
+        }
+        
+        chipCompleted.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                Log.d(TAG, "🎯 COMPLETED filter selected")
+                currentFilter = "COMPLETED"
+                applyCurrentFilter()
+            }
+        }
+        
+        chipCancelled.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                Log.d(TAG, "🎯 CANCELLED filter selected")
+                currentFilter = "CANCELLED"
+                applyCurrentFilter()
+            }
+        }
+    }
+    
+    private fun setChipColors() {
+        // Create color state lists for each chip to match banner colors
+        val availableColorStateList = android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(this, R.color.secondary)
+        )
+        val inProgressColorStateList = android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(this, R.color.material_yellow)
+        )
+        val completedColorStateList = android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(this, R.color.grey)
+        )
+        val cancelledColorStateList = android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(this, R.color.material_red)
+        )
+        val showAllColorStateList = android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(this, R.color.primary)
+        )
+        
+        // Apply colors to chips
+        chipShowAll.chipBackgroundColor = showAllColorStateList
+        chipShowAll.chipStrokeColor = showAllColorStateList
+        
+        chipAvailable.chipBackgroundColor = availableColorStateList
+        chipAvailable.chipStrokeColor = availableColorStateList
+        
+        chipInProgress.chipBackgroundColor = inProgressColorStateList
+        chipInProgress.chipStrokeColor = inProgressColorStateList
+        
+        chipCompleted.chipBackgroundColor = completedColorStateList
+        chipCompleted.chipStrokeColor = completedColorStateList
+        
+        chipCancelled.chipBackgroundColor = cancelledColorStateList
+        chipCancelled.chipStrokeColor = cancelledColorStateList
+        
+        Log.d(TAG, "Filter chip colors updated to match banner colors")
+    }
 
     private fun checkForActiveOrders(isManualRefresh: Boolean = false) {
         val token = sessionManager.getToken()
@@ -150,10 +257,10 @@ class HomeActivity : BaseActivity() {
         
         // Skip if we recently checked and this is not a manual refresh
         val currentTime = System.currentTimeMillis()
-        if (!isManualRefresh && currentTime - lastOrderCheckTime < MIN_CHECK_INTERVAL && cachedActiveOrders != null) {
-            Log.d(TAG, "Using cached active orders - last check was ${currentTime - lastOrderCheckTime}ms ago")
+        if (!isManualRefresh && currentTime - lastOrderCheckTime < MIN_CHECK_INTERVAL && allOrders != null) {
+            Log.d(TAG, "Using cached orders - last check was ${currentTime - lastOrderCheckTime}ms ago")
             // Use cached data
-            cachedActiveOrders?.let { orders ->
+            allOrders?.let { orders ->
                 CoroutineScope(Dispatchers.IO).launch {
                     handleCachedOrders(orders)
                 }
@@ -178,6 +285,7 @@ class HomeActivity : BaseActivity() {
                     if (response.isSuccessful && !response.body().isNullOrEmpty()) {
                         // Cache the response
                         cachedActiveOrders = response.body()
+                        allOrders = response.body()
                     }
                     handleActiveOrdersResponse(response)
                     binding.swipeRefreshLayout.isRefreshing = false
@@ -197,6 +305,7 @@ class HomeActivity : BaseActivity() {
                         if (fallbackResponse.isSuccessful && !fallbackResponse.body().isNullOrEmpty()) {
                             // Cache the fallback response
                             cachedActiveOrders = fallbackResponse.body()
+                            allOrders = fallbackResponse.body()
                         }
                         handleFallbackResponse(fallbackResponse)
                         binding.swipeRefreshLayout.isRefreshing = false
@@ -206,10 +315,10 @@ class HomeActivity : BaseActivity() {
                 Log.e(TAG, "Error checking for active orders", e)
                 withContext(Dispatchers.Main) {
                     // Use cached data if available when there's an error
-                    if (cachedActiveOrders != null) {
+                    if (allOrders != null) {
                         Log.d(TAG, "Using cached data due to network error")
                         CoroutineScope(Dispatchers.Main).launch {
-                            handleCachedOrders(cachedActiveOrders!!)
+                            handleCachedOrders(allOrders!!)
                         }
                     } else {
                         reminderCard.visibility = View.GONE
@@ -229,6 +338,167 @@ class HomeActivity : BaseActivity() {
         }
     }
     
+    private fun applyCurrentFilter() {
+        val orders = allOrders ?: return
+        
+        Log.d(TAG, "🔍 CURRENT FILTER STATE: '$currentFilter'")
+        Log.d(TAG, "Chip states: ShowAll=${chipShowAll.isChecked}, Available=${chipAvailable.isChecked}, InProgress=${chipInProgress.isChecked}, Completed=${chipCompleted.isChecked}, Cancelled=${chipCancelled.isChecked}")
+        
+        // Log all order statuses for debugging
+        Log.d(TAG, "=== Applying filter '$currentFilter' to ${orders.size} orders ===")
+        orders.forEachIndexed { index, order ->
+            Log.d(TAG, "Order $index [${order.orderId}]: jobStatus='${order.jobOrderStatus}', status='${order.status}'")
+        }
+        
+        val filteredOrders = when (currentFilter) {
+            "AVAILABLE" -> {
+                Log.d(TAG, "Filtering for AVAILABLE orders (available, processing)")
+                val availableOrders = orders.filter { order ->
+                    val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
+                    // Prioritize jobOrderStatus, fallback to status only if jobOrderStatus is empty
+                    val effectiveStatus = if (jobOrderStatus.isNotEmpty()) jobOrderStatus else (order.status?.trim()?.lowercase() ?: "")
+                    val isAvailable = effectiveStatus == "available" || effectiveStatus == "processing"
+                    
+                    Log.d(TAG, "Order ${order.orderId}: jobStatus='$jobOrderStatus', effectiveStatus='$effectiveStatus', isAvailable=$isAvailable")
+                    isAvailable
+                }
+                Log.d(TAG, "Found ${availableOrders.size} available orders")
+                availableOrders
+            }
+            "IN_PROGRESS" -> {
+                Log.d(TAG, "Filtering for IN_PROGRESS orders (accepted, in-progress)")
+                val inProgressOrders = orders.filter { order ->
+                    val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
+                    // Prioritize jobOrderStatus, fallback to status only if jobOrderStatus is empty
+                    val effectiveStatus = if (jobOrderStatus.isNotEmpty()) jobOrderStatus else (order.status?.trim()?.lowercase() ?: "")
+                    val isInProgress = effectiveStatus == "accepted" || effectiveStatus == "in-progress" || effectiveStatus == "in progress"
+                    
+                    Log.d(TAG, "Order ${order.orderId}: jobStatus='$jobOrderStatus', effectiveStatus='$effectiveStatus', isInProgress=$isInProgress")
+                    isInProgress
+                }
+                Log.d(TAG, "Found ${inProgressOrders.size} in-progress orders")
+                inProgressOrders
+            }
+            "COMPLETED" -> {
+                Log.d(TAG, "Filtering for COMPLETED orders (completed)")
+                val completedOrders = orders.filter { order ->
+                    val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
+                    // Prioritize jobOrderStatus, fallback to status only if jobOrderStatus is empty
+                    val effectiveStatus = if (jobOrderStatus.isNotEmpty()) jobOrderStatus else (order.status?.trim()?.lowercase() ?: "")
+                    val isCompleted = effectiveStatus == "completed"
+                    
+                    Log.d(TAG, "Order ${order.orderId}: jobStatus='$jobOrderStatus', effectiveStatus='$effectiveStatus', isCompleted=$isCompleted")
+                    isCompleted
+                }
+                Log.d(TAG, "Found ${completedOrders.size} completed orders")
+                completedOrders
+            }
+            "CANCELLED" -> {
+                Log.d(TAG, "Filtering for CANCELLED orders (cancelled)")
+                val cancelledOrders = orders.filter { order ->
+                    val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
+                    // Prioritize jobOrderStatus, fallback to status only if jobOrderStatus is empty
+                    val effectiveStatus = if (jobOrderStatus.isNotEmpty()) jobOrderStatus else (order.status?.trim()?.lowercase() ?: "")
+                    val isCancelled = effectiveStatus == "cancelled"
+                    
+                    Log.d(TAG, "Order ${order.orderId}: jobStatus='$jobOrderStatus', effectiveStatus='$effectiveStatus', isCancelled=$isCancelled")
+                    isCancelled
+                }
+                Log.d(TAG, "Found ${cancelledOrders.size} cancelled orders")
+                cancelledOrders
+            }
+            else -> {
+                Log.d(TAG, "Showing ALL orders")
+                orders // SHOW_ALL
+            }
+        }
+        
+        Log.d(TAG, "Applied filter '$currentFilter': ${filteredOrders.size} orders from ${orders.size} total")
+        filteredOrders.forEachIndexed { index, order ->
+            Log.d(TAG, "Filtered Order $index [${order.orderId}]: jobStatus='${order.jobOrderStatus}', status='${order.status}'")
+        }
+        Log.d(TAG, "=== End filter application ===")
+        
+        displayFilteredOrders(filteredOrders)
+    }
+    
+    private fun isStatusMatch(order: PaymentResponse, vararg statuses: String): Boolean {
+        val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
+        val regularStatus = order.status?.trim()?.lowercase() ?: ""
+        // Prioritize jobOrderStatus, fallback to status only if jobOrderStatus is empty
+        val effectiveStatus = if (jobOrderStatus.isNotEmpty()) jobOrderStatus else regularStatus
+        
+        Log.d(TAG, "Checking status match for order ${order.orderId}: jobStatus='${jobOrderStatus}', status='${regularStatus}', effectiveStatus='${effectiveStatus}' against ${statuses.joinToString(", ")}")
+        
+        val result = statuses.any { status ->
+            val statusLower = status.lowercase()
+            // Use exact match with effective status to prevent cross-contamination
+            val isMatch = effectiveStatus == statusLower
+            
+            if (isMatch) {
+                Log.d(TAG, "✓ Status match found for order ${order.orderId}: '${statusLower}' matches effectiveStatus='${effectiveStatus}'")
+            }
+            
+            isMatch
+        }
+        
+        return result
+    }
+    
+    private fun displayFilteredOrders(orders: List<PaymentResponse>) {
+        if (orders.isEmpty()) {
+            reminderCard.visibility = View.GONE
+            clearAdditionalOrderCards()
+            stopCountdownTimer()
+            return
+        }
+        
+        // Get the first order for the main card
+        val firstOrder = orders.first()
+        activeOrderId = firstOrder.orderId
+        
+        // Show the main reminder card for the first order
+        CoroutineScope(Dispatchers.IO).launch {
+            updateReminderCard(firstOrder)
+            withContext(Dispatchers.Main) {
+                reminderCard.visibility = View.VISIBLE
+            }
+            
+            // If there are multiple orders, create additional cards for each
+            if (orders.size > 1) {
+                displayAdditionalOrderCards(orders.drop(1))
+            } else {
+                withContext(Dispatchers.Main) {
+                    clearAdditionalOrderCards()
+                }
+            }
+        }
+        
+        // Handle countdown timer only for active orders
+        if (currentFilter == "IN_PROGRESS" || currentFilter == "SHOW_ALL") {
+            val effectiveStatus = firstOrder.jobOrderStatus.takeIf { it.isNotBlank() } ?: firstOrder.status
+            when (effectiveStatus.trim().lowercase()) {
+                "accepted" -> {
+                    val estimatedArrival = firstOrder.getEffectiveEstimatedArrival()
+                    if (estimatedArrival != null) {
+                        startCountdownToTime(estimatedArrival.time)
+                    } else {
+                        startCountdownTimer()
+                    }
+                }
+                else -> {
+                    if (isStatusMatch(firstOrder, "available", "accepted", "in-progress")) {
+                        startCountdownTimer()
+                    } else {
+                        stopCountdownTimer()
+                    }
+                }
+            }
+        } else {
+            stopCountdownTimer()
+        }
+    }
+    
     private suspend fun handleActiveOrdersResponse(response: Response<List<PaymentResponse>>) {
         if (response.isSuccessful) {
             val orders = response.body()
@@ -240,114 +510,18 @@ class HomeActivity : BaseActivity() {
                     Log.d(TAG, "Order $index - orderId: ${order.orderId}, jobOrderStatus: '${order.jobOrderStatus}', status: '${order.status}'")
                 }
                 
-                // Find orders with status "Available", "Accepted", or "In-Progress"
-                val activeOrders = orders.filter { order -> 
-                    val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
-                    val regularStatus = order.status?.trim()?.lowercase() ?: ""
-                    
-                    Log.d(TAG, "Detailed status check for order ${order.orderId}:")
-                    Log.d(TAG, "  - jobOrderStatus: '$jobOrderStatus'")
-                    Log.d(TAG, "  - regularStatus: '$regularStatus'")
-                    
-                    // Check both status fields with different formats
-                    val isActiveJobOrder = jobOrderStatus == "available" || 
-                                        jobOrderStatus == "accepted" || 
-                                        jobOrderStatus == "in-progress" ||
-                                        jobOrderStatus == "in progress" ||
-                                        jobOrderStatus.contains("avail") ||
-                                        jobOrderStatus.contains("accept") ||
-                                        jobOrderStatus.contains("progress")
-                                        
-                    val isActiveRegular = regularStatus == "available" || 
-                                       regularStatus == "accepted" || 
-                                       regularStatus == "in-progress" ||
-                                       regularStatus == "in progress" ||
-                                       regularStatus.contains("avail") ||
-                                       regularStatus.contains("accept") ||
-                                       regularStatus.contains("progress")
-                    
-                    val isActive = isActiveJobOrder || isActiveRegular
-                    
-                    Log.d(TAG, "  - isActiveJobOrder: $isActiveJobOrder")
-                    Log.d(TAG, "  - isActiveRegular: $isActiveRegular")
-                    Log.d(TAG, "  - Final isActive: $isActive")
-                    
-                    isActive
-                }
-                
-                Log.d(TAG, "Found ${activeOrders.size} active orders")
-                
-                if (activeOrders.isNotEmpty()) {
-                    // Get the first active order for the main card
-                    val firstOrder = activeOrders.first()
-                    activeOrderId = firstOrder.orderId
-                    
-                    Log.d(TAG, "Using primary active order with ID: $activeOrderId and status: ${firstOrder.jobOrderStatus}")
-                    
-                    // Clear any existing reminder cards first
-                    withContext(Dispatchers.Main) {
-                        // Show the main reminder card for the first active order
-                        updateReminderCard(firstOrder)
-                        CoroutineScope(Dispatchers.Main).launch {
-                            reminderCard.visibility = View.VISIBLE
-                        }
-                        
-                        // If there are multiple active orders, create additional cards for each
-                        if (activeOrders.size > 1) {
-                            Log.d(TAG, "Creating ${activeOrders.size - 1} additional cards")
-                            // Create and display additional reminder cards for each active order
-                            displayAdditionalOrderCards(activeOrders.drop(1))
-                        } else {
-                            Log.d(TAG, "No additional active orders, clearing any existing additional cards")
-                            // If there's only one order, make sure any additional cards are removed
-                            CoroutineScope(Dispatchers.Main).launch {
-                                clearAdditionalOrderCards()
-                            }
-                        }
-                    }
-                    
-                    // Start countdown timer based on the first active order
-                    val effectiveStatus = firstOrder.jobOrderStatus.takeIf { it.isNotBlank() } ?: firstOrder.status
-                    when (effectiveStatus.trim().lowercase()) {
-                        "accepted" -> {
-                            // Show estimated arrival time if available
-                            val estimatedArrival = firstOrder.getEffectiveEstimatedArrival()
-                            if (estimatedArrival != null) {
-                                CoroutineScope(Dispatchers.Main).launch {
-                                    startCountdownToTime(estimatedArrival.time)
-                                }
-                            } else {
-                                // Default to 30 min countdown
-                                CoroutineScope(Dispatchers.Main).launch {
-                                    startCountdownTimer()
-                                }
-                            }
-                        }
-                        else -> {
-                            // Default countdown for other statuses
-                            CoroutineScope(Dispatchers.Main).launch {
-                                startCountdownTimer()
-                            }
-                        }
-                    }
-                } else {
-                    Log.d(TAG, "No active orders found after filtering")
-                    withContext(Dispatchers.Main) {
-                        reminderCard.visibility = View.GONE
-                        clearAdditionalOrderCards()
-                    }
-                    CoroutineScope(Dispatchers.Main).launch {
-                        stopCountdownTimer()
-                    }
+                // Store all orders and apply current filter
+                allOrders = orders
+                withContext(Dispatchers.Main) {
+                    applyCurrentFilter()
                 }
             } else {
                 // No orders found
                 Log.d(TAG, "No orders found in API response")
+                allOrders = emptyList()
                 withContext(Dispatchers.Main) {
                     reminderCard.visibility = View.GONE
                     clearAdditionalOrderCards()
-                }
-                CoroutineScope(Dispatchers.Main).launch {
                     stopCountdownTimer()
                 }
             }
@@ -384,88 +558,18 @@ class HomeActivity : BaseActivity() {
                 Log.d(TAG, "Fallback Order $index - orderId: ${order.orderId}, jobOrderStatus: '${order.jobOrderStatus}', status: '${order.status}'")
             }
             
-            // Filter for active orders manually
-            val activeOrders = orders.filter { order ->
-                val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
-                val regularStatus = order.status?.trim()?.lowercase() ?: ""
-                
-                Log.d(TAG, "Fallback detailed status check for order ${order.orderId}:")
-                Log.d(TAG, "  - jobOrderStatus: '$jobOrderStatus'")
-                Log.d(TAG, "  - regularStatus: '$regularStatus'")
-                
-                // Check both status fields with different formats
-                val isActiveJobOrder = jobOrderStatus == "available" || 
-                                    jobOrderStatus == "accepted" || 
-                                    jobOrderStatus == "in-progress" ||
-                                    jobOrderStatus == "in progress" ||
-                                    jobOrderStatus.contains("avail") ||
-                                    jobOrderStatus.contains("accept") ||
-                                    jobOrderStatus.contains("progress")
-                                    
-                val isActiveRegular = regularStatus == "available" || 
-                                   regularStatus == "accepted" || 
-                                   regularStatus == "in-progress" ||
-                                   regularStatus == "in progress" ||
-                                   regularStatus.contains("avail") ||
-                                   regularStatus.contains("accept") ||
-                                   regularStatus.contains("progress")
-                
-                val isActive = isActiveJobOrder || isActiveRegular
-                
-                Log.d(TAG, "  - isActiveJobOrder: $isActiveJobOrder")
-                Log.d(TAG, "  - isActiveRegular: $isActiveRegular")
-                Log.d(TAG, "  - Final fallback isActive: $isActive")
-                
-                isActive
-            }
-            
-            Log.d(TAG, "Found ${activeOrders.size} active orders from fallback")
-            
-            if (activeOrders.isNotEmpty()) {
-                // Get the first active order for the main card
-                val firstOrder = activeOrders.first()
-                activeOrderId = firstOrder.orderId
-                
-                Log.d(TAG, "Using primary fallback order with ID: $activeOrderId and status: ${firstOrder.jobOrderStatus ?: firstOrder.status}")
-                
-                withContext(Dispatchers.Main) {
-                    // Update the main reminder card
-                    updateReminderCard(firstOrder)
-                    CoroutineScope(Dispatchers.Main).launch {
-                        reminderCard.visibility = View.VISIBLE
-                    }
-                    
-                    // If there are multiple active orders, create additional cards
-                    if (activeOrders.size > 1) {
-                        Log.d(TAG, "Creating ${activeOrders.size - 1} additional cards from fallback")
-                        displayAdditionalOrderCards(activeOrders.drop(1))
-                    } else {
-                        Log.d(TAG, "No additional active orders from fallback, clearing any existing additional cards")
-                        clearAdditionalOrderCards()
-                    }
-                }
-                
-                // Set countdown based on the first order status
-                val estimatedArrival = firstOrder.getEffectiveEstimatedArrival()
-                if (estimatedArrival != null) {
-                    startCountdownToTime(estimatedArrival.time)
-                } else {
-                    startCountdownTimer()
-                }
-            } else {
-                withContext(Dispatchers.Main) {
-                    reminderCard.visibility = View.GONE
-                    clearAdditionalOrderCards()
-                }
-                CoroutineScope(Dispatchers.Main).launch {
-                    stopCountdownTimer()
-                }
+            // Store all orders and apply current filter
+            allOrders = orders
+            withContext(Dispatchers.Main) {
+                applyCurrentFilter()
             }
         } else {
             Log.d(TAG, "Fallback response unsuccessful: ${response.code()}")
+            allOrders = emptyList()
             withContext(Dispatchers.Main) {
                 reminderCard.visibility = View.GONE
                 clearAdditionalOrderCards()
+                stopCountdownTimer()
             }
         }
     }
@@ -481,17 +585,35 @@ class HomeActivity : BaseActivity() {
         withContext(Dispatchers.Main) {
             // Set title based on status
             val titleText = when {
-                statusToCheck.contains("avail") -> "PICKUP REQUESTED"
+                statusToCheck.contains("avail") || statusToCheck.contains("processing") -> "PICKUP REQUESTED"
                 statusToCheck.contains("accept") -> "DRIVER ON THE WAY"
                 statusToCheck.contains("progress") -> "PICKUP IN PROGRESS"
+                statusToCheck.contains("completed") -> "ORDER COMPLETED"
+                statusToCheck.contains("cancelled") -> "ORDER CANCELLED"
                 else -> "TRUCK REMINDER"
             }
             Log.d(TAG, "Setting main reminder title to: $titleText for status: $statusToCheck")
             reminderTitle.text = titleText
             
+            // Set card background color based on status
+            val cardBackgroundColor = when {
+                statusToCheck.contains("completed") -> ContextCompat.getColor(this@HomeActivity, R.color.grey)
+                statusToCheck.contains("cancelled") -> ContextCompat.getColor(this@HomeActivity, R.color.material_red)
+                statusToCheck.contains("accept") || statusToCheck.contains("progress") -> ContextCompat.getColor(this@HomeActivity, R.color.material_yellow)
+                else -> ContextCompat.getColor(this@HomeActivity, R.color.secondary) // Default green for available/processing
+            }
+            reminderCard.setCardBackgroundColor(cardBackgroundColor)
+            
+            Log.d(TAG, "Setting main reminder card background color for status '$statusToCheck': ${when {
+                statusToCheck.contains("completed") -> "grey"
+                statusToCheck.contains("cancelled") -> "red"
+                statusToCheck.contains("accept") || statusToCheck.contains("progress") -> "yellow"
+                else -> "green"
+            }}")
+            
             // Save the active order ID
             activeOrderId = order.orderId
-            Log.d(TAG, "Active order ID set to: $activeOrderId")
+            Log.d(TAG, "Order ID set to: $activeOrderId")
         }
     }
     
@@ -530,24 +652,8 @@ class HomeActivity : BaseActivity() {
                         com.example.ecotrack.ui.pickup.model.WasteType.MIXED
                     }
                     
-                    // Create truck information if available
-                    val truck = if (!paymentResponse.truckId.isNullOrBlank() || !paymentResponse.truckSize.isNullOrBlank()) {
-                        com.example.ecotrack.models.Truck(
-                            truckId = paymentResponse.truckId ?: "truck_${paymentResponse.orderId}", // Use actual truckId if available
-                            size = paymentResponse.truckSize ?: "MEDIUM",
-                            wasteType = paymentResponse.wasteType ?: "MIXED",
-                            status = "ACTIVE",
-                            make = paymentResponse.truckMake ?: paymentResponse.truckSize ?: "EcoTrack",
-                            model = paymentResponse.truckModel ?: "Standard",
-                            plateNumber = paymentResponse.plateNumber ?: "ECO-${paymentResponse.orderId.takeLast(4)}",
-                            truckPrice = paymentResponse.amount ?: 0.0,
-                            createdAt = paymentResponse.createdAt.toString()
-                        )
-                    } else {
-                        null
-                    }
-                    
                     // Create a PickupOrder object from the PaymentResponse
+                    // Note: selectedTruck field removed as trucks are now assigned by backend
                     val pickupOrder = PickupOrder(
                         id = paymentResponse.orderId,
                         referenceNumber = paymentResponse.paymentReference,
@@ -561,8 +667,9 @@ class HomeActivity : BaseActivity() {
                         total = paymentResponse.totalAmount ?: 0.0,
                         paymentMethod = paymentMethod,
                         wasteType = wasteType,
-                        barangayId = paymentResponse.barangayId ?: "",
-                        selectedTruck = truck
+                        trashWeight = 0.0, // Default value, actual weight is handled by backend
+                        notes = null, // Notes not available in payment response
+                        barangayId = paymentResponse.barangayId ?: ""
                     )
                     
                     withContext(Dispatchers.Main) {
@@ -837,33 +944,25 @@ class HomeActivity : BaseActivity() {
         super.onResume()
         // BaseActivity already handles setCurrentActivity and updateLastActivity
 
-        // Check for active orders when returning to this activity - use isManualRefresh=false
-        // to allow using cached data if available and recent
-        checkForActiveOrders(isManualRefresh = false)
+        // Always fetch fresh data when returning to home activity to show latest information
+        Log.d(TAG, "onResume - fetching fresh data to show latest information")
+        checkForActiveOrders(isManualRefresh = true)
         
-        // Only refresh profile data if we've never loaded it or it's been a long time
-        if (!::welcomeText.isInitialized || welcomeText.text.isNullOrBlank() || 
-            System.currentTimeMillis() - lastOrderCheckTime > MIN_CHECK_INTERVAL * 10) {
-            Log.d(TAG, "onResume - refreshing profile data")
-            loadUserData()
-        } else {
-            Log.d(TAG, "onResume - skipping profile data refresh")
-        }
+        // Always refresh profile data to ensure latest user information
+        Log.d(TAG, "onResume - refreshing profile data")
+        loadUserData()
     }
 
     // This is called when the activity is brought back to the foreground
     override fun onRestart() {
         super.onRestart()
-        // Check for active orders - use isManualRefresh=false to allow using cached data
-        checkForActiveOrders(isManualRefresh = false)
+        // Always fetch fresh data when activity is brought back to foreground
+        Log.d(TAG, "onRestart - fetching fresh data")
+        checkForActiveOrders(isManualRefresh = true)
         
-        // Only refresh profile data if it's been a long time
-        if (System.currentTimeMillis() - lastOrderCheckTime > MIN_CHECK_INTERVAL * 10) {
-            Log.d(TAG, "onRestart - refreshing profile data")
-            loadUserData()
-        } else {
-            Log.d(TAG, "onRestart - skipping profile data refresh")
-        }
+        // Always refresh profile data
+        Log.d(TAG, "onRestart - refreshing profile data")
+        loadUserData()
     }
 
     override fun onDestroy() {
@@ -952,8 +1051,23 @@ class HomeActivity : BaseActivity() {
             setMargins(24.dpToPx(), 16.dpToPx(), 24.dpToPx(), 0)
         }
         cardView.radius = 16f.dpToPx().toFloat()
-        cardView.setCardBackgroundColor(ContextCompat.getColor(this, R.color.secondary))
+        
+        // Set card background color based on status
+        val cardBackgroundColor = when {
+            statusToCheck.contains("completed") -> ContextCompat.getColor(this, R.color.grey)
+            statusToCheck.contains("cancelled") -> ContextCompat.getColor(this, R.color.material_red)
+            statusToCheck.contains("accept") || statusToCheck.contains("progress") -> ContextCompat.getColor(this, R.color.material_yellow)
+            else -> ContextCompat.getColor(this, R.color.secondary) // Default green for available/processing
+        }
+        cardView.setCardBackgroundColor(cardBackgroundColor)
         cardView.elevation = 4f.dpToPx().toFloat()
+        
+        Log.d(TAG, "Setting card background color for status '$statusToCheck': ${when {
+            statusToCheck.contains("completed") -> "grey"
+            statusToCheck.contains("cancelled") -> "red"
+            statusToCheck.contains("accept") || statusToCheck.contains("progress") -> "yellow"
+            else -> "green"
+        }}")
         
         // Create card content layout
         val constraintLayout = androidx.constraintlayout.widget.ConstraintLayout(this)
@@ -975,9 +1089,11 @@ class HomeActivity : BaseActivity() {
         
         // Set title based on status
         val titleText = when {
-            statusToCheck.contains("avail") -> "PICKUP REQUESTED"
+            statusToCheck.contains("avail") || statusToCheck.contains("processing") -> "PICKUP REQUESTED"
             statusToCheck.contains("accept") -> "DRIVER ON THE WAY"
             statusToCheck.contains("progress") -> "PICKUP IN PROGRESS"
+            statusToCheck.contains("completed") -> "ORDER COMPLETED"
+            statusToCheck.contains("cancelled") -> "ORDER CANCELLED"
             else -> "TRUCK REMINDER"
         }
         Log.d(TAG, "Setting card title to: $titleText for status: $statusToCheck")
@@ -1062,87 +1178,10 @@ class HomeActivity : BaseActivity() {
     }
 
     private suspend fun handleCachedOrders(orders: List<PaymentResponse>) {
-        // Filter for active orders
-        val activeOrders = orders.filter { order -> 
-            val jobOrderStatus = order.jobOrderStatus?.trim()?.lowercase() ?: ""
-            val regularStatus = order.status?.trim()?.lowercase() ?: ""
-            
-            // Check both status fields with different formats
-            val isActiveJobOrder = jobOrderStatus == "available" || 
-                                jobOrderStatus == "accepted" || 
-                                jobOrderStatus == "in-progress" ||
-                                jobOrderStatus == "in progress" ||
-                                jobOrderStatus.contains("avail") ||
-                                jobOrderStatus.contains("accept") ||
-                                jobOrderStatus.contains("progress")
-                                
-            val isActiveRegular = regularStatus == "available" || 
-                               regularStatus == "accepted" || 
-                               regularStatus == "in-progress" ||
-                               regularStatus == "in progress" ||
-                               regularStatus.contains("avail") ||
-                               regularStatus.contains("accept") ||
-                               regularStatus.contains("progress")
-            
-            isActiveJobOrder || isActiveRegular
-        }
-        
-        if (activeOrders.isNotEmpty()) {
-            // Get the first active order for the main card
-            val firstOrder = activeOrders.first()
-            activeOrderId = firstOrder.orderId
-            
-            // Show the main reminder card for the first active order
-            updateReminderCard(firstOrder)
-            CoroutineScope(Dispatchers.Main).launch {
-                reminderCard.visibility = View.VISIBLE
-            }
-            
-            // If there are multiple active orders, create additional cards for each
-            if (activeOrders.size > 1) {
-                // Create and display additional reminder cards for each active order
-                CoroutineScope(Dispatchers.Main).launch {
-                    displayAdditionalOrderCards(activeOrders.drop(1))
-                }
-            } else {
-                // If there's only one order, make sure any additional cards are removed
-                CoroutineScope(Dispatchers.Main).launch {
-                    clearAdditionalOrderCards()
-                }
-            }
-            
-            // Start countdown timer based on the first active order
-            val effectiveStatus = firstOrder.jobOrderStatus.takeIf { it.isNotBlank() } ?: firstOrder.status
-            when (effectiveStatus.trim().lowercase()) {
-                "accepted" -> {
-                    // Show estimated arrival time if available
-                    val estimatedArrival = firstOrder.getEffectiveEstimatedArrival()
-                    if (estimatedArrival != null) {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            startCountdownToTime(estimatedArrival.time)
-                        }
-                    } else {
-                        // Default to 30 min countdown
-                        CoroutineScope(Dispatchers.Main).launch {
-                            startCountdownTimer()
-                        }
-                    }
-                }
-                else -> {
-                    // Default countdown for other statuses
-                    CoroutineScope(Dispatchers.Main).launch {
-                        startCountdownTimer()
-                    }
-                }
-            }
-        } else {
-            CoroutineScope(Dispatchers.Main).launch {
-                reminderCard.visibility = View.GONE
-                clearAdditionalOrderCards()
-            }
-            CoroutineScope(Dispatchers.Main).launch {
-                stopCountdownTimer()
-            }
+        // Store cached orders and apply current filter
+        allOrders = orders
+        withContext(Dispatchers.Main) {
+            applyCurrentFilter()
         }
     }
 }

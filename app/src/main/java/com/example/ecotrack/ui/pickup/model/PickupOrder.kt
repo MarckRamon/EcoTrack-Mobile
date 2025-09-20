@@ -1,7 +1,6 @@
 package com.example.ecotrack.ui.pickup.model
 
 import android.os.Parcelable
-import com.example.ecotrack.models.Truck
 import kotlinx.parcelize.Parcelize
 import java.text.SimpleDateFormat
 import java.util.*
@@ -35,7 +34,8 @@ data class PickupOrder(
     val total: Double,
     val paymentMethod: PaymentMethod,
     val wasteType: WasteType,
-    val selectedTruck: Truck? = null,
+    val trashWeight: Double,
+    val notes: String? = null,
     val barangayId: String? = null,
     val status: OrderStatus = OrderStatus.PROCESSING,
     val createdAt: Date = Date(),

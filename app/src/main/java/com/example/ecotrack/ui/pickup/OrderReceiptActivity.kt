@@ -120,12 +120,12 @@ class OrderReceiptActivity : AppCompatActivity() {
         tvEmail.text = order.email
         tvWasteType.text = order.wasteType.getDisplayName()
         
-        // Update with truck information
-        tvSacks.text = order.selectedTruck?.plateNumber ?: "N/A" // Display plate number instead of sacks
-        tvTruck.text = "${order.selectedTruck?.make ?: "N/A"} ${order.selectedTruck?.model ?: ""}" // Display make and model
+        // Update with order information (no longer using truck selection)
+        tvSacks.text = "${order.trashWeight}kg" // Display trash weight instead of truck info
+        tvTruck.text = "Backend Assigned" // Truck is now assigned by backend
         
-        // Use truck price directly
-        tvTruckPrice.text = "₱${order.selectedTruck?.truckPrice?.toInt() ?: 0}"
+        // Use order amount (calculated by backend)
+        tvTruckPrice.text = "₱${order.amount.toInt()}"
         tvTotal.text = "₱${order.total.toInt()}"
 
         // Set button click listeners

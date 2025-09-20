@@ -1,3 +1,8 @@
+/*
+ * This file is no longer used after removing truck selection functionality
+ * Trucks are now assigned by the backend based on trash weight and waste type
+ */
+/*
 package com.example.ecotrack.ui.pickup.dialogs
 
 import android.app.Dialog
@@ -47,8 +52,8 @@ class TruckSelectionDialog(
         truckAdapter = TruckAdapter(trucks) { selectedTruck ->
             onTruckSelected(selectedTruck)
             dismiss()
-        }
-        
         recyclerView.adapter = truckAdapter
     }
+}
+*/
 } 
