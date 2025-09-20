@@ -1131,14 +1131,21 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     private fun showDriverProofImageAccept(url: String?) {
         Log.d(TAG, "showDriverProofImageAccept called with url: $url")
         
-        if (url.isNullOrBlank()) {
-            Log.d(TAG, "No driver proof URL provided, hiding proof card")
+        // Get the current job order status
+        val currentStatus = payment?.jobOrderStatus ?: "Available"
+        Log.d(TAG, "Current job order status: $currentStatus")
+        
+        // Only show proof photo for "Completed" status and when there's an actual image
+        if (currentStatus != "Completed" || url.isNullOrBlank()) {
+            Log.d(TAG, "Hiding proof card - Status: $currentStatus, URL: ${if (url.isNullOrBlank()) "empty" else "provided"}")
             driverProofCard.visibility = View.GONE
+            cardDriverProofImageAccept.visibility = View.GONE
             return
         }
         
         Log.d(TAG, "Showing driver proof image in accept mode: $url")
         driverProofCard.visibility = View.VISIBLE
+        cardDriverProofImageAccept.visibility = View.VISIBLE
         
         // Load image using Glide
         try {
