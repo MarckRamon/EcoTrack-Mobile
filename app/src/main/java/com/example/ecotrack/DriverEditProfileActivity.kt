@@ -23,7 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class DriverEditProfileActivity : BaseActivity() {
+class   DriverEditProfileActivity : BaseActivity() {
     private lateinit var binding: ActivityDriverEditProfileBinding
     private val apiService = ApiService.create()
     private val fileLuService = FileLuService(this)
@@ -34,6 +34,7 @@ class DriverEditProfileActivity : BaseActivity() {
     private var originalEmail = ""
     private var originalFirstName = ""
     private var originalLastName = ""
+    private var originalPhoneNumber = ""
     private var originalBarangayId: String? = null
     private var originalBarangayName: String? = null
     
@@ -192,6 +193,7 @@ class DriverEditProfileActivity : BaseActivity() {
                             originalFirstName = it.firstName ?: ""
                             originalLastName = it.lastName ?: ""
                             originalEmail = it.email ?: ""
+                            originalPhoneNumber = it.phoneNumber ?: ""
                             originalBarangayId = it.barangayId
                             originalBarangayName = it.barangayName
                             
@@ -199,6 +201,7 @@ class DriverEditProfileActivity : BaseActivity() {
                             binding.firstNameInput.setText(it.firstName)
                             binding.lastNameInput.setText(it.lastName)
                             binding.emailInput.setText(it.email)
+                            binding.phoneNumberInput.setText(it.phoneNumber)
                             
                             // Set initial barangay selection
                             if (originalBarangayName != null) {
@@ -251,10 +254,19 @@ class DriverEditProfileActivity : BaseActivity() {
         val firstName = binding.firstNameInput.text.toString().trim()
         val lastName = binding.lastNameInput.text.toString().trim()
         val email = binding.emailInput.text.toString().trim()
+        val phoneNumber = binding.phoneNumberInput.text.toString().trim()
 
         if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty()) {
             Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
             return
+        }
+        
+        // Validate phone number format if provided
+        if (phoneNumber.isNotEmpty()) {
+            if (!isValidPhoneNumber(phoneNumber)) {
+                Toast.makeText(this, "Please enter a valid phone number", Toast.LENGTH_SHORT).show()
+                return
+            }
         }
 
         // Show progress indicator
@@ -263,9 +275,10 @@ class DriverEditProfileActivity : BaseActivity() {
         // Check if any field actually changed
         val nameChanged = firstName != originalFirstName || lastName != originalLastName
         val emailChanged = email != originalEmail
+        val phoneNumberChanged = phoneNumber != originalPhoneNumber
         val barangayChanged = selectedBarangayId != originalBarangayId
         
-        if (!nameChanged && !emailChanged && !barangayChanged) {
+        if (!nameChanged && !emailChanged && !phoneNumberChanged && !barangayChanged) {
             Log.d(TAG, "No changes detected, returning to previous screen")
             Toast.makeText(this, "No changes were made", Toast.LENGTH_SHORT).show()
             showLoading(false)
@@ -274,12 +287,12 @@ class DriverEditProfileActivity : BaseActivity() {
         }
 
         Log.d(TAG, "Attempting to update profile for userId: $userId")
-        Log.d(TAG, "Update data: firstName=$firstName, lastName=$lastName, email=$email")
-        Log.d(TAG, "Original values: firstName=$originalFirstName, lastName=$originalLastName, email=$originalEmail")
-        Log.d(TAG, "Email changed: $emailChanged, Name changed: $nameChanged, Barangay changed: $barangayChanged")
+        Log.d(TAG, "Update data: firstName=$firstName, lastName=$lastName, email=$email, phoneNumber=$phoneNumber")
+        Log.d(TAG, "Original values: firstName=$originalFirstName, lastName=$originalLastName, email=$originalEmail, phoneNumber=$originalPhoneNumber")
+        Log.d(TAG, "Email changed: $emailChanged, Name changed: $nameChanged, Phone changed: $phoneNumberChanged, Barangay changed: $barangayChanged")
         Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
         
-        updateProfileWithNewEmail(userId, token, firstName, lastName, email)
+        updateProfileWithNewEmail(userId, token, firstName, lastName, email, phoneNumber)
     }
     
     private fun updateProfileWithNewEmail(
@@ -287,7 +300,8 @@ class DriverEditProfileActivity : BaseActivity() {
         token: String, 
         firstName: String, 
         lastName: String, 
-        newEmail: String
+        newEmail: String,
+        phoneNumber: String?
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -295,7 +309,7 @@ class DriverEditProfileActivity : BaseActivity() {
                 val updateRequest = ProfileUpdateRequest(
                     firstName = firstName,
                     lastName = lastName,
-                    phoneNumber = null,  // No phone number update
+                    phoneNumber = if (phoneNumber?.isNotEmpty() == true) phoneNumber else null,
                     username = null,     // Username doesn't change
                     location = null,     // Location is null
                     email = newEmail,    // Updated email
@@ -349,7 +363,7 @@ class DriverEditProfileActivity : BaseActivity() {
                             val isEmailInUseError = errorBody?.contains("Email is already in use") == true
                             
                             if (isEmailInUseError && emailUpdateAttempts < MAX_EMAIL_ATTEMPTS) {
-                                handleEmailInUseError(userId, token, firstName, lastName, newEmail)
+                                handleEmailInUseError(userId, token, firstName, lastName, newEmail, phoneNumber)
                             } else {
                                 val userMessage = when {
                                     isEmailInUseError -> "This email appears to be already in use. Please try another email address."
@@ -388,7 +402,8 @@ class DriverEditProfileActivity : BaseActivity() {
         token: String,
         firstName: String,
         lastName: String,
-        attemptedEmail: String
+        attemptedEmail: String,
+        phoneNumber: String?
     ) {
         // Generate alternative email suggestions
         val username = attemptedEmail.substringBefore('@')
@@ -420,13 +435,13 @@ class DriverEditProfileActivity : BaseActivity() {
                     0 -> {
                         // Use original email, update only names
                         showLoading(true)
-                        updateProfileWithNewEmail(userId, token, firstName, lastName, originalEmail)
+                        updateProfileWithNewEmail(userId, token, firstName, lastName, originalEmail, phoneNumber)
                     }
                     else -> {
                         val selectedEmail = options[which]
                         binding.emailInput.setText(selectedEmail)
                         showLoading(true)
-                        updateProfileWithNewEmail(userId, token, firstName, lastName, selectedEmail)
+                        updateProfileWithNewEmail(userId, token, firstName, lastName, selectedEmail, phoneNumber)
                     }
                 }
             }
@@ -504,6 +519,28 @@ class DriverEditProfileActivity : BaseActivity() {
             selectedBarangayId = selectedBarangay.barangayId
             selectedBarangayName = selectedBarangay.name
             Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+        }
+    }
+    
+    private fun isValidPhoneNumber(phoneNumber: String): Boolean {
+        // Basic Philippine phone number validation
+        // Allows formats like:
+        // +639123456789
+        // 09123456789
+        // 9123456789
+        val cleanedNumber = phoneNumber.replace(Regex("[\\s\\-()]"), "")
+        
+        return when {
+            // International format with +63
+            cleanedNumber.matches(Regex("\\+639\\d{9}")) -> true
+            // Local format starting with 09
+            cleanedNumber.matches(Regex("09\\d{9}")) -> true
+            // Mobile format starting with 9 (without 0)
+            cleanedNumber.matches(Regex("9\\d{9}")) -> true
+            // Landline formats (for Manila area codes like 02, etc.)
+            cleanedNumber.matches(Regex("\\+632\\d{7,8}")) -> true
+            cleanedNumber.matches(Regex("02\\d{7,8}")) -> true
+            else -> false
         }
     }
     
