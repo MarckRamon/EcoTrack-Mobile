@@ -81,6 +81,11 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     private lateinit var btnRemoveDriverProof: ImageButton
     private lateinit var scrollView: ScrollView
     
+    // Driver proof photo views (for accept mode - read only)
+    private lateinit var driverProofCard: CardView
+    private lateinit var cardDriverProofImageAccept: CardView
+    private lateinit var ivDriverProofImageAccept: ImageView
+    
     // API Service
     private lateinit var apiService: ApiService
     private lateinit var fileLuService: FileLuService
@@ -174,6 +179,17 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             actionButton = findViewById(R.id.acceptJobOrderButton)
             cancelJobOrderButton = findViewById(R.id.cancelJobOrderButton)
             toolbarTitleTextView = findViewById(R.id.toolbarTitle)
+            
+            // Initialize driver proof photo views for accept mode (read-only)
+            driverProofCard = findViewById(R.id.driverProofCard)
+            cardDriverProofImageAccept = findViewById(R.id.cardDriverProofImageAccept)
+            ivDriverProofImageAccept = findViewById(R.id.ivDriverProofImageAccept)
+            
+            // Initialize scroll view for accept mode
+            scrollView = findViewById(R.id.scrollView)
+            
+            // Set up map-scrollview touch interaction for accept mode
+            setupMapScrollViewInteraction()
         } else {
             statusTextView = findViewById(R.id.statusTextView)
             actionButton = findViewById(R.id.collectionCompletedButton)
@@ -283,7 +299,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     private fun setupMapScrollViewInteraction() {
         // Set up touch event handling for map-scrollview interaction
         // Based on memory about Map-ScrollView Touch Interaction Implementation
-        if (mode == JobOrderStatusMode.COMPLETE && ::scrollView.isInitialized) {
+        if ((mode == JobOrderStatusMode.COMPLETE || mode == JobOrderStatusMode.ACCEPT) && ::scrollView.isInitialized) {
             mapView.setOnTouchListener { _, event ->
                 when (event.action) {
                     android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
@@ -586,6 +602,26 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                 // Update UI
                                 statusTextView.text = status
                                 
+                                // Set status text color based on status
+                                when (status) {
+                                    "Available" -> {
+                                        statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.secondary))
+                                    }
+                                    "Accepted", "In-Progress" -> {
+                                        statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.material_yellow))
+                                    }
+                                    "Completed" -> {
+                                        statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.gray))
+                                    }
+                                    "Cancelled" -> {
+                                        statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.material_red))
+                                    }
+                                    else -> {
+                                        // Default color for other statuses
+                                        statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.secondary))
+                                    }
+                                }
+                                
                                 if (mode == JobOrderStatusMode.ACCEPT) {
                                     // For Accept Job Order mode
                                     when (status) {
@@ -610,7 +646,17 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                     }
                                 } else {
                                     // Collection completed mode
-                                    statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.green))
+                                    statusTextView.text = status
+                                    
+                                    // Set status text color based on status
+                                    when (status) {
+                                        "Completed" -> {
+                                            statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.gray))
+                                        }
+                                        else -> {
+                                            statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.secondary))
+                                        }
+                                    }
                                     
                                     // Disable the button
                                     actionButton.isEnabled = false
@@ -679,7 +725,16 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                 } else {
                                     // Collection completed mode
                                     statusTextView.text = status
-                                    statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.green))
+                                    
+                                    // Set status text color based on status
+                                    when (status) {
+                                        "Completed" -> {
+                                            statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.gray))
+                                        }
+                                        else -> {
+                                            statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.secondary))
+                                        }
+                                    }
                                     
                                     // Disable the button
                                     actionButton.isEnabled = false
@@ -783,7 +838,25 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             } else {
                 // Collection completed mode - update UI
                 statusTextView.text = status
-                statusTextView.setTextColor(ContextCompat.getColor(this, R.color.green))
+                
+                // Set status text color based on status
+                when (status) {
+                    "Available" -> {
+                        statusTextView.setTextColor(ContextCompat.getColor(this, R.color.secondary))
+                    }
+                    "Accepted", "In-Progress" -> {
+                        statusTextView.setTextColor(ContextCompat.getColor(this, R.color.material_yellow))
+                    }
+                    "Completed" -> {
+                        statusTextView.setTextColor(ContextCompat.getColor(this, R.color.gray))
+                    }
+                    "Cancelled" -> {
+                        statusTextView.setTextColor(ContextCompat.getColor(this, R.color.material_red))
+                    }
+                    else -> {
+                        statusTextView.setTextColor(ContextCompat.getColor(this, R.color.secondary))
+                    }
+                }
                 
                 // Disable the button
                 actionButton.isEnabled = false
@@ -886,6 +959,23 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             val jobOrderStatus = payment?.jobOrderStatus ?: if (mode == JobOrderStatusMode.ACCEPT) "Available" else "In-Progress"
             statusTextView.text = jobOrderStatus
             
+            // Set status text color based on status
+            when (jobOrderStatus) {
+                "Available" -> {
+                    statusTextView.setTextColor(ContextCompat.getColor(this, R.color.secondary))
+                }
+                "Accepted", "In-Progress" -> {
+                    statusTextView.setTextColor(ContextCompat.getColor(this, R.color.material_yellow))
+                }
+                "Completed" -> {
+                    statusTextView.setTextColor(ContextCompat.getColor(this, R.color.gray))
+                }
+                else -> {
+                    // Default color for other statuses
+                    statusTextView.setTextColor(ContextCompat.getColor(this, R.color.secondary))
+                }
+            }
+            
             // Update toolbar title based on status
             updateToolbarTitle(jobOrderStatus)
             
@@ -912,6 +1002,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                         layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
                         layoutParams.endToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
                         actionButton.layoutParams = layoutParams
+                        statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.gray))
                     }
                 }
                 "Cancelled" -> {
@@ -931,6 +1022,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                         layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
                         layoutParams.endToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
                         actionButton.layoutParams = layoutParams
+                        statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.material_red))
                     }
                 }
                 "In-Progress", "Accepted" -> {
@@ -949,6 +1041,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                             layoutParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
                             layoutParams.endToStart = cancelJobOrderButton.id
                             actionButton.layoutParams = layoutParams
+                            statusTextView.setTextColor(ContextCompat.getColor(this@DriverJobOrderStatusActivity, R.color.material_yellow))
                         }
                     } else {
                         actionButton.text = "COLLECTION COMPLETED"
@@ -980,6 +1073,11 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             
             // If in collection completed mode, check for existing driver proof photo and load it
             if (mode == JobOrderStatusMode.COMPLETE) {
+                checkAndLoadExistingDriverProof()
+            }
+            
+            // If in accept mode, also check for existing driver proof photo and load it (read-only)
+            if (mode == JobOrderStatusMode.ACCEPT) {
                 checkAndLoadExistingDriverProof()
             }
         } else {
@@ -1021,23 +1119,61 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                         
                         if (!driverProofUrl.isNullOrBlank()) {
                             Log.d(TAG, "Showing driver proof photo: $driverProofUrl")
-                            showDriverProofImage(driverProofUrl)
-                            updateCollectionCompletedButtonState()
+                            if (mode == JobOrderStatusMode.COMPLETE) {
+                                showDriverProofImage(driverProofUrl)
+                                updateCollectionCompletedButtonState()
+                            } else {
+                                showDriverProofImageAccept(driverProofUrl)
+                            }
                         } else {
                             Log.d(TAG, "No driver proof photo found, keeping upload button enabled")
                             // No existing driver proof, keep button disabled and no image shown
-                            showDriverProofImage(null)
-                            updateCollectionCompletedButtonState()
+                            if (mode == JobOrderStatusMode.COMPLETE) {
+                                showDriverProofImage(null)
+                                updateCollectionCompletedButtonState()
+                            } else {
+                                showDriverProofImageAccept(null)
+                            }
                         }
                     } else {
                         Log.e(TAG, "Failed to fetch payment details: ${response.code()} ${response.message()}")
-                        updateCollectionCompletedButtonState()
+                        if (mode == JobOrderStatusMode.COMPLETE) {
+                            updateCollectionCompletedButtonState()
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error fetching payment details for driver proof", e)
-                    updateCollectionCompletedButtonState()
+                    if (mode == JobOrderStatusMode.COMPLETE) {
+                        updateCollectionCompletedButtonState()
+                    }
                 }
             }
+        }
+    }
+    
+    private fun showDriverProofImageAccept(url: String?) {
+        Log.d(TAG, "showDriverProofImageAccept called with url: $url")
+        
+        if (url.isNullOrBlank()) {
+            Log.d(TAG, "No driver proof URL provided, hiding proof card")
+            driverProofCard.visibility = View.GONE
+            return
+        }
+        
+        Log.d(TAG, "Showing driver proof image in accept mode: $url")
+        driverProofCard.visibility = View.VISIBLE
+        
+        // Load image using Glide
+        try {
+            Glide.with(this)
+                .load(url)
+                .centerCrop()
+                .placeholder(R.drawable.ic_camera)
+                .error(R.drawable.ic_camera)
+                .into(ivDriverProofImageAccept)
+            Log.d(TAG, "Driver proof image loaded successfully in accept mode")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading driver proof image in accept mode", e)
         }
     }
     
@@ -1095,6 +1231,20 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         // Set default status and update toolbar title
         val defaultStatus = if (mode == JobOrderStatusMode.ACCEPT) "Available" else "In-Progress"
         statusTextView.text = defaultStatus
+        
+        // Set status text color based on status
+        when (defaultStatus) {
+            "Available" -> {
+                statusTextView.setTextColor(ContextCompat.getColor(this, R.color.secondary))
+            }
+            "In-Progress" -> {
+                statusTextView.setTextColor(ContextCompat.getColor(this, R.color.material_yellow))
+            }
+            else -> {
+                statusTextView.setTextColor(ContextCompat.getColor(this, R.color.secondary))
+            }
+        }
+        
         updateToolbarTitle(defaultStatus)
         
         // Ensure cancel button is visible and restore original layout for default fallback status

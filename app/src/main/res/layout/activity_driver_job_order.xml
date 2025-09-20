@@ -201,6 +201,7 @@
         android:text="WASTE DELIVER"
         android:textColor="@color/white"
         android:backgroundTint="@color/dark_gray"
+        android:alpha="0.5"
         app:layout_constraintBottom_toTopOf="@id/bottomNavigation" />
 
     <!-- Bottom Navigation -->

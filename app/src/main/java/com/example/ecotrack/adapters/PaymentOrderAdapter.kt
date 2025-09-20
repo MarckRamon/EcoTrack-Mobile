@@ -66,13 +66,16 @@ class PaymentOrderAdapter(
             // Apply different styling based on section
             when (section) {
                 "In-Progress" -> {
-                    cardView.setCardBackgroundColor(ContextCompat.getColor(itemView.context, R.color.secondary))
+                    cardView.setCardBackgroundColor(ContextCompat.getColor(itemView.context, R.color.material_yellow))
+                    viewButton.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.material_yellow))
                 }
                 "Available" -> {
                     cardView.setCardBackgroundColor(ContextCompat.getColor(itemView.context, R.color.secondary))
+                    viewButton.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.secondary))
                 }
                 "Completed" -> {
                     cardView.setCardBackgroundColor(ContextCompat.getColor(itemView.context, R.color.gray))
+                    viewButton.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.gray))
                 }
             }
 

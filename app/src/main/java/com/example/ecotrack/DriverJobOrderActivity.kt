@@ -156,9 +156,11 @@ class DriverJobOrderActivity : BaseActivity() {
         if (enabled) {
             // Active state - green color
             endCollectionButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.secondary)
+            endCollectionButton.alpha = 1f
         } else {
             // Inactive state - dark gray color
             endCollectionButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.dark_gray)
+            endCollectionButton.alpha = 0.5f
         }
         
         // Update button text

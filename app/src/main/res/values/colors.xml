@@ -44,7 +44,7 @@
     <color name="background_dim">#F8F9FA</color>
 
     <color name="green">#5FBC63</color>
-
+    <color name="yellow">#FFFF00</color>
     <color name="grey">#757575</color>
 
     <color name="calendar_selected_bg">#E0F2F1</color>
