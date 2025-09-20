@@ -98,6 +98,9 @@ class   DriverEditProfileActivity : BaseActivity() {
         // Load user profile and barangays
         loadUserProfile()
         loadBarangays()
+        
+        // Load profile image if available
+        loadProfileImageFromSession()
 
         binding.saveButton.setOnClickListener {
             updateProfile()
@@ -651,5 +654,12 @@ class   DriverEditProfileActivity : BaseActivity() {
         super.onPause()
         // Stop real-time updates
         realTimeUpdateManager.stopRealTimeUpdates()
+    }
+    
+    private fun loadProfileImageFromSession() {
+        val profileImageUrl = sessionManager.getProfileImageUrl()
+        if (!profileImageUrl.isNullOrEmpty()) {
+            loadProfileImage(profileImageUrl)
+        }
     }
 } 

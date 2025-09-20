@@ -8,6 +8,8 @@ import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.button.MaterialButton
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.ProfileImageLoader
+import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,10 +18,12 @@ import android.widget.ImageButton
 
 class DriverProfileActivity : BaseActivity() {
     private val apiService = ApiService.create()
+    private val profileImageLoader = ProfileImageLoader(this)
     private val TAG = "DriverProfileActivity"
     private lateinit var userNameText: TextView
     private lateinit var userEmailText: TextView
     private lateinit var userBarangayText: TextView
+    private lateinit var profileAvatar: de.hdodenhof.circleimageview.CircleImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +38,9 @@ class DriverProfileActivity : BaseActivity() {
         initViews()
         setupClickListeners()
         loadUserData()
+        
+        // Load profile image if available
+        loadProfileImageFromSession()
     }
     
     private fun validateDriverRole() {
@@ -50,6 +57,7 @@ class DriverProfileActivity : BaseActivity() {
         userNameText = findViewById(R.id.userName)
         userEmailText = findViewById(R.id.userEmail)
         userBarangayText = findViewById(R.id.userBarangay)
+        profileAvatar = findViewById(R.id.profileAvatar)
     }
 
     private fun setupClickListeners() {
@@ -216,5 +224,24 @@ class DriverProfileActivity : BaseActivity() {
         // Always refresh profile data when returning to this activity
         Log.d(TAG, "onResume - refreshing profile data")
         loadUserData()
+        
+        // Also reload profile image
+        loadProfileImageFromSession()
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = profileAvatar,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
+    }
+    
+    private fun loadProfileImageFromSession() {
+        val profileImageUrl = sessionManager.getProfileImageUrl()
+        if (!profileImageUrl.isNullOrEmpty()) {
+            loadProfileImage(profileImageUrl)
+        }
     }
 } 

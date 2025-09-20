@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.ecotrack.adapters.PaymentOrderAdapter
 import com.example.ecotrack.models.payment.Payment
 import com.example.ecotrack.utils.ApiService
+import com.example.ecotrack.utils.ProfileImageLoader
 import com.example.ecotrack.utils.RealTimeUpdateManager
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.launch
@@ -54,6 +55,7 @@ class DriverJobOrderActivity : BaseActivity() {
     private lateinit var dialogOverlay: View
 
     private val apiService = ApiService.create()
+    private val profileImageLoader = ProfileImageLoader(this)
     private val TAG = "DriverJobOrderActivity"
     
     // Real-time update manager
@@ -80,6 +82,9 @@ class DriverJobOrderActivity : BaseActivity() {
         
         // Load payment orders for the current driver
         loadPaymentOrders()
+        
+        // Load profile image if available
+        loadProfileImageFromSession()
     }
 
     private fun initViews() {
@@ -600,5 +605,21 @@ class DriverJobOrderActivity : BaseActivity() {
         super.onPause()
         // Stop real-time updates
         realTimeUpdateManager.stopRealTimeUpdates()
+    }
+    
+    private fun loadProfileImage(url: String) {
+        profileImageLoader.loadProfileImageUltraFast(
+            url = url,
+            imageView = profileImage,
+            placeholderResId = R.drawable.raph,
+            errorResId = R.drawable.raph
+        )
+    }
+    
+    private fun loadProfileImageFromSession() {
+        val profileImageUrl = sessionManager.getProfileImageUrl()
+        if (!profileImageUrl.isNullOrEmpty()) {
+            loadProfileImage(profileImageUrl)
+        }
     }
 } 
