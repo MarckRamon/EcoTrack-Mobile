@@ -153,14 +153,21 @@
             android:hint="Barangay"
             app:boxStrokeColor="#69CC67"
             app:hintTextColor="#69CC67"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+            app:endIconDrawable="@drawable/ic_arrow_drop_down"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-            <AutoCompleteTextView
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/barangayDropdown"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="none"/>
+                android:inputType="none"
+                android:focusable="false"
+                android:clickable="true"
+                android:cursorVisible="false"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"/>
         </com.google.android.material.textfield.TextInputLayout>
+
     </LinearLayout>
 
     <!-- Progress Bar -->

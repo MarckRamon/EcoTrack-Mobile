@@ -4,8 +4,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
@@ -72,6 +75,18 @@ class   DriverEditProfileActivity : BaseActivity() {
         
         binding.backButton.setOnClickListener {
             finish()
+        }
+        
+        // Set up barangay field to show dialog instead of dropdown
+        binding.barangayDropdown.isFocusable = false
+        binding.barangayDropdown.isClickable = true
+        binding.barangayDropdown.setOnClickListener {
+            showBarangaySelectionDialog()
+        }
+        
+        // Make sure the dropdown icon also shows the dialog
+        binding.barangayInputLayout.setEndIconOnClickListener {
+            showBarangaySelectionDialog()
         }
         
         // Initialize real-time update manager
@@ -477,12 +492,19 @@ class   DriverEditProfileActivity : BaseActivity() {
                 val response = apiService.getAllBarangays(authHeader)
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful && response.body() != null) {
-                        barangays = response.body()!!.filter { it.isActive }
-                        Log.d(TAG, "Barangays loaded successfully: ${barangays.size} barangays")
-                        Log.d(TAG, "Filtered barangays: $barangays")
-
-                        // Now that we have the data, set up the dropdown
-                        setupBarangayDropdown()
+                        val allBarangays = response.body()!!
+                        
+                        // Use all barangays regardless of active status for now
+                        barangays = allBarangays
+                        
+                        // Set initial selection if needed
+                        if (originalBarangayName != null && binding.barangayDropdown.text.toString().isEmpty()) {
+                            binding.barangayDropdown.setText(originalBarangayName)
+                            selectedBarangayId = originalBarangayId
+                            selectedBarangayName = originalBarangayName
+                        } else {
+                            // Keep existing selection or leave empty
+                        }
                     } else {
                         Log.e(TAG, "Failed to load barangays: ${response.code()} - ${response.message()}")
                         Toast.makeText(this@DriverEditProfileActivity, "Failed to load barangays. Please try again.", Toast.LENGTH_SHORT).show()
@@ -499,26 +521,94 @@ class   DriverEditProfileActivity : BaseActivity() {
         }
     }
 
-    private fun setupBarangayDropdown() {
-        val barangayNames = barangays.map { it.name }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, barangayNames)
-
-        val barangayDropdown = binding.barangayDropdown
-        barangayDropdown.setAdapter(adapter)
-        barangayDropdown.threshold = 0  // Show all items immediately when clicked
-
-        // Set the initial selection if we have the original barangay
-        if (originalBarangayId != null && originalBarangayName != null) {
-            barangayDropdown.setText(originalBarangayName)
-            selectedBarangayId = originalBarangayId
-            selectedBarangayName = originalBarangayName
+    // Replace dropdown with a dialog selection
+    private fun showBarangaySelectionDialog() {
+        if (barangays.isEmpty()) {
+            loadBarangays()
+            return
         }
-
-        barangayDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selectedBarangay = barangays[position]
+        
+        // Sort barangays alphabetically for easier selection
+        val sortedBarangays = barangays.sortedBy { it.name }
+        
+        // Create dialog with searchable list
+        val dialogView = layoutInflater.inflate(R.layout.dialog_barangay_selection, null)
+        val recyclerView = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.barangayRecyclerView)
+        val searchEditText = dialogView.findViewById<android.widget.EditText>(R.id.searchEditText)
+        
+        // Create dialog reference that will be initialized later
+        var dialogInterface: AlertDialog? = null
+        
+        // Set up RecyclerView
+        recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        val adapter = BarangayAdapter(sortedBarangays) { selectedBarangay ->
+            // Handle selection
             selectedBarangayId = selectedBarangay.barangayId
             selectedBarangayName = selectedBarangay.name
-            Log.d(TAG, "Selected barangay: $selectedBarangayName (ID: $selectedBarangayId)")
+            binding.barangayDropdown.setText(selectedBarangay.name)
+            
+            // Dismiss dialog
+            dialogInterface?.dismiss()
+        }
+        recyclerView.adapter = adapter
+        
+        // Set up search functionality
+        searchEditText.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val searchText = s.toString().trim().lowercase()
+                if (searchText.isEmpty()) {
+                    adapter.updateList(sortedBarangays)
+                } else {
+                    val filteredList = sortedBarangays.filter { 
+                        it.name.lowercase().contains(searchText) 
+                    }
+                    adapter.updateList(filteredList)
+                }
+            }
+            
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+        
+        // Create and show dialog
+        dialogInterface = AlertDialog.Builder(this)
+            .setTitle("Select Barangay")
+            .setView(dialogView)
+            .setNegativeButton("Cancel", null)
+            .create()
+        
+        dialogInterface.show()
+    }
+
+    // Adapter for barangay selection
+    private inner class BarangayAdapter(
+        private var barangays: List<Barangay>,
+        private val onItemClick: (Barangay) -> Unit
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<BarangayAdapter.ViewHolder>() {
+        
+        inner class ViewHolder(itemView: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(itemView) {
+            val nameTextView: android.widget.TextView = itemView.findViewById(R.id.barangayName)
+        }
+        
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = android.view.LayoutInflater.from(parent.context).inflate(R.layout.item_barangay, parent, false)
+            return ViewHolder(view)
+        }
+        
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val barangay = barangays[position]
+            holder.nameTextView.text = barangay.name
+            
+            holder.itemView.setOnClickListener {
+                onItemClick(barangay)
+            }
+        }
+        
+        override fun getItemCount() = barangays.size
+        
+        fun updateList(newList: List<Barangay>) {
+            barangays = newList
+            notifyDataSetChanged()
         }
     }
     
