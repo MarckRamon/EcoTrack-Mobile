@@ -209,10 +209,10 @@ class HomeActivity : BaseActivity() {
     private fun setChipColors() {
         // Create color state lists for each chip to match banner colors
         val availableColorStateList = android.content.res.ColorStateList.valueOf(
-            ContextCompat.getColor(this, R.color.secondary)
+            ContextCompat.getColor(this, R.color.material_blue) // Blue for Available filter
         )
         val inProgressColorStateList = android.content.res.ColorStateList.valueOf(
-            ContextCompat.getColor(this, R.color.material_yellow)
+            ContextCompat.getColor(this, R.color.material_yellow) // Yellow for In-Progress filter (shows accepted + in-progress)
         )
         val completedColorStateList = android.content.res.ColorStateList.valueOf(
             ContextCompat.getColor(this, R.color.grey)
@@ -241,6 +241,7 @@ class HomeActivity : BaseActivity() {
         chipCancelled.chipStrokeColor = cancelledColorStateList
         
         Log.d(TAG, "Filter chip colors updated to match banner colors")
+        Log.d(TAG, "Available filter: Blue, In-Progress filter: Yellow (shows Accepted + In-Progress banners)")
     }
 
     private fun checkForActiveOrders(isManualRefresh: Boolean = false) {
@@ -599,15 +600,19 @@ class HomeActivity : BaseActivity() {
             val cardBackgroundColor = when {
                 statusToCheck.contains("completed") -> ContextCompat.getColor(this@HomeActivity, R.color.grey)
                 statusToCheck.contains("cancelled") -> ContextCompat.getColor(this@HomeActivity, R.color.material_red)
-                statusToCheck.contains("accept") || statusToCheck.contains("progress") -> ContextCompat.getColor(this@HomeActivity, R.color.material_yellow)
-                else -> ContextCompat.getColor(this@HomeActivity, R.color.secondary) // Default green for available/processing
+                statusToCheck.contains("progress") -> ContextCompat.getColor(this@HomeActivity, R.color.material_yellow)
+                statusToCheck.contains("accept") -> ContextCompat.getColor(this@HomeActivity, R.color.secondary) // Green for accepted
+                statusToCheck.contains("avail") || statusToCheck.contains("processing") -> ContextCompat.getColor(this@HomeActivity, R.color.material_blue) // Blue for available
+                else -> ContextCompat.getColor(this@HomeActivity, R.color.secondary) // Default green
             }
             reminderCard.setCardBackgroundColor(cardBackgroundColor)
             
             Log.d(TAG, "Setting main reminder card background color for status '$statusToCheck': ${when {
                 statusToCheck.contains("completed") -> "grey"
                 statusToCheck.contains("cancelled") -> "red"
-                statusToCheck.contains("accept") || statusToCheck.contains("progress") -> "yellow"
+                statusToCheck.contains("progress") -> "yellow"
+                statusToCheck.contains("accept") -> "green"
+                statusToCheck.contains("avail") || statusToCheck.contains("processing") -> "blue"
                 else -> "green"
             }}")
             
@@ -1056,8 +1061,10 @@ class HomeActivity : BaseActivity() {
         val cardBackgroundColor = when {
             statusToCheck.contains("completed") -> ContextCompat.getColor(this, R.color.grey)
             statusToCheck.contains("cancelled") -> ContextCompat.getColor(this, R.color.material_red)
-            statusToCheck.contains("accept") || statusToCheck.contains("progress") -> ContextCompat.getColor(this, R.color.material_yellow)
-            else -> ContextCompat.getColor(this, R.color.secondary) // Default green for available/processing
+            statusToCheck.contains("progress") -> ContextCompat.getColor(this, R.color.material_yellow)
+            statusToCheck.contains("accept") -> ContextCompat.getColor(this, R.color.secondary) // Green for accepted
+            statusToCheck.contains("avail") || statusToCheck.contains("processing") -> ContextCompat.getColor(this, R.color.material_blue) // Blue for available
+            else -> ContextCompat.getColor(this, R.color.secondary) // Default green
         }
         cardView.setCardBackgroundColor(cardBackgroundColor)
         cardView.elevation = 4f.dpToPx().toFloat()
@@ -1065,7 +1072,9 @@ class HomeActivity : BaseActivity() {
         Log.d(TAG, "Setting card background color for status '$statusToCheck': ${when {
             statusToCheck.contains("completed") -> "grey"
             statusToCheck.contains("cancelled") -> "red"
-            statusToCheck.contains("accept") || statusToCheck.contains("progress") -> "yellow"
+            statusToCheck.contains("progress") -> "yellow"
+            statusToCheck.contains("accept") -> "green"
+            statusToCheck.contains("avail") || statusToCheck.contains("processing") -> "blue"
             else -> "green"
         }}")
         
