@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
-    tools:context=".CompletedJobOrdersActivity">
+    tools:context=".CancelledJobOrdersActivity">
 
     <!-- Toolbar -->
     <androidx.appcompat.widget.Toolbar
@@ -23,7 +23,7 @@
         android:id="@+id/tvNoOrders"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="No completed job orders"
+        android:text="No cancelled job orders"
         android:textSize="16sp"
         android:textColor="@color/text_secondary"
         android:gravity="center"
@@ -33,9 +33,9 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintVertical_bias="0.3" />
 
-    <!-- Completed Job Order List -->
+    <!-- Cancelled Job Order List -->
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewCompletedJobOrders"
+        android:id="@+id/recyclerViewCancelledJobOrders"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:clipToPadding="false"
@@ -46,4 +46,4 @@
         app:layout_constraintBottom_toBottomOf="parent"
         tools:listitem="@layout/item_job_order" />
 
-</androidx.constraintlayout.widget.ConstraintLayout> 
+</androidx.constraintlayout.widget.ConstraintLayout>

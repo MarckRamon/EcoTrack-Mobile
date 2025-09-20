@@ -27,17 +27,21 @@ class DriverJobOrderActivity : BaseActivity() {
     private lateinit var inProgressRecyclerView: RecyclerView
     private lateinit var availableRecyclerView: RecyclerView
     private lateinit var completedRecyclerView: RecyclerView
+    private lateinit var cancelledRecyclerView: RecyclerView
     private lateinit var homeNav: View
     private lateinit var jobOrdersNav: View
     private lateinit var collectionPointsNav: View
     private lateinit var tvNoInProgressOrders: TextView
     private lateinit var tvNoAvailableOrders: TextView
     private lateinit var tvNoCompletedOrders: TextView
+    private lateinit var tvNoCancelledOrders: TextView
     private lateinit var tvInProgressHeader: TextView
     private lateinit var tvAvailableHeader: TextView
     private lateinit var tvCompletedHeader: TextView
+    private lateinit var tvCancelledHeader: TextView
     private lateinit var btnViewMoreAvailable: TextView
     private lateinit var btnViewHistory: TextView
+    private lateinit var btnViewCancelledHistory: TextView
     private lateinit var tvAvailableDisabledMessage: TextView
     private lateinit var endCollectionButton: Button
     private lateinit var profileImage: CircleImageView
@@ -82,17 +86,21 @@ class DriverJobOrderActivity : BaseActivity() {
         inProgressRecyclerView = findViewById(R.id.recyclerViewInProgressJobOrders)
         availableRecyclerView = findViewById(R.id.recyclerViewAvailableJobOrders)
         completedRecyclerView = findViewById(R.id.recyclerViewCompletedJobOrders)
+        cancelledRecyclerView = findViewById(R.id.recyclerViewCancelledJobOrders)
         homeNav = findViewById(R.id.homeNav)
         jobOrdersNav = findViewById(R.id.jobOrdersNav)
         collectionPointsNav = findViewById(R.id.collectionPointsNav)
         tvNoInProgressOrders = findViewById(R.id.tvNoInProgressOrders)
         tvNoAvailableOrders = findViewById(R.id.tvNoAvailableOrders)
         tvNoCompletedOrders = findViewById(R.id.tvNoCompletedOrders)
+        tvNoCancelledOrders = findViewById(R.id.tvNoCancelledOrders)
         tvInProgressHeader = findViewById(R.id.tvInProgressHeader)
         tvAvailableHeader = findViewById(R.id.tvAvailableHeader)
         tvCompletedHeader = findViewById(R.id.tvCompletedHeader)
+        tvCancelledHeader = findViewById(R.id.tvCancelledHeader)
         btnViewMoreAvailable = findViewById(R.id.btnViewMoreAvailable)
         btnViewHistory = findViewById(R.id.btnViewHistory)
+        btnViewCancelledHistory = findViewById(R.id.btnViewCancelledHistory)
         tvAvailableDisabledMessage = findViewById(R.id.tvAvailableDisabledMessage)
         endCollectionButton = findViewById(R.id.endCollectionButton)
         profileImage = findViewById(R.id.profileImage)
@@ -110,6 +118,7 @@ class DriverJobOrderActivity : BaseActivity() {
         inProgressRecyclerView.layoutManager = LinearLayoutManager(this)
         availableRecyclerView.layoutManager = LinearLayoutManager(this)
         completedRecyclerView.layoutManager = LinearLayoutManager(this)
+        cancelledRecyclerView.layoutManager = LinearLayoutManager(this)
         
         // Set up End Collection button
         endCollectionButton.setOnClickListener {
@@ -143,6 +152,12 @@ class DriverJobOrderActivity : BaseActivity() {
         
         btnViewHistory.setOnClickListener {
             val intent = Intent(this, CompletedJobOrdersActivity::class.java)
+            startActivity(intent)
+        }
+        
+        btnViewCancelledHistory.setOnClickListener {
+            // Navigate to cancelled job orders activity
+            val intent = Intent(this, CancelledJobOrdersActivity::class.java)
             startActivity(intent)
         }
     }
@@ -194,6 +209,7 @@ class DriverJobOrderActivity : BaseActivity() {
         inProgressRecyclerView.suppressLayout(true)
         availableRecyclerView.suppressLayout(true)
         completedRecyclerView.suppressLayout(true)
+        cancelledRecyclerView.suppressLayout(true)
     }
     
     private fun hideConfirmationDialog() {
@@ -224,6 +240,7 @@ class DriverJobOrderActivity : BaseActivity() {
         inProgressRecyclerView.suppressLayout(false)
         availableRecyclerView.suppressLayout(false)
         completedRecyclerView.suppressLayout(false)
+        cancelledRecyclerView.suppressLayout(false)
     }
     
     private fun navigateToPrivateEntityMap() {
@@ -313,12 +330,15 @@ class DriverJobOrderActivity : BaseActivity() {
         inProgressRecyclerView.visibility = View.GONE
         availableRecyclerView.visibility = View.GONE
         completedRecyclerView.visibility = View.GONE
+        cancelledRecyclerView.visibility = View.GONE
         tvNoInProgressOrders.visibility = View.GONE
         tvNoAvailableOrders.visibility = View.GONE
         tvNoCompletedOrders.visibility = View.GONE
+        tvNoCancelledOrders.visibility = View.GONE
         tvAvailableDisabledMessage.visibility = View.GONE
         btnViewMoreAvailable.visibility = View.GONE
         btnViewHistory.visibility = View.GONE
+        btnViewCancelledHistory.visibility = View.GONE
         
         // Fetch payment orders assigned to this driver
         lifecycleScope.launch {
@@ -332,7 +352,7 @@ class DriverJobOrderActivity : BaseActivity() {
                     val payments = response.body()
                     
                     if (payments != null && payments.isNotEmpty()) {
-                        // Split payments into in-progress, available and completed (exclude cancelled orders)
+                        // Split payments into in-progress, available, completed and cancelled
                         val inProgressPayments = payments.filter { 
                             (it.jobOrderStatus == "In-Progress" || it.jobOrderStatus == "Accepted") 
                         }
@@ -345,11 +365,17 @@ class DriverJobOrderActivity : BaseActivity() {
                             it.jobOrderStatus == "Completed" && !it.isDelivered
                         }
                         
+                        // Filter cancelled payments
+                        val cancelledPayments = payments.filter { 
+                            it.jobOrderStatus == "Cancelled" 
+                        }
+                        
                         // Log filtered payments for debugging
                         Log.d(TAG, "Total payments: ${payments.size}")
                         Log.d(TAG, "In-progress payments: ${inProgressPayments.size}")
                         Log.d(TAG, "Available payments: ${availablePayments.size}")
                         Log.d(TAG, "Completed payments (not delivered): ${completedPayments.size}")
+                        Log.d(TAG, "Cancelled payments: ${cancelledPayments.size}")
                         
                         // Check if there's an active job (In-Progress or Accepted)
                         val hasActiveJob = inProgressPayments.isNotEmpty()
@@ -370,10 +396,10 @@ class DriverJobOrderActivity : BaseActivity() {
                             tvInProgressHeader.visibility = View.VISIBLE
                         }
                         
-                        // Handle available payments - limit to 4 and disable if there's an active job
+                        // Handle available payments - limit to 2 and disable if there's an active job
                         if (availablePayments.isNotEmpty()) {
-                            // Limit to 4 available payments for the main screen
-                            val displayAvailablePayments = availablePayments.take(4)
+                            // Limit to 2 available payments for the main screen
+                            val displayAvailablePayments = availablePayments.take(2)
                             
                             // Set up the adapter with the hasActiveJob flag to disable items
                             setupAvailablePaymentsAdapter(displayAvailablePayments, hasActiveJob)
@@ -385,8 +411,8 @@ class DriverJobOrderActivity : BaseActivity() {
                             // Hide the disabled message
                             tvAvailableDisabledMessage.visibility = View.GONE
                             
-                            // Show View More button if there are more than 4 available payments
-                            btnViewMoreAvailable.visibility = if (availablePayments.size > 4) View.VISIBLE else View.GONE
+                            // Show View More button if there are more than 2 available payments
+                            btnViewMoreAvailable.visibility = if (availablePayments.size > 2) View.VISIBLE else View.GONE
                             tvAvailableHeader.visibility = View.VISIBLE
                         } else {
                             availableRecyclerView.visibility = View.GONE
@@ -396,42 +422,64 @@ class DriverJobOrderActivity : BaseActivity() {
                             btnViewMoreAvailable.visibility = View.GONE
                         }
                         
-                        // Handle completed payments - limit to 4
+                        // Handle completed payments - limit to 2
                         if (completedPayments.isNotEmpty()) {
                             // Log the completed payments for debugging
                             completedPayments.forEach { payment ->
                                 Log.d(TAG, "Completed payment: ${payment.id}, updatedAt: ${payment.updatedAt}, createdAt: ${payment.createdAt}, status: ${payment.jobOrderStatus}, isDelivered: ${payment.isDelivered}")
                             }
                             
-                            // Limit to 4 completed payments for the main screen
-                            val displayCompletedPayments = completedPayments.take(4)
+                            // Limit to 2 completed payments for the main screen
+                            val displayCompletedPayments = completedPayments.take(2)
                             setupCompletedPaymentsAdapter(displayCompletedPayments)
                             completedRecyclerView.visibility = View.VISIBLE
                             tvNoCompletedOrders.visibility = View.GONE
                             tvCompletedHeader.visibility = View.VISIBLE
                             
-                            // Show View History button if there are more than 4 completed payments
-                            btnViewHistory.visibility = if (completedPayments.size > 4) View.VISIBLE else View.GONE
+                            // Show View History button if there are more than 2 completed payments
+                            btnViewHistory.visibility = if (completedPayments.size > 2) View.VISIBLE else View.GONE
                         } else {
                             completedRecyclerView.visibility = View.GONE
                             tvNoCompletedOrders.visibility = View.VISIBLE
                             tvCompletedHeader.visibility = View.VISIBLE
                             btnViewHistory.visibility = View.GONE
                         }
+                        
+                        // Handle cancelled payments - limit to 2
+                        if (cancelledPayments.isNotEmpty()) {
+                            // Limit to 2 cancelled payments for the main screen
+                            val displayCancelledPayments = cancelledPayments.take(2)
+                            setupCancelledPaymentsAdapter(displayCancelledPayments)
+                            cancelledRecyclerView.visibility = View.VISIBLE
+                            tvNoCancelledOrders.visibility = View.GONE
+                            tvCancelledHeader.visibility = View.VISIBLE
+                            
+                            // Show View Cancelled History button if there are more than 2 cancelled payments
+                            btnViewCancelledHistory.visibility = if (cancelledPayments.size > 2) View.VISIBLE else View.GONE
+                        } else {
+                            cancelledRecyclerView.visibility = View.GONE
+                            tvNoCancelledOrders.visibility = View.VISIBLE
+                            tvCancelledHeader.visibility = View.VISIBLE
+                            btnViewCancelledHistory.visibility = View.GONE
+                        }
                     } else {
                         // Show no orders message for all sections
                         inProgressRecyclerView.visibility = View.GONE
                         availableRecyclerView.visibility = View.GONE
                         completedRecyclerView.visibility = View.GONE
+                        cancelledRecyclerView.visibility = View.GONE
                         tvNoInProgressOrders.visibility = View.VISIBLE
                         tvNoAvailableOrders.visibility = View.VISIBLE
                         tvNoCompletedOrders.visibility = View.VISIBLE
+                        tvNoCancelledOrders.visibility = View.VISIBLE
                         tvAvailableDisabledMessage.visibility = View.GONE
                         tvInProgressHeader.visibility = View.VISIBLE
                         tvAvailableHeader.visibility = View.VISIBLE
                         tvCompletedHeader.visibility = View.VISIBLE
+                        tvCancelledHeader.visibility = View.VISIBLE
                         btnViewMoreAvailable.visibility = View.GONE
                         btnViewHistory.visibility = View.GONE
+                        btnViewCancelledHistory.visibility = View.GONE
                         
                         // Disable End Collection button
                         updateEndCollectionButtonState(false)
@@ -444,6 +492,7 @@ class DriverJobOrderActivity : BaseActivity() {
                     tvNoInProgressOrders.visibility = View.VISIBLE
                     tvNoAvailableOrders.visibility = View.VISIBLE
                     tvNoCompletedOrders.visibility = View.VISIBLE
+                    tvNoCancelledOrders.visibility = View.VISIBLE
                     
                     // Disable End Collection button
                     updateEndCollectionButtonState(false)
@@ -527,6 +576,18 @@ class DriverJobOrderActivity : BaseActivity() {
         }
         
         completedRecyclerView.adapter = adapter
+    }
+    
+    private fun setupCancelledPaymentsAdapter(payments: List<Payment>) {
+        val adapter = PaymentOrderAdapter(payments, false, "Cancelled") { payment ->
+            // Navigate to the job order details screen
+            startActivity(Intent(this, DriverJobOrderStatusActivity::class.java).apply {
+                putExtra("PAYMENT", payment)
+                putExtra("MODE", DriverJobOrderStatusActivity.JobOrderStatusMode.ACCEPT)
+            })
+        }
+        
+        cancelledRecyclerView.adapter = adapter
     }
     
     override fun onResume() {

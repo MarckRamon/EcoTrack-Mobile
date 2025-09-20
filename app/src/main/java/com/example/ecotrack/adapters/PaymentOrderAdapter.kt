@@ -77,6 +77,10 @@ class PaymentOrderAdapter(
                     cardView.setCardBackgroundColor(ContextCompat.getColor(itemView.context, R.color.gray))
                     viewButton.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.gray))
                 }
+                "Cancelled" -> {
+                    cardView.setCardBackgroundColor(ContextCompat.getColor(itemView.context, R.color.material_red))
+                    viewButton.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.material_red))
+                }
             }
 
             // Set click listener for view button - always allow viewing details

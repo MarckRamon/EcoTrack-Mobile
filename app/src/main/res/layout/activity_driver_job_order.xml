@@ -58,7 +58,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:layout_marginTop="16dp"
-                android:text="In-Progress"
+                android:text="Accepted/In-Progress"
                 android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -70,21 +70,33 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
-                android:text="No in-progress job orders"
+                android:text="No accepted/in-progress job orders"
                 android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:visibility="gone" />
 
             <!-- In-Progress Job Order List -->
-
-            <!-- Available Section -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewInProgressJobOrders"
+            <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_job_order" />
+                android:fillViewport="true">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerViewInProgressJobOrders"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        tools:listitem="@layout/item_job_order" />
+
+                </LinearLayout>
+            </ScrollView>
+
+            <!-- Available Job Order List -->
             <TextView
                 android:id="@+id/tvAvailableHeader"
                 android:layout_width="match_parent"
@@ -122,26 +134,38 @@
                 android:visibility="gone" />
 
             <!-- Available Job Order List -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewAvailableJobOrders"
+            <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_job_order" />
+                android:fillViewport="true">
+                
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerViewAvailableJobOrders"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        tools:listitem="@layout/item_job_order" />
 
-            <!-- View More Available Button -->
-            <TextView
-                android:id="@+id/btnViewMoreAvailable"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginEnd="16dp"
-                android:gravity="end"
-                android:padding="8dp"
-                android:text="View More →"
-                android:textColor="@color/secondary"
-                android:textSize="16sp"
-                android:visibility="gone" />
+                    <!-- View More Available Button -->
+                    <TextView
+                        android:id="@+id/btnViewMoreAvailable"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginEnd="16dp"
+                        android:gravity="end"
+                        android:padding="8dp"
+                        android:text="View More →"
+                        android:textColor="@color/secondary"
+                        android:textSize="16sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </ScrollView>
 
             <!-- Completed Section -->
             <TextView
@@ -168,26 +192,97 @@
                 android:visibility="gone" />
 
             <!-- Completed Job Order List -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewCompletedJobOrders"
+            <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_job_order" />
+                android:fillViewport="true">
+                
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerViewCompletedJobOrders"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        tools:listitem="@layout/item_job_order" />
 
-            <!-- View History Button -->
+                    <!-- View History Button -->
+                    <TextView
+                        android:id="@+id/btnViewHistory"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginEnd="16dp"
+                        android:gravity="end"
+                        android:padding="8dp"
+                        android:text="View More →"
+                        android:textColor="@color/gray"
+                        android:textSize="16sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </ScrollView>
+
+            <!-- Cancelled Section -->
             <TextView
-                android:id="@+id/btnViewHistory"
+                android:id="@+id/tvCancelledHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="24dp"
+                android:text="Cancelled"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <!-- No Cancelled Orders Message -->
+            <TextView
+                android:id="@+id/tvNoCancelledOrders"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:layout_marginEnd="16dp"
-                android:gravity="end"
-                android:padding="8dp"
-                android:text="View More →"
-                android:textColor="@color/gray"
+                android:gravity="center"
+                android:text="No cancelled job orders"
+                android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:visibility="gone" />
+
+            <!-- Cancelled Job Order List -->
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fillViewport="true">
+                
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerViewCancelledJobOrders"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        tools:listitem="@layout/item_job_order" />
+
+                    <!-- View Cancelled History Button -->
+                    <TextView
+                        android:id="@+id/btnViewCancelledHistory"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginEnd="16dp"
+                        android:gravity="end"
+                        android:padding="8dp"
+                        android:text="View More →"
+                        android:textColor="@color/material_red"
+                        android:textSize="16sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </ScrollView>
+
         </LinearLayout>
     </ScrollView>
 

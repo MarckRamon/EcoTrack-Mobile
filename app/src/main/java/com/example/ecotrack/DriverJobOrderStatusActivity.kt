@@ -187,9 +187,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             
             // Initialize scroll view for accept mode
             scrollView = findViewById(R.id.scrollView)
-            
-            // Set up map-scrollview touch interaction for accept mode
-            setupMapScrollViewInteraction()
+
         } else {
             statusTextView = findViewById(R.id.statusTextView)
             actionButton = findViewById(R.id.collectionCompletedButton)
@@ -210,9 +208,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             
             // Initialize camera activity result launchers
             initializeCameraLaunchers()
-            
-            // Set up map-scrollview touch interaction
-            setupMapScrollViewInteraction()
             
             // If in VIEW mode, disable the action button
             if (mode == JobOrderStatusMode.VIEW) {
@@ -292,26 +287,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             
             cancelButton.setOnClickListener {
                 hideConfirmationDialog()
-            }
-        }
-    }
-    
-    private fun setupMapScrollViewInteraction() {
-        // Set up touch event handling for map-scrollview interaction
-        // Based on memory about Map-ScrollView Touch Interaction Implementation
-        if ((mode == JobOrderStatusMode.COMPLETE || mode == JobOrderStatusMode.ACCEPT) && ::scrollView.isInitialized) {
-            mapView.setOnTouchListener { _, event ->
-                when (event.action) {
-                    android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
-                        // Disable scrolling when user is interacting with map
-                        scrollView.requestDisallowInterceptTouchEvent(true)
-                    }
-                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
-                        // Re-enable scrolling when map interaction ends
-                        scrollView.requestDisallowInterceptTouchEvent(false)
-                    }
-                }
-                false // Let the map handle the touch event
             }
         }
     }
@@ -513,6 +488,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                         if (activeJobs.isNotEmpty()) {
                             // Driver has active jobs, show message and don't allow accepting new job
                             hideLoading()
+                            actionButton.alpha = 0.5f
                             Toast.makeText(
                                 this@DriverJobOrderStatusActivity, 
                                 "Complete your active job order before accepting a new one", 
@@ -521,6 +497,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                         } else {
                             // No active jobs, proceed with accepting this job
                             hideLoading()
+                            actionButton.alpha = 1.0f
                             updateJobOrderStatus("Accepted")
                         }
                     }
