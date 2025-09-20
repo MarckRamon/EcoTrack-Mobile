@@ -26,6 +26,7 @@ import com.example.ecotrack.models.JobOrder
 import com.example.ecotrack.models.JobOrderStatusUpdate
 import com.example.ecotrack.models.OrderStatus
 import com.example.ecotrack.models.payment.Payment
+import com.example.ecotrack.models.payment.PaymentResponse
 import com.example.ecotrack.utils.ApiService
 import com.example.ecotrack.utils.FileLuService
 import com.google.android.material.button.MaterialButton
@@ -85,6 +86,11 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     private lateinit var driverProofCard: CardView
     private lateinit var cardDriverProofImageAccept: CardView
     private lateinit var ivDriverProofImageAccept: ImageView
+    
+    // Service rating views (for displaying customer ratings)
+    private lateinit var cardServiceRating: CardView
+    private lateinit var tvServiceRatingFeedback: TextView
+    private lateinit var serviceStarViews: List<ImageView>
     
     // API Service
     private lateinit var apiService: ApiService
@@ -184,6 +190,19 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             driverProofCard = findViewById(R.id.driverProofCard)
             cardDriverProofImageAccept = findViewById(R.id.cardDriverProofImageAccept)
             ivDriverProofImageAccept = findViewById(R.id.ivDriverProofImageAccept)
+            
+            // Initialize service rating views for accept mode (read-only)
+            cardServiceRating = findViewById(R.id.card_service_rating)
+            tvServiceRatingFeedback = findViewById(R.id.tv_service_rating_feedback)
+            
+            // Initialize service star views
+            serviceStarViews = listOf(
+                findViewById(R.id.service_star_1),
+                findViewById(R.id.service_star_2),
+                findViewById(R.id.service_star_3),
+                findViewById(R.id.service_star_4),
+                findViewById(R.id.service_star_5)
+            )
             
             // Initialize scroll view for accept mode
             scrollView = findViewById(R.id.scrollView)
@@ -1093,6 +1112,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                         Log.d(TAG, "Driver confirmation URL from API: $driverProofUrl")
                         Log.d(TAG, "Customer confirmation URL: ${paymentResponse.customerConfirmation}")
                         Log.d(TAG, "Generic effective URL: ${paymentResponse.getEffectiveConfirmationImageUrl()}")
+                        Log.d(TAG, "Service rating from API: ${paymentResponse.serviceRating}")
                         
                         if (!driverProofUrl.isNullOrBlank()) {
                             Log.d(TAG, "Showing driver proof photo: $driverProofUrl")
@@ -1112,16 +1132,27 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                                 showDriverProofImageAccept(null)
                             }
                         }
+                        
+                        // Also show service rating if in accept mode
+                        if (mode == JobOrderStatusMode.ACCEPT) {
+                            showServiceRating(paymentResponse)
+                        }
                     } else {
                         Log.e(TAG, "Failed to fetch payment details: ${response.code()} ${response.message()}")
                         if (mode == JobOrderStatusMode.COMPLETE) {
                             updateCollectionCompletedButtonState()
+                        } else if (mode == JobOrderStatusMode.ACCEPT) {
+                            // Hide service rating if no data available
+                            showServiceRating(null)
                         }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error fetching payment details for driver proof", e)
                     if (mode == JobOrderStatusMode.COMPLETE) {
                         updateCollectionCompletedButtonState()
+                    } else if (mode == JobOrderStatusMode.ACCEPT) {
+                        // Hide service rating if error occurred
+                        showServiceRating(null)
                     }
                 }
             }
@@ -1158,6 +1189,59 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             Log.d(TAG, "Driver proof image loaded successfully in accept mode")
         } catch (e: Exception) {
             Log.e(TAG, "Error loading driver proof image in accept mode", e)
+        }
+    }
+    
+    private fun showServiceRating(paymentResponse: PaymentResponse?) {
+        Log.d(TAG, "showServiceRating called")
+        
+        // Get the current job order status
+        val currentStatus = payment?.jobOrderStatus ?: "Available"
+        Log.d(TAG, "Current job order status: $currentStatus")
+        
+        // Get the service rating from the payment response
+        val serviceRating = paymentResponse?.serviceRating
+        Log.d(TAG, "Service rating from API: $serviceRating")
+        
+        // Only show service rating for "Completed" status and when there's an actual rating
+        if (currentStatus != "Completed" || serviceRating == null || serviceRating <= 0) {
+            Log.d(TAG, "Hiding service rating card - Status: $currentStatus, Rating: $serviceRating")
+            cardServiceRating.visibility = View.GONE
+            return
+        }
+        
+        Log.d(TAG, "Showing service rating: $serviceRating stars")
+        cardServiceRating.visibility = View.VISIBLE
+        
+        // Update star display
+        updateServiceStarDisplay(serviceRating)
+        
+        // Show rating feedback
+        tvServiceRatingFeedback.visibility = View.VISIBLE
+        tvServiceRatingFeedback.text = when (serviceRating) {
+            1 -> "Poor - Customer was not satisfied"
+            2 -> "Fair - Customer felt service could be better"
+            3 -> "Good - Customer found service satisfactory"
+            4 -> "Very Good - Customer was pleased with service"
+            5 -> "Excellent - Customer was very satisfied!"
+            else -> "Customer rated: $serviceRating stars"
+        }
+        
+        Log.d(TAG, "Service rating displayed successfully: $serviceRating stars")
+    }
+    
+    private fun updateServiceStarDisplay(rating: Int) {
+        serviceStarViews.forEachIndexed { index, star ->
+            val starPosition = index + 1
+            if (starPosition <= rating) {
+                // Filled star
+                star.setImageResource(R.drawable.ic_star)
+                star.setColorFilter(ContextCompat.getColor(this, R.color.star_filled))
+            } else {
+                // Empty star
+                star.setImageResource(R.drawable.ic_star_outline)
+                star.setColorFilter(ContextCompat.getColor(this, R.color.star_empty))
+            }
         }
     }
     
