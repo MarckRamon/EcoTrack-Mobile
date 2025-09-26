@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "EcoTrack"
+rootProject.name = "GrabTrash"
 include(":app")

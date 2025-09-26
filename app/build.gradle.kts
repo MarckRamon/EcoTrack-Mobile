@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ecotrack"
+    namespace = "com.example.grabtrash"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.ecotrack"
+        applicationId = "com.example.grabtrash"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
