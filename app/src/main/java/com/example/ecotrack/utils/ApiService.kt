@@ -234,7 +234,7 @@ interface ApiService {
 
     companion object {
         private const val TAG = "ApiService"
-        private const val BASE_URL = "http://10.0.2.2:8080/" // Android emulator localhost
+        private const val BASE_URL = "https://grabtrash-backend.onrender.com/" // Deployed backend API
 
         fun create(): ApiService {
             val loggingInterceptor = HttpLoggingInterceptor { message ->

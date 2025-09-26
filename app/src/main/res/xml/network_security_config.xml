@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">10.0.2.2</domain>
+    <!-- Allow all secure HTTPS connections by default -->
+    <base-config>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Specific config for our deployed backend -->
+    <domain-config>
+        <domain includeSubdomains="true">grabtrash-backend.onrender.com</domain>
     </domain-config>
-</network-security-config> 
+</network-security-config>
