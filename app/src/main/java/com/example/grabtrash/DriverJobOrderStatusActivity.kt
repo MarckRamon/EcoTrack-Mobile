@@ -67,7 +67,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
     
     // Additional views for payment details
     private lateinit var amountTextView: TextView
-    private lateinit var taxValueTextView: TextView
     
     // Confirmation dialog views (for collection completed)
     private lateinit var confirmationDialog: CardView
@@ -169,7 +168,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         totalTextView = findViewById(R.id.totalValueTextView)
         progressBar = findViewById(R.id.progressBar)
         amountTextView = findViewById(R.id.amountValueTextView)
-        taxValueTextView = findViewById(R.id.taxValueTextView)
         
         // Initialize back button for all modes
         try {
@@ -892,7 +890,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         statusTextView.alpha = 0.1f
         actionButton.alpha = 0.1f
         amountTextView.alpha = 0.1f
-        taxValueTextView.alpha = 0.1f
         
         // Find all parent views that contain the content and reduce their alpha
         findViewById<View>(R.id.addressCard)?.alpha = 0.1f
@@ -915,7 +912,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         statusTextView.alpha = 1.0f
         actionButton.alpha = 1.0f
         amountTextView.alpha = 1.0f
-        taxValueTextView.alpha = 1.0f
         
         // Restore alpha for parent views
         findViewById<View>(R.id.addressCard)?.alpha = 1.0f
@@ -977,7 +973,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             
             // Set additional payment details
             amountTextView.text = formatter.format(payment?.amount)
-            taxValueTextView.text = formatter.format(payment?.tax)
             
             // Update button text and state based on status
             when (payment?.jobOrderStatus) {
@@ -1292,9 +1287,6 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         
         // Set amount to same as total for consistency
         amountTextView.text = "₱${jobOrder.price}"
-        
-        // Set collection fee (tax) to a default value
-        taxValueTextView.text = "₱50"
         
         // Set default status and update toolbar title
         val defaultStatus = if (mode == JobOrderStatusMode.ACCEPT) "Available" else "In-Progress"
