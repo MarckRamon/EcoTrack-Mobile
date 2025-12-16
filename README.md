@@ -478,18 +478,10 @@ SOFTWARE.
 
 ---
 
-## 📞 Support
 
-Having issues? Here's how to get help:
-
-1. **Check the [Issues](https://github.com/MarckRamon/EcoTrack-Mobile/issues)** for known problems
-2. **Open a new issue** with detailed information
-3. **Contact the team** via the repository discussions
-
----
 
 <p align="center">
-  <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="80" alt="EcoTrack Logo"/>
+  <img src="https://github.com/MarckRamon/GrabTrash-Mobile/blob/main/app/src/main/res/drawable/grabtrash_logo.png?raw=true" width="80" alt="GrabTrash Logo"/>
   <br/>
   <b>GrabTrash Mobile</b>
   <br/>
