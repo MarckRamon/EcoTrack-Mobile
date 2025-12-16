@@ -1,11 +1,11 @@
-# 🌿 EcoTrack Mobile
+# 🌿 GrabTrash Mobile
 
 ![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-0095D5?style=for-the-badge&logo=kotlin&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
 
-**EcoTrack** (GrabTrash) is a modern Android mobile application designed to revolutionize waste management by connecting users with trash pickup services. Schedule pickups, track your orders, and contribute to a cleaner environment!
+**GrabTrash** (EcoTrack) is a modern Android mobile application designed to revolutionize waste management by connecting users with trash pickup services. Schedule pickups, track your orders, and contribute to a cleaner environment!
 
 ---
 
@@ -125,7 +125,7 @@ Before you begin, ensure you have the following installed:
 1. **Create a Firebase Project**
    - Go to [Firebase Console](https://console.firebase.google.com/)
    - Click "Add project" and follow the wizard
-   - Enter project name: `EcoTrack` or similar
+   - Enter project name: `EcoTrack` , GrabTrash, or Similar
 
 2. **Add Android App**
    - Click "Add app" → Select Android
@@ -307,7 +307,6 @@ flowchart TD
     
     UserType -->|"Regular User"| UserHome["🏠 User Home"]
     UserType -->|"Driver"| DriverHome["🚛 Driver Home"]
-    UserType -->|"Private Entity"| EntityHome["🏢 Entity Home"]
     
     subgraph UserFlow["👤 User Flow"]
         UserHome --> OrderPickup["📦 Order Pickup"]
@@ -352,22 +351,6 @@ flowchart TD
 | **OpenStreetMap** | [OSMDroid Wiki](https://github.com/osmdroid/osmdroid/wiki) |
 | **Xendit** | [Xendit API Docs](https://developers.xendit.co/api-reference) |
 | **FileLu** | [FileLu API Reference](https://filelu.com/pages/api/) |
-
-### Key API Endpoints (Backend)
-
-For backend developers implementing the server:
-
-```
-POST   /api/orders              # Create pickup order
-GET    /api/orders/:id          # Get order details
-PUT    /api/orders/:id/status   # Update order status
-GET    /api/orders/user/:userId # Get user's orders
-
-POST   /api/payments/create     # Initialize payment
-POST   /api/payments/verify     # Verify payment status
-
-GET    /api/schedule            # Get collection schedule
-```
 
 ---
 
@@ -427,29 +410,6 @@ We welcome contributions! Please follow these steps:
    ```
 7. **Open a Pull Request**
 
-### Commit Convention
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-| Type | Description |
-|------|-------------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `style` | Code style changes |
-| `refactor` | Code refactoring |
-| `test` | Adding tests |
-| `chore` | Maintenance tasks |
-
-### Code Style
-
-- Follow [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-conventions.html)
-- Use meaningful variable and function names
-- Add KDoc comments for public APIs
-- Keep functions small and focused
-
----
-
 ## 👥 Team
 
 <table>
@@ -484,7 +444,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ```
 MIT License
 
-Copyright (c) 2024 EcoTrack Team
+Copyright (c) 2024 GrabTrash Team
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -531,7 +491,7 @@ Having issues? Here's how to get help:
 <p align="center">
   <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="80" alt="EcoTrack Logo"/>
   <br/>
-  <b>EcoTrack Mobile</b>
+  <b>GrabTrash Mobile</b>
   <br/>
   Made with 💚 for a cleaner environment
   <br/><br/>
