@@ -65,7 +65,7 @@
         android:layout_marginEnd="24dp"
         android:textSize="14sp"
         android:textColor="@color/grey"
-        android:text="What is your mother's maiden name?"
+        android:text="Loading..."
         app:layout_constraintTop_toBottomOf="@id/question1Label"
         app:layout_constraintStart_toStartOf="@id/question1Label"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -78,7 +78,7 @@
         android:layout_marginEnd="24dp"
         android:textSize="14sp"
         android:textColor="@color/grey"
-        android:text="Security Answer"
+        android:text="********"
         app:layout_constraintTop_toBottomOf="@id/question1Text"
         app:layout_constraintStart_toStartOf="@id/question1Label"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -104,7 +104,7 @@
         android:layout_marginEnd="24dp"
         android:textSize="14sp"
         android:textColor="@color/grey"
-        android:text="What was the name of your first pet?"
+        android:text="Loading..."
         app:layout_constraintTop_toBottomOf="@id/question2Label"
         app:layout_constraintStart_toStartOf="@id/question1Label"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -117,7 +117,7 @@
         android:layout_marginEnd="24dp"
         android:textSize="14sp"
         android:textColor="@color/grey"
-        android:text="Security Answer"
+        android:text="********"
         app:layout_constraintTop_toBottomOf="@id/question2Text"
         app:layout_constraintStart_toStartOf="@id/question1Label"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -143,7 +143,7 @@
         android:layout_marginEnd="24dp"
         android:textSize="14sp"
         android:textColor="@color/grey"
-        android:text="In what city were you born?"
+        android:text="Loading..."
         app:layout_constraintTop_toBottomOf="@id/question3Label"
         app:layout_constraintStart_toStartOf="@id/question1Label"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -156,7 +156,7 @@
         android:layout_marginEnd="24dp"
         android:textSize="14sp"
         android:textColor="@color/grey"
-        android:text="Security Answer"
+        android:text="********"
         app:layout_constraintTop_toBottomOf="@id/question3Text"
         app:layout_constraintStart_toStartOf="@id/question1Label"
         app:layout_constraintEnd_toEndOf="parent"/>
