@@ -134,8 +134,9 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         mode = intent.getSerializableExtra("MODE") as? JobOrderStatusMode ?: JobOrderStatusMode.ACCEPT
         
         // Set the appropriate layout based on mode
+        // VIEW mode uses the same layout as ACCEPT mode to show service rating and proof photo
         setContentView(
-            if (mode == JobOrderStatusMode.ACCEPT) 
+            if (mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) 
                 R.layout.activity_driver_accept_job_order
             else 
                 R.layout.activity_driver_collection_completed
@@ -178,7 +179,8 @@ class DriverJobOrderStatusActivity : BaseActivity() {
         }
         
         // Initialize mode-specific views
-        if (mode == JobOrderStatusMode.ACCEPT) {
+        // VIEW mode uses the same layout as ACCEPT mode
+        if (mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) {
             statusTextView = findViewById(R.id.jobOrderStatusTextView)
             actionButton = findViewById(R.id.acceptJobOrderButton)
             cancelJobOrderButton = findViewById(R.id.cancelJobOrderButton)
@@ -978,11 +980,11 @@ class DriverJobOrderStatusActivity : BaseActivity() {
             when (payment?.jobOrderStatus) {
                 "Completed" -> {
                     actionButton.isEnabled = false
-                    actionButton.text = if (mode == JobOrderStatusMode.ACCEPT) "JOB ORDER COMPLETED" else "COLLECTION ALREADY COMPLETED"
+                    actionButton.text = if (mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) "JOB ORDER COMPLETED" else "COLLECTION ALREADY COMPLETED"
                     actionButton.alpha = 0.5f
                     
                     // Hide cancel button and center the accept button with 400dp width
-                    if (mode == JobOrderStatusMode.ACCEPT && ::cancelJobOrderButton.isInitialized) {
+                    if ((mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) && ::cancelJobOrderButton.isInitialized) {
                         cancelJobOrderButton.visibility = View.GONE
                         
                         // Update accept button constraints to center it with 400dp width
@@ -998,7 +1000,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                 }
                 "Cancelled" -> {
                     actionButton.isEnabled = false
-                    actionButton.text = if (mode == JobOrderStatusMode.ACCEPT) "JOB ORDER CANCELLED" else "JOB ORDER CANCELLED"
+                    actionButton.text = if (mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) "JOB ORDER CANCELLED" else "JOB ORDER CANCELLED"
                     actionButton.alpha = 0.5f
                     
                     // Hide cancel button and center the accept button with 400dp width
@@ -1067,8 +1069,8 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                 checkAndLoadExistingDriverProof()
             }
             
-            // If in accept mode, also check for existing driver proof photo and load it (read-only)
-            if (mode == JobOrderStatusMode.ACCEPT) {
+            // If in accept or view mode, also check for existing driver proof photo and load it (read-only)
+            if (mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) {
                 checkAndLoadExistingDriverProof()
             }
         } else {
@@ -1128,15 +1130,15 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                             }
                         }
                         
-                        // Also show service rating if in accept mode
-                        if (mode == JobOrderStatusMode.ACCEPT) {
+                        // Also show service rating if in accept or view mode
+                        if (mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) {
                             showServiceRating(paymentResponse)
                         }
                     } else {
                         Log.e(TAG, "Failed to fetch payment details: ${response.code()} ${response.message()}")
                         if (mode == JobOrderStatusMode.COMPLETE) {
                             updateCollectionCompletedButtonState()
-                        } else if (mode == JobOrderStatusMode.ACCEPT) {
+                        } else if (mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) {
                             // Hide service rating if no data available
                             showServiceRating(null)
                         }
@@ -1145,7 +1147,7 @@ class DriverJobOrderStatusActivity : BaseActivity() {
                     Log.e(TAG, "Error fetching payment details for driver proof", e)
                     if (mode == JobOrderStatusMode.COMPLETE) {
                         updateCollectionCompletedButtonState()
-                    } else if (mode == JobOrderStatusMode.ACCEPT) {
+                    } else if (mode == JobOrderStatusMode.ACCEPT || mode == JobOrderStatusMode.VIEW) {
                         // Hide service rating if error occurred
                         showServiceRating(null)
                     }
