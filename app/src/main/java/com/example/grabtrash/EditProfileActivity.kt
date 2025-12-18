@@ -514,8 +514,8 @@ class EditProfileActivity : BaseActivity() {
                     if (response.isSuccessful && response.body() != null) {
                         val allBarangays = response.body()!!
                         
-                        // Use all barangays regardless of active status for now
-                        barangays = allBarangays
+                        // Filter to only show active barangays (consistent with RegisterActivity)
+                        barangays = allBarangays.filter { it.isActive }
                         
                         // Set initial selection if needed
                         if (originalBarangayName != null && binding.barangayDropdown.text.toString().isEmpty()) {
