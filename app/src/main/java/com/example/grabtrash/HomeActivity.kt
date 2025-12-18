@@ -673,7 +673,7 @@ class HomeActivity : BaseActivity() {
                         val intent = Intent(this@HomeActivity, OrderStatusActivity::class.java)
                         intent.putExtra("ORDER_DATA", pickupOrder)
                         // Pass along any existing confirmation image URL so it can render immediately
-                        intent.putExtra("PROOF_IMAGE_URL", paymentResponse.getEffectiveConfirmationImageUrl())
+                        intent.putExtra("PROOF_IMAGE_URL", paymentResponse.getCustomerProofImageUrl())
                         startActivity(intent)
                     }
                 } else {

@@ -294,7 +294,7 @@ class OrderStatusActivity : AppCompatActivity() {
                 showOrHideProof(intentProof)
             } else {
                 // 2) Last known API response value
-                val apiProofUrl = latestPaymentResponse?.getEffectiveConfirmationImageUrl()
+                val apiProofUrl = latestPaymentResponse?.getCustomerProofImageUrl()
                 Log.d("OrderStatusActivity", "API proof URL: $apiProofUrl")
                 apiProofUrl?.let {
                     cachedProofUrl = it
@@ -516,14 +516,14 @@ class OrderStatusActivity : AppCompatActivity() {
             Log.d("OrderStatusActivity", "Customer Confirmation: ${paymentResponse.customerConfirmation}")
             Log.d("OrderStatusActivity", "Driver Confirmation: ${paymentResponse.driverConfirmation}")
             Log.d("OrderStatusActivity", "Service Rating: ${paymentResponse.serviceRating}")
-            Log.d("OrderStatusActivity", "Effective Confirmation Image URL: ${paymentResponse.getEffectiveConfirmationImageUrl()}")
+            Log.d("OrderStatusActivity", "Customer Proof Image URL: ${paymentResponse.getCustomerProofImageUrl()}")
             Log.d("OrderStatusActivity", "Full response: $paymentResponse")
             
             // Check if we should use jobOrderStatus or regular status
             val effectiveStatus = paymentResponse.jobOrderStatus.takeIf { status -> status.isNotBlank() } ?: paymentResponse.status
             
             // Always update proof image from API response, regardless of status change
-            val apiProofUrl = paymentResponse.getEffectiveConfirmationImageUrl()
+            val apiProofUrl = paymentResponse.getCustomerProofImageUrl()
             Log.d("OrderStatusActivity", "=== PROOF IMAGE PROCESSING ===")
             Log.d("OrderStatusActivity", "API returned proof URL: $apiProofUrl")
             Log.d("OrderStatusActivity", "Current cached URL: $cachedProofUrl")
@@ -643,7 +643,7 @@ class OrderStatusActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 updateOrderStatus(paymentResponse.jobOrderStatus, paymentResponse)
                 updateOrderDetails(paymentResponse)
-                showOrHideProof(paymentResponse.getEffectiveConfirmationImageUrl()
+                showOrHideProof(paymentResponse.getCustomerProofImageUrl()
                     ?: sharedPreferences.getString("proof_order_${paymentResponse.orderId}", null))
                 
                 // Hide cancel button unless status is Processing or Available
@@ -658,7 +658,7 @@ class OrderStatusActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 updateOrderStatus(paymentResponse.jobOrderStatus, paymentResponse)
                 updateOrderDetails(paymentResponse)
-                showOrHideProof(paymentResponse.getEffectiveConfirmationImageUrl()
+                showOrHideProof(paymentResponse.getCustomerProofImageUrl()
                     ?: sharedPreferences.getString("proof_order_${paymentResponse.orderId}", null))
                 
                 // Hide cancel button unless status is Processing or Available
@@ -725,6 +725,7 @@ class OrderStatusActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) { Toast.makeText(this@OrderStatusActivity, "Unable to resolve payment ID", Toast.LENGTH_SHORT).show() }
                     return@launch
                 }
+
 
                 val payload = mapOf("imageUrl" to imageUrl)
                 val saveResp = apiService.uploadPaymentConfirmationImage(paymentId, payload, bearerToken)
@@ -1000,11 +1001,11 @@ private fun confirmRetakeProof() {
                 }
                 btnCancel.visibility = View.GONE
                 btnUploadProof.visibility = View.GONE
-                if (paymentResponse?.getEffectiveConfirmationImageUrl().isNullOrBlank()) {
+                if (paymentResponse?.getCustomerProofImageUrl().isNullOrBlank()) {
                     showOrHideProof(cachedProofUrl)
                 } else {
-                    paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
-                    showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
+                    paymentResponse?.getCustomerProofImageUrl()?.let { cachedProofUrl = it }
+                    showOrHideProof(paymentResponse?.getCustomerProofImageUrl())
                 }
                 hideRatingCard()
             }
@@ -1038,11 +1039,11 @@ private fun confirmRetakeProof() {
                 }
                 btnCancel.visibility = View.GONE
                 btnUploadProof.visibility = View.VISIBLE
-                if (paymentResponse?.getEffectiveConfirmationImageUrl().isNullOrBlank()) {
+                if (paymentResponse?.getCustomerProofImageUrl().isNullOrBlank()) {
                     showOrHideProof(cachedProofUrl)
                 } else {
-                    paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
-                    showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
+                    paymentResponse?.getCustomerProofImageUrl()?.let { cachedProofUrl = it }
+                    showOrHideProof(paymentResponse?.getCustomerProofImageUrl())
                 }
                 hideRatingCard()
             }
@@ -1073,11 +1074,11 @@ private fun confirmRetakeProof() {
                 }
                 btnCancel.visibility = View.GONE
                 btnUploadProof.visibility = View.VISIBLE
-                if (paymentResponse?.getEffectiveConfirmationImageUrl().isNullOrBlank()) {
+                if (paymentResponse?.getCustomerProofImageUrl().isNullOrBlank()) {
                     showOrHideProof(cachedProofUrl)
                 } else {
-                    paymentResponse?.getEffectiveConfirmationImageUrl()?.let { cachedProofUrl = it }
-                    showOrHideProof(paymentResponse?.getEffectiveConfirmationImageUrl())
+                    paymentResponse?.getCustomerProofImageUrl()?.let { cachedProofUrl = it }
+                    showOrHideProof(paymentResponse?.getCustomerProofImageUrl())
                 }
                 
                 // Show rating card for completed orders

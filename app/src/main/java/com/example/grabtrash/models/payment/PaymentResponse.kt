@@ -126,6 +126,16 @@ data class PaymentResponse(
         return confirmationImageUrl ?: confirmationImageAlt ?: customerConfirmation ?: driverConfirmation
     }
     
+    // Get customer's proof image URL only
+    fun getCustomerProofImageUrl(): String? {
+        return customerConfirmation ?: confirmationImageUrl ?: confirmationImageAlt
+    }
+    
+    // Get driver's proof image URL only
+    fun getDriverProofImageUrl(): String? {
+        return driverConfirmation
+    }
+    
     // Get notes from any available field
     fun getEffectiveNotes(): String? {
         return notes ?: noteAlt ?: customerNotes ?: description
